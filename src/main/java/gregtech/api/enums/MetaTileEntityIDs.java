@@ -1944,7 +1944,8 @@ public enum MetaTileEntityIDs {
     ComponentAssemblyLine(32026),
     AntimatterForge(32027),
     WireLumiium(32737),
-    WireSignalium(32749),;
+    WireSignalium(32749),
+    BRICKED_EXTENDED_BLAST_FURNACE_CONTROLLER(999),;
 
     public final int ID;
 

@@ -138,6 +138,7 @@ import static gregtech.api.enums.MetaTileEntityIDs.BREWERY_UMV;
 import static gregtech.api.enums.MetaTileEntityIDs.BREWERY_UV;
 import static gregtech.api.enums.MetaTileEntityIDs.BREWERY_ZPM;
 import static gregtech.api.enums.MetaTileEntityIDs.BRICKED_BLAST_FURNACE_CONTROLLER;
+import static gregtech.api.enums.MetaTileEntityIDs.BRICKED_EXTENDED_BLAST_FURNACE_CONTROLLER;
 import static gregtech.api.enums.MetaTileEntityIDs.CANNING_MACHINE_LuV;
 import static gregtech.api.enums.MetaTileEntityIDs.CANNING_MACHINE_UEV;
 import static gregtech.api.enums.MetaTileEntityIDs.CANNING_MACHINE_UHV;
@@ -1022,6 +1023,7 @@ import gregtech.common.tileentities.machines.long_distance.MTELongDistancePipeli
 import gregtech.common.tileentities.machines.long_distance.MTELongDistancePipelineItem;
 import gregtech.common.tileentities.machines.multi.MTEAssemblyLine;
 import gregtech.common.tileentities.machines.multi.MTEBrickedBlastFurnace;
+import gregtech.common.tileentities.machines.multi.MTEBrickedExtendedBlastFurnace;
 import gregtech.common.tileentities.machines.multi.MTECharcoalPit;
 import gregtech.common.tileentities.machines.multi.MTECleanroom;
 import gregtech.common.tileentities.machines.multi.MTEConcreteBackfiller1;
@@ -1328,6 +1330,11 @@ public class LoaderMetaTileEntities implements Runnable { // TODO CHECK CIRCUIT 
                 BRICKED_BLAST_FURNACE_CONTROLLER.ID,
                 "multimachine.brickedblastfurnace",
                 "Bricked Blast Furnace").getStackForm(1L));
+        ItemList.Machine_Bricked_BlastFurnace.set(
+            new MTEBrickedExtendedBlastFurnace(
+                BRICKED_EXTENDED_BLAST_FURNACE_CONTROLLER.ID,
+                "multimachine.brickedextendedblastfurnace",
+                "Bricked Giga Blast Furnace").getStackForm(1L));
 
         ItemList.Machine_Multi_BlastFurnace.set(
             new MTEElectricBlastFurnace(EBF_CONTROLLER.ID, "multimachine.blastfurnace", "Electric Blast Furnace")
