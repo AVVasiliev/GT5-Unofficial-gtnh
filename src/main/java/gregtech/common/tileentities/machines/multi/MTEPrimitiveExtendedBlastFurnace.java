@@ -48,7 +48,12 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
     implements IAlignment, ISurvivalConstructable, RecipeMapWorkable, IAddUIWidgets, IGetTitleColor {
     private static final String tier1 = "tier1";
     private static final String tier2 = "tier2";
-    public static final int slotSizeMultiplier = 8;
+    private static final String tier3 = "tier3";
+
+    private int mSetSlotSizeMultiplier = 1;
+    private int mSetTier = -1;
+    private int mSetRecipeAcceleration = 1;
+
     public static final int INPUT_SLOTS = 3, OUTPUT_SLOTS = 3;
     private static final ClassValue<IStructureDefinition<MTEPrimitiveExtendedBlastFurnace>> STRUCTURE_DEFINITION = new ClassValue<>() {
 
@@ -56,10 +61,38 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
         protected IStructureDefinition<MTEPrimitiveExtendedBlastFurnace> computeValue(Class<?> type) {
             return IStructureDefinition.<MTEPrimitiveExtendedBlastFurnace>builder()
                 .addShape(
-                    "main",
+                    tier1,
                     transpose(
-                        new String[][] { { "ccc", "c-c", "ccc" }, { "ccc", "clc", "ccc" }, { "c~c", "clc", "ccc" },
-                            { "ccc", "ccc", "ccc" }, }))
+                        new String[][] {
+                            { " c ", "c-c", " c " },
+                            { " c ", "clc", " c " },
+                            { "ccc", "clc", "ccc" },
+                            { "ccc", "clc", "ccc" },
+                            { "c~c", "ccc", "ccc" },
+                        }))
+                .addShape(
+                    tier2,
+                    transpose(
+                        new String[][] {
+                            { "     ", "  c  ", " c-c ", "  c  ", "     " },
+                            { "     ", "  c  ", " clc ", "  c  ", "     " },
+                            { "     ", "  c  ", " clc ", "  c  ", "     " },
+                            { "     ", " ccc ", "cclcc", " ccc ", "     " },
+                            { "  c  ", " ccc ", "cclcc", " ccc ", "  c  " },
+                            { " c~c ", "ccccc", "ccccc", "ccccc", " ccc " },
+                        }))
+                .addShape(
+                    tier3,
+                    transpose(
+                        new String[][] {
+                            { "         ", "  c      ", " c-c     ", "  c      ", "         " },
+                            { "         ", "  c      ", " clc     ", "  c      ", "         " },
+                            { "         ", "  c   c  ", " clc c-c ", "  c   c  ", "         " },
+                            { "         ", " ccc  c  ", " clc clc ", " ccc  c  ", "         " },
+                            { "         ", " ccc ccc ", " clc clc ", " ccc ccc ", "         " },
+                            { "  c   c  ", " ccc ccc ", "cclccclcc", " ccc ccc ", "  c   c  " },
+                            { " c~c ccc ", "ccccccccc", "ccccccccc", "ccccccccc", " ccc ccc " },
+                        }))
                 .addElement('c', lazy(t -> ofBlock(t.getCasingBlock(), t.getCasingMetaID())))
                 .addElement(
                     'l',
@@ -109,6 +142,8 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
         return this.mMaxProgresstime;
     }
 
+    public int getTier() { return this.mSetTier; }
+
     @Override
     public int increaseProgress(int aProgress) {
         this.mProgresstime += aProgress;
@@ -128,6 +163,9 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
     public void saveNBTData(NBTTagCompound aNBT) {
         aNBT.setInteger("mProgresstime", this.mProgresstime);
         aNBT.setInteger("mMaxProgresstime", this.mMaxProgresstime);
+        aNBT.setInteger("mSetTier", mSetTier);
+        aNBT.setInteger("mSetSlotSizeMultiplier", mSetSlotSizeMultiplier);
+        aNBT.setInteger("mSetRecipeAcceleration", mSetRecipeAcceleration);
         if (this.mOutputItems != null) {
             for (int i = 0; i < mOutputItems.length; i++) {
                 if (this.mOutputItems[i] != null) {
@@ -144,6 +182,9 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
         this.mUpdate = 5;
         this.mProgresstime = aNBT.getInteger("mProgresstime");
         this.mMaxProgresstime = aNBT.getInteger("mMaxProgresstime");
+        this.mSetTier = aNBT.getInteger("mSetTier");
+        this.mSetSlotSizeMultiplier = aNBT.getInteger("mSetSlotSizeMultiplier");
+        this.mSetRecipeAcceleration = aNBT.getInteger("mSetRecipeAcceleration");
         this.mOutputItems = new ItemStack[OUTPUT_SLOTS];
         for (int i = 0; i < OUTPUT_SLOTS; i++) {
             this.mOutputItems[i] = GTUtility.loadItem(aNBT, "mOutputItem" + i);
@@ -173,19 +214,66 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
     }
 
     private boolean checkMachine() {
-        return STRUCTURE_DEFINITION.get(this.getClass())
+        boolean structureValid;
+        structureValid = STRUCTURE_DEFINITION.get(this.getClass())
             .check(
                 this,
-                "main",
+                tier3,
+                getBaseMetaTileEntity().getWorld(),
+                getExtendedFacing(),
+                getBaseMetaTileEntity().getXCoord(),
+                getBaseMetaTileEntity().getYCoord(),
+                getBaseMetaTileEntity().getZCoord(),
+                2,
+                6,
+                0,
+                !mMachine);
+        if (structureValid) {
+            mSetTier = 3;
+            mSetRecipeAcceleration = 5;
+            mSetSlotSizeMultiplier = 5;
+
+            return true;
+        }
+        structureValid = STRUCTURE_DEFINITION.get(this.getClass())
+            .check(
+                this,
+                tier2,
+                getBaseMetaTileEntity().getWorld(),
+                getExtendedFacing(),
+                getBaseMetaTileEntity().getXCoord(),
+                getBaseMetaTileEntity().getYCoord(),
+                getBaseMetaTileEntity().getZCoord(),
+                2,
+                5,
+                0,
+                !mMachine);
+        if (structureValid) {
+            mSetTier = 2;
+            mSetSlotSizeMultiplier = 2;
+            mSetRecipeAcceleration = 2;
+            return true;
+        }
+
+        structureValid = STRUCTURE_DEFINITION.get(this.getClass())
+            .check(
+                this,
+                tier1,
                 getBaseMetaTileEntity().getWorld(),
                 getExtendedFacing(),
                 getBaseMetaTileEntity().getXCoord(),
                 getBaseMetaTileEntity().getYCoord(),
                 getBaseMetaTileEntity().getZCoord(),
                 1,
-                2,
+                4,
                 0,
                 !mMachine);
+        if (structureValid) {
+            mSetSlotSizeMultiplier = 1;
+            mSetRecipeAcceleration = 1;
+            mSetTier = 1;
+        }
+        return structureValid;
     }
 
     protected abstract Block getCasingBlock();
@@ -199,18 +287,48 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
 
     @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTimer) {
-        final int lavaX = aBaseMetaTileEntity.getOffsetX(aBaseMetaTileEntity.getBackFacing(), 1);
-        final int lavaZ = aBaseMetaTileEntity.getOffsetZ(aBaseMetaTileEntity.getBackFacing(), 1);
+        int lavaX;
+        int lavaZ;
+        int lavaY;
+        ForgeDirection facing = aBaseMetaTileEntity.getBackFacing();
+        if (mSetTier == -1){
+            checkMachine();
+        }
+
+        if (mSetTier == 3) {
+            lavaX = aBaseMetaTileEntity.getOffsetX(facing, 2);
+            lavaY = aBaseMetaTileEntity.getOffsetY(facing, 1) + 6;
+            lavaZ = aBaseMetaTileEntity.getOffsetZ(facing, 2);
+        } else if (mSetTier == 2) {
+            lavaX = aBaseMetaTileEntity.getOffsetX(facing, 2);
+            lavaY = aBaseMetaTileEntity.getOffsetY(facing, 1) + 5;
+            lavaZ = aBaseMetaTileEntity.getOffsetZ(facing, 2);
+        } else {
+            lavaX = aBaseMetaTileEntity.getOffsetX(facing, 1);
+            lavaY = aBaseMetaTileEntity.getOffsetY(facing, 1) + 4;
+            lavaZ = aBaseMetaTileEntity.getOffsetZ(facing, 1);
+        }
+
         if ((aBaseMetaTileEntity.isClientSide()) && (aBaseMetaTileEntity.isActive())) {
 
             new ParticleEventBuilder().setMotion(0D, 0.3D, 0D)
                 .setIdentifier(ParticleFX.LARGE_SMOKE)
                 .setPosition(
                     lavaX + XSTR_INSTANCE.nextFloat(),
-                    aBaseMetaTileEntity.getOffsetY(aBaseMetaTileEntity.getBackFacing(), 1),
+                    lavaY,
                     lavaZ + XSTR_INSTANCE.nextFloat())
                 .setWorld(getBaseMetaTileEntity().getWorld())
                 .run();
+            if (mSetTier == 3){
+                new ParticleEventBuilder().setMotion(0D, 0.3D, 0D)
+                    .setIdentifier(ParticleFX.LARGE_SMOKE)
+                    .setPosition(
+                        lavaX - facing.offsetZ * 4 + XSTR_INSTANCE.nextFloat(),
+                        lavaY + XSTR_INSTANCE.nextFloat() - 3,
+                        lavaZ + facing.offsetX * 4 + XSTR_INSTANCE.nextFloat())
+                    .setWorld(getBaseMetaTileEntity().getWorld())
+                    .run();
+            }
         }
         if (aBaseMetaTileEntity.isServerSide()) {
             if (mUpdated) {
@@ -244,29 +362,31 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
             }
 
             aBaseMetaTileEntity.setActive((this.mMaxProgresstime > 0) && (this.mMachine));
-            final short lavaY = aBaseMetaTileEntity.getYCoord();
+            final short controllerY = aBaseMetaTileEntity.getYCoord();
             if (aBaseMetaTileEntity.isActive()) {
-                if (aBaseMetaTileEntity.getAir(lavaX, lavaY, lavaZ)) {
+                if (aBaseMetaTileEntity.getAir(lavaX, controllerY + mSetTier + 2, lavaZ)) {
                     aBaseMetaTileEntity.getWorld()
-                        .setBlock(lavaX, lavaY, lavaZ, Blocks.lava, 1, 2);
+                        .setBlock(lavaX, controllerY + mSetTier + 2, lavaZ, Blocks.lava, 1, 2);
                     this.mUpdate = 1;
                 }
-                if (aBaseMetaTileEntity.getAir(lavaX, lavaY + 1, lavaZ)) {
-                    aBaseMetaTileEntity.getWorld()
-                        .setBlock(lavaX, lavaY + 1, lavaZ, Blocks.lava, 1, 2);
-                    this.mUpdate = 1;
+                if (mSetTier == 3){
+                    if (aBaseMetaTileEntity.getAir(lavaX - facing.offsetZ * 4, controllerY + 2, lavaZ + facing.offsetX * 4)) {
+                        aBaseMetaTileEntity.getWorld()
+                            .setBlock(lavaX - facing.offsetZ * 4, controllerY + 2, lavaZ + facing.offsetX * 4, Blocks.lava, 1, 2);
+                        this.mUpdate = 1;
+                    }
                 }
             } else {
-                Block lowerLava = aBaseMetaTileEntity.getBlock(lavaX, lavaY, lavaZ);
-                Block upperLava = aBaseMetaTileEntity.getBlock(lavaX, lavaY + 1, lavaZ);
-                if (lowerLava == Blocks.lava) {
+                Block secondPipe = aBaseMetaTileEntity.getBlock(lavaX - facing.offsetZ * 4, controllerY + 2, lavaZ + facing.offsetX * 4);
+                Block upperLava = aBaseMetaTileEntity.getBlock(lavaX, controllerY + mSetTier + 2, lavaZ);
+                if (mSetTier == 3 && secondPipe == Blocks.lava){
                     aBaseMetaTileEntity.getWorld()
-                        .setBlock(lavaX, lavaY, lavaZ, Blocks.air, 0, 2);
+                        .setBlock(lavaX - facing.offsetZ * 4, controllerY + 2, lavaZ + facing.offsetX * 4, Blocks.air, 0, 2);
                     this.mUpdate = 1;
                 }
                 if (upperLava == Blocks.lava) {
                     aBaseMetaTileEntity.getWorld()
-                        .setBlock(lavaX, lavaY + 1, lavaZ, Blocks.air, 0, 2);
+                        .setBlock(lavaX, controllerY + mSetTier + 2, lavaZ, Blocks.air, 0, 2);
                     this.mUpdate = 1;
                 }
             }
@@ -343,7 +463,7 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
                 this.mInventory[absi] = GTUtility.copyOrNull(this.mOutputItems[i]);
             } else if (GTUtility.areStacksEqual(this.mInventory[absi], this.mOutputItems[i])) {
                 this.mInventory[absi].stackSize = Math.min(
-                    this.mInventory[absi].getMaxStackSize() * slotSizeMultiplier,
+                    this.mInventory[absi].getMaxStackSize() * mSetSlotSizeMultiplier,
                     this.mInventory[absi].stackSize + this.mOutputItems[i].stackSize);
             }
         }
@@ -355,7 +475,7 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
             return true;
         }
         return ((this.mInventory[absoluteSlot].stackSize + outputStack.stackSize
-            <= this.mInventory[absoluteSlot].getMaxStackSize() * slotSizeMultiplier)
+            <= this.mInventory[absoluteSlot].getMaxStackSize() * mSetSlotSizeMultiplier)
             && (GTUtility.areStacksEqual(this.mInventory[absoluteSlot], outputStack)));
     }
 
@@ -389,7 +509,7 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
             }
         }
 
-        this.mMaxProgresstime = recipe.mDuration / 100;  // TODO this can manipulate recipe time
+        this.mMaxProgresstime = recipe.mDuration / mSetRecipeAcceleration;
         this.mOutputItems = recipe.mOutputs;
         return true;
     }
@@ -416,22 +536,60 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return STRUCTURE_DEFINITION.get(getClass())
-            .survivalBuild(
-                this,
-                stackSize,
-                "main",
-                getBaseMetaTileEntity().getWorld(),
-                getExtendedFacing(),
-                getBaseMetaTileEntity().getXCoord(),
-                getBaseMetaTileEntity().getYCoord(),
-                getBaseMetaTileEntity().getZCoord(),
-                1,
-                2,
-                0,
-                elementBudget,
-                env,
-                false);
+        int build = 0;
+        if (stackSize.stackSize == 1) {
+            build = STRUCTURE_DEFINITION.get(getClass())
+                .survivalBuild(
+                    this,
+                    stackSize,
+                    tier1,
+                    getBaseMetaTileEntity().getWorld(),
+                    getExtendedFacing(),
+                    getBaseMetaTileEntity().getXCoord(),
+                    getBaseMetaTileEntity().getYCoord(),
+                    getBaseMetaTileEntity().getZCoord(),
+                    1,
+                    4,
+                    0,
+                    elementBudget,
+                    env,
+                    false);
+        } else if (stackSize.stackSize == 2) {
+            build = STRUCTURE_DEFINITION.get(getClass())
+                .survivalBuild(
+                    this,
+                    stackSize,
+                    tier2,
+                    getBaseMetaTileEntity().getWorld(),
+                    getExtendedFacing(),
+                    getBaseMetaTileEntity().getXCoord(),
+                    getBaseMetaTileEntity().getYCoord(),
+                    getBaseMetaTileEntity().getZCoord(),
+                    2,
+                    5,
+                    0,
+                    elementBudget,
+                    env,
+                    false);
+        } else {
+            build = STRUCTURE_DEFINITION.get(getClass())
+                .survivalBuild(
+                    this,
+                    stackSize,
+                    tier3,
+                    getBaseMetaTileEntity().getWorld(),
+                    getExtendedFacing(),
+                    getBaseMetaTileEntity().getXCoord(),
+                    getBaseMetaTileEntity().getYCoord(),
+                    getBaseMetaTileEntity().getZCoord(),
+                    2,
+                    6,
+                    0,
+                    elementBudget,
+                    env,
+                    false);
+        }
+        return build;
     }
 
     @Override
@@ -441,20 +599,53 @@ public abstract class MTEPrimitiveExtendedBlastFurnace extends MetaTileEntity
 
     @Override
     public void construct(ItemStack stackSize, boolean hintsOnly) {
-        STRUCTURE_DEFINITION.get(getClass())
-            .buildOrHints(
-                this,
-                stackSize,
-                "main",
-                getBaseMetaTileEntity().getWorld(),
-                getExtendedFacing(),
-                getBaseMetaTileEntity().getXCoord(),
-                getBaseMetaTileEntity().getYCoord(),
-                getBaseMetaTileEntity().getZCoord(),
-                1,
-                2,
-                0,
-                hintsOnly);
+        if (stackSize.stackSize == 1) {
+            STRUCTURE_DEFINITION.get(getClass())
+                .buildOrHints(
+                    this,
+                    stackSize,
+                    tier1,
+                    getBaseMetaTileEntity().getWorld(),
+                    getExtendedFacing(),
+                    getBaseMetaTileEntity().getXCoord(),
+                    getBaseMetaTileEntity().getYCoord(),
+                    getBaseMetaTileEntity().getZCoord(),
+                    1,
+                    4,
+                    0,
+                    hintsOnly);
+        } else if (stackSize.stackSize == 2) {
+            STRUCTURE_DEFINITION.get(getClass())
+                .buildOrHints(
+                    this,
+                    stackSize,
+                    tier2,
+                    getBaseMetaTileEntity().getWorld(),
+                    getExtendedFacing(),
+                    getBaseMetaTileEntity().getXCoord(),
+                    getBaseMetaTileEntity().getYCoord(),
+                    getBaseMetaTileEntity().getZCoord(),
+                    2,
+                    5,
+                    0,
+                    hintsOnly);
+        } else {
+            STRUCTURE_DEFINITION.get(getClass())
+                .buildOrHints(
+                    this,
+                    stackSize,
+                    tier3,
+                    getBaseMetaTileEntity().getWorld(),
+                    getExtendedFacing(),
+                    getBaseMetaTileEntity().getXCoord(),
+                    getBaseMetaTileEntity().getYCoord(),
+                    getBaseMetaTileEntity().getZCoord(),
+                    2,
+                    6,
+                    0,
+                    hintsOnly);
+        }
+
     }
 
     @Override
