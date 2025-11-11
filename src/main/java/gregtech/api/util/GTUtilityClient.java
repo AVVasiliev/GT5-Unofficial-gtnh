@@ -1,31 +1,27 @@
 package gregtech.api.util;
 
-import java.lang.reflect.Field;
 import java.util.List;
 
+import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.item.EnumRarity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.world.World;
+import net.minecraftforge.common.util.ForgeDirection;
 
 import com.google.common.collect.Lists;
+import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 
-import cpw.mods.fml.relauncher.ReflectionHelper;
+import gregtech.api.enums.Dyes;
+import gregtech.api.interfaces.IIconContainer;
+import gregtech.api.render.ISBRWorldContext;
+import gregtech.api.render.RenderOverlay;
+import gregtech.api.render.TextureFactory;
+import gregtech.common.render.GTRenderUtil;
 
 public class GTUtilityClient {
-
-    private static final Field isDrawingField = ReflectionHelper
-        .findField(Tessellator.class, "isDrawing", "field_78415_z");
-
-    public static boolean isDrawing(Tessellator tess) {
-        try {
-            return isDrawingField.getBoolean(tess);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
 
     public static List<String> getTooltip(ItemStack aStack, boolean aGuiStyle) {
         try {
@@ -48,5 +44,89 @@ public class GTUtilityClient {
                     + aStack.getDisplayName());
             return Lists.newArrayList(aStack.getDisplayName());
         }
+    }
+
+    public static void clearTurbineOverlay(List<RenderOverlay.OverlayTicket> tickets) {
+        tickets.forEach(RenderOverlay.OverlayTicket::remove);
+        tickets.clear();
+    }
+
+    public static void setTurbineOverlay(World aWorld, int aX, int aY, int aZ, ExtendedFacing tExtendedFacing,
+        IIconContainer[] tTextures, List<RenderOverlay.OverlayTicket> ticketContainer) {
+        clearTurbineOverlay(ticketContainer);
+
+        int[] tABCCoord = new int[] { -1, -1, 0 };
+        int[] tXYZOffset = new int[3];
+        final ForgeDirection tDirection = tExtendedFacing.getDirection();
+        tExtendedFacing = ExtendedFacing.of(tDirection);
+
+        RenderOverlay overlay = RenderOverlay.getOrCreate(aWorld);
+
+        for (int i = 0; i < 9; i++) {
+            tExtendedFacing.getWorldOffset(tABCCoord, tXYZOffset);
+            int tX = tXYZOffset[0] + aX;
+            int tY = tXYZOffset[1] + aY;
+            int tZ = tXYZOffset[2] + aZ;
+            ticketContainer.add(overlay.set(aX, aY, aZ, tX, tY, tZ, tDirection, TextureFactory.of(tTextures[i]), 0));
+            if (++tABCCoord[0] == 2) {
+                tABCCoord[0] = -1;
+                tABCCoord[1]++;
+            }
+        }
+
+    }
+
+    public static void renderTurbineOverlay(ISBRWorldContext ctx, ExtendedFacing tExtendedFacing, Block tBlockOverride,
+        IIconContainer[] tTextures) {
+        int[] tABCCoord = new int[] { -1, -1, 0 };
+        int[] tXYZOffset = new int[3];
+        final ForgeDirection tDirection = tExtendedFacing.getDirection();
+        tExtendedFacing = ExtendedFacing.of(tDirection);
+
+        // for some reason +x and -z need this field set to true, but not any other sides
+        if (tDirection == ForgeDirection.NORTH || tDirection == ForgeDirection.EAST)
+            ctx.getRenderBlocks().field_152631_f = true;
+
+        for (int i = 0; i < 9; i++) {
+            tExtendedFacing.getWorldOffset(tABCCoord, tXYZOffset);
+            // since structure check passed, we can assume it is turbine casing
+            int tX = tXYZOffset[0] + ctx.getX();
+            int tY = tXYZOffset[1] + ctx.getY();
+            int tZ = tXYZOffset[2] + ctx.getZ();
+            Block tBlock;
+            if (tBlockOverride == null) {
+                tBlock = ctx.getBlockAccess()
+                    .getBlock(
+                        ctx.getX() + tDirection.offsetX,
+                        tY + tDirection.offsetY,
+                        ctx.getZ() + tDirection.offsetZ);
+            } else {
+                tBlock = tBlockOverride;
+            }
+            // we skip the occlusion test, as we always require a working turbine to have a block of air before it
+            // so the front face cannot be occluded whatsoever in the most cases.
+            Tessellator.instance.setBrightness(
+                tBlock.getMixedBrightnessForBlock(
+                    ctx.getBlockAccess(),
+                    ctx.getX() + tDirection.offsetX,
+                    tY + tDirection.offsetY,
+                    ctx.getZ() + tDirection.offsetZ));
+            ctx.setupLighting(tDirection)
+                .setupColor(tDirection, Dyes._NULL.getRGBA());
+            GTRenderUtil.renderBlockIcon(
+                ctx.getRenderBlocks(),
+                tBlock,
+                tX + tDirection.offsetX * 0.001,
+                tY + tDirection.offsetY * 0.001,
+                tZ + tDirection.offsetZ * 0.001,
+                tTextures[i].getIcon(),
+                tDirection);
+            if (++tABCCoord[0] == 2) {
+                tABCCoord[0] = -1;
+                tABCCoord[1]++;
+            }
+        }
+
+        ctx.getRenderBlocks().field_152631_f = false;
     }
 }

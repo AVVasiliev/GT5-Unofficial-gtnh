@@ -8,7 +8,9 @@ import static gregtech.api.enums.TickTime.TICK;
 import static gregtech.api.util.GTModHandler.getModItem;
 import static gregtech.api.util.GTRecipeConstants.ADDITIVE_AMOUNT;
 import static gregtech.api.util.GTRecipeConstants.FUEL_VALUE;
-import static gregtech.api.util.GTRecipeConstants.SIEVERTS;
+import static gregtech.api.util.GTRecipeConstants.GLASS;
+import static gregtech.api.util.GTRecipeConstants.NANO_FORGE_TIER;
+import static gregtech.api.util.GTRecipeConstants.PCB_NANITE_MATERIAL;
 import static gregtech.api.util.GTRecipeMapUtil.GTRecipeTemplate;
 import static gregtech.api.util.GTRecipeMapUtil.asTemplate;
 import static gregtech.api.util.GTRecipeMapUtil.buildOrEmpty;
@@ -17,20 +19,20 @@ import static gregtech.api.util.GTUtility.copyAmount;
 import static gregtech.api.util.GTUtility.getFluidForFilledItem;
 import static gregtech.api.util.GTUtility.isArrayEmptyOrNull;
 import static gregtech.api.util.GTUtility.isArrayOfLength;
+import static gregtech.api.util.GTUtility.min;
 import static gregtech.api.util.GTUtility.multiplyStack;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 
 import net.minecraft.init.Blocks;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
-
-import org.apache.commons.lang3.ArrayUtils;
 
 import com.gtnewhorizons.modularui.api.drawable.UITexture;
 import com.gtnewhorizons.modularui.common.widget.ProgressBar;
@@ -44,16 +46,18 @@ import gregtech.api.enums.Materials;
 import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.TierEU;
 import gregtech.api.gui.modularui.GTUITextures;
-import gregtech.api.interfaces.IRecipeMap;
 import gregtech.api.objects.ItemData;
 import gregtech.api.recipe.maps.AssemblerBackend;
 import gregtech.api.recipe.maps.AssemblyLineFrontend;
 import gregtech.api.recipe.maps.DistillationTowerFrontend;
+import gregtech.api.recipe.maps.EFRBlastingBackend;
+import gregtech.api.recipe.maps.EFRSmokingBackend;
 import gregtech.api.recipe.maps.FluidCannerBackend;
 import gregtech.api.recipe.maps.FluidOnlyFrontend;
 import gregtech.api.recipe.maps.FormingPressBackend;
 import gregtech.api.recipe.maps.FuelBackend;
 import gregtech.api.recipe.maps.FurnaceBackend;
+import gregtech.api.recipe.maps.IsotopeDecayFrontend;
 import gregtech.api.recipe.maps.LargeBoilerFuelBackend;
 import gregtech.api.recipe.maps.LargeBoilerFuelFrontend;
 import gregtech.api.recipe.maps.LargeNEIFrontend;
@@ -67,6 +71,7 @@ import gregtech.api.recipe.maps.PurificationUnitOzonationFrontend;
 import gregtech.api.recipe.maps.PurificationUnitParticleExtractorFrontend;
 import gregtech.api.recipe.maps.PurificationUnitPhAdjustmentFrontend;
 import gregtech.api.recipe.maps.PurificationUnitPlasmaHeaterFrontend;
+import gregtech.api.recipe.maps.QuantumComputerFrontend;
 import gregtech.api.recipe.maps.RecyclerBackend;
 import gregtech.api.recipe.maps.ReplicatorBackend;
 import gregtech.api.recipe.maps.SpaceProjectFrontend;
@@ -85,10 +90,10 @@ import gregtech.nei.formatter.FuelSpecialValueFormatter;
 import gregtech.nei.formatter.FusionSpecialValueFormatter;
 import gregtech.nei.formatter.HeatingCoilSpecialValueFormatter;
 import gregtech.nei.formatter.SimpleSpecialValueFormatter;
-import gtPlusPlus.core.block.ModBlocks;
-import gtPlusPlus.core.item.ModItems;
+import gtPlusPlus.xmod.gregtech.api.enums.GregtechItemList;
 import mods.railcraft.common.blocks.aesthetics.cube.EnumCube;
 import mods.railcraft.common.items.RailcraftToolItems;
+import tectech.thing.CustomItemList;
 
 @SuppressWarnings("SimplifyOptionalCallChains")
 public final class RecipeMaps {
@@ -150,7 +155,6 @@ public final class RecipeMaps {
                 : null)
         .progressBar(GTUITextures.PROGRESSBAR_COMPRESS)
         .neiHandlerInfo(builder -> builder.setDisplayStack(getModItem(Avaritia.ID, "Singularity", 1L, 0)))
-        .disableOptimize()
         .neiRecipeComparator(
             Comparator
                 .<GTRecipe, Integer>comparing(recipe -> recipe.getMetadataOrDefault(CompressionTierKey.INSTANCE, 0))
@@ -182,6 +186,32 @@ public final class RecipeMaps {
         .build();
     public static final RecipeMap<FurnaceBackend> furnaceRecipes = RecipeMapBuilder
         .of("gt.recipe.furnace", FurnaceBackend::new)
+        .maxIO(1, 1, 0, 0)
+        .minInputs(1, 9)
+        .slotOverlays(
+            (index, isFluid, isOutput, isSpecial) -> !isFluid && !isOutput ? GTUITextures.OVERLAY_SLOT_FURNACE : null)
+        .slotOverlaysSteam(
+            (index, isFluid, isOutput, isSpecial) -> !isFluid && !isOutput ? GTUITextures.OVERLAY_SLOT_FURNACE_STEAM
+                : null)
+        .progressBarSteam(GTUITextures.PROGRESSBAR_ARROW_STEAM)
+        .neiTransferRectId("smelting")
+        .disableRegisterNEI()
+        .build();
+    public static final RecipeMap<EFRBlastingBackend> efrBlastingRecipes = RecipeMapBuilder
+        .of("gt.recipe.efrblasting", EFRBlastingBackend::new)
+        .maxIO(1, 1, 0, 0)
+        .minInputs(1, 9)
+        .slotOverlays(
+            (index, isFluid, isOutput, isSpecial) -> !isFluid && !isOutput ? GTUITextures.OVERLAY_SLOT_FURNACE : null)
+        .slotOverlaysSteam(
+            (index, isFluid, isOutput, isSpecial) -> !isFluid && !isOutput ? GTUITextures.OVERLAY_SLOT_FURNACE_STEAM
+                : null)
+        .progressBarSteam(GTUITextures.PROGRESSBAR_ARROW_STEAM)
+        .neiTransferRectId("smelting")
+        .disableRegisterNEI()
+        .build();
+    public static final RecipeMap<EFRSmokingBackend> efrSmokingRecipes = RecipeMapBuilder
+        .of("gt.recipe.efrsmelting", EFRSmokingBackend::new)
         .maxIO(1, 1, 0, 0)
         .minInputs(1, 9)
         .slotOverlays(
@@ -228,6 +258,16 @@ public final class RecipeMaps {
         })
         .progressBar(GTUITextures.PROGRESSBAR_MACERATE)
         .build();
+    public static final RecipeMap<RecipeMapBackend> quantumComputerFakeRecipes = RecipeMapBuilder
+        .of("gt.recipe.quantumcomputer")
+        .maxIO(1, 0, 0, 0)
+        .minInputs(1, 0)
+        .dontUseProgressBar()
+        .frontend(QuantumComputerFrontend::new)
+        .neiHandlerInfo(
+            builder -> builder.setMaxRecipesPerPage(4)
+                .setDisplayStack(CustomItemList.Machine_Multi_Computer.get(1)))
+        .build();
     public static final RecipeMap<ReplicatorBackend> replicatorRecipes = RecipeMapBuilder
         .of("gt.recipe.replicator", ReplicatorBackend::new)
         .maxIO(0, 1, 1, 1)
@@ -252,7 +292,6 @@ public final class RecipeMaps {
         .minInputs(1, 0)
         .useSpecialSlot()
         .slotOverlays((index, isFluid, isOutput, isSpecial) -> isSpecial ? GTUITextures.OVERLAY_SLOT_DATA_ORB : null)
-        .disableOptimize()
         .neiTransferRect(88, 8, 18, 72)
         .neiTransferRect(124, 8, 18, 72)
         .neiTransferRect(142, 26, 18, 18)
@@ -263,7 +302,7 @@ public final class RecipeMaps {
      */
     public static final RecipeMap<RecipeMapBackend> plasmaArcFurnaceRecipes = RecipeMapBuilder
         .of("gt.recipe.plasmaarcfurnace")
-        .maxIO(1, 9, 1, 1)
+        .maxIO(2, 9, 1, 1)
         .minInputs(1, 1)
         .build();
     /**
@@ -298,7 +337,7 @@ public final class RecipeMaps {
         .build();
     public static final RecipeMap<FormingPressBackend> formingPressRecipes = RecipeMapBuilder
         .of("gt.recipe.press", FormingPressBackend::new)
-        .maxIO(6, 1, 0, 0)
+        .maxIO(6, 1, 1, 0)
         .minInputs(2, 0)
         .slotOverlays((index, isFluid, isOutput, isSpecial) -> {
             if (isOutput) {
@@ -318,9 +357,14 @@ public final class RecipeMaps {
             (index, isFluid, isOutput,
                 isSpecial) -> !isFluid && !isOutput && index != 0 ? GTUITextures.OVERLAY_SLOT_LENS : null)
         // Add a simple ordering so lower tier purified water is displayed first, otherwise it gets really confusing
+        // NEI Catalyst search requires recipes to be sorted by voltage tier. Therefore, we first sort by voltage
+        // tier,
+        // then by water tier, then the default comparator.
         .neiRecipeComparator(
-            (a, b) -> Comparator.comparing(PurifiedWaterHelpers::getWaterTierFromRecipe)
-                .thenComparing(GTRecipe::compareTo)
+            (a, b) -> Comparator.<GTRecipe, Integer>comparing(recipe -> recipe.mEUt)
+                .thenComparing(
+                    Comparator.comparing(PurifiedWaterHelpers::getWaterTierFromRecipe)
+                        .thenComparing(GTRecipe::compareTo))
                 .compare(a, b))
         .build();
     public static final RecipeMap<RecipeMapBackend> mixerRecipes = RecipeMapBuilder.of("gt.recipe.mixer")
@@ -374,7 +418,7 @@ public final class RecipeMaps {
         .neiHandlerInfo(builder -> builder.setDisplayStack(ItemList.Machine_LV_Macerator.get(1)))
         .build();
     public static final RecipeMap<RecipeMapBackend> chemicalBathRecipes = RecipeMapBuilder.of("gt.recipe.chemicalbath")
-        .maxIO(1, 3, 1, 1)
+        .maxIO(2, 3, 2, 2)
         .minInputs(1, 1)
         .progressBar(GTUITextures.PROGRESSBAR_BATH, ProgressBar.Direction.CIRCULAR_CW)
         .build();
@@ -393,7 +437,7 @@ public final class RecipeMaps {
         .progressBar(GTUITextures.PROGRESSBAR_ARROW_MULTIPLE)
         .build();
     public static final RecipeMap<RecipeMapBackend> fluidHeaterRecipes = RecipeMapBuilder.of("gt.recipe.fluidheater")
-        .maxIO(1, 0, 1, 1)
+        .maxIO(1, 1, 1, 1)
         .slotOverlays((index, isFluid, isOutput, isSpecial) -> {
             if (!isFluid) {
                 return null;
@@ -407,7 +451,7 @@ public final class RecipeMaps {
         .build();
     public static final RecipeMap<RecipeMapBackend> distilleryRecipes = RecipeMapBuilder.of("gt.recipe.distillery")
         .maxIO(1, 1, 1, 1)
-        .minInputs(1, 1)
+        .minInputs(0, 1)
         .slotOverlays((index, isFluid, isOutput, isSpecial) -> {
             if (!isFluid) {
                 return null;
@@ -463,6 +507,12 @@ public final class RecipeMaps {
         .maxIO(0, 0, 1, 1)
         .minInputs(0, 1)
         .progressBar(GTUITextures.PROGRESSBAR_ARROW_MULTIPLE)
+        .builderTransformer(
+            b -> b.copy()
+                .special(BioItemList.getPetriDish(BioCultureLoader.generalPurposeFermentingBacteria))
+                .metadata(GLASS, 3)
+                .eut(b.getEUt())
+                .addTo(BartWorksRecipeMaps.bacterialVatRecipes))
         .build();
     public static final RecipeMap<RecipeMapBackend> fluidSolidifierRecipes = RecipeMapBuilder
         .of("gt.recipe.fluidsolidifier")
@@ -470,16 +520,6 @@ public final class RecipeMaps {
         .minInputs(1, 1)
         .slotOverlays(
             (index, isFluid, isOutput, isSpecial) -> !isFluid && !isOutput ? GTUITextures.OVERLAY_SLOT_MOLD : null)
-        .recipeTransformer(r -> {
-            if (ArrayUtils.isNotEmpty(r.mFluidInputs)) {
-                if (Materials.PhasedGold.getMolten(1)
-                    .isFluidEqual(r.mFluidInputs[0]))
-                    r.mFluidInputs = new FluidStack[] { Materials.VibrantAlloy.getMolten(r.mFluidInputs[0].amount) };
-                else if (Materials.PhasedIron.getMolten(1)
-                    .isFluidEqual(r.mFluidInputs[0]))
-                    r.mFluidInputs = new FluidStack[] { Materials.PulsatingIron.getMolten(r.mFluidInputs[0].amount) };
-            }
-        })
         .build();
     public static final RecipeMap<RecipeMapBackend> fluidExtractionRecipes = RecipeMapBuilder
         .of("gt.recipe.fluidextractor")
@@ -489,16 +529,6 @@ public final class RecipeMaps {
             (index, isFluid, isOutput, isSpecial) -> !isFluid && !isOutput ? GTUITextures.OVERLAY_SLOT_CENTRIFUGE
                 : null)
         .progressBar(GTUITextures.PROGRESSBAR_EXTRACT)
-        .recipeTransformer(r -> {
-            if (ArrayUtils.isNotEmpty(r.mFluidOutputs)) {
-                if (Materials.PhasedGold.getMolten(1)
-                    .isFluidEqual(r.mFluidOutputs[0]))
-                    r.mFluidOutputs = new FluidStack[] { Materials.VibrantAlloy.getMolten(r.mFluidOutputs[0].amount) };
-                else if (Materials.PhasedIron.getMolten(1)
-                    .isFluidEqual(r.mFluidOutputs[0]))
-                    r.mFluidOutputs = new FluidStack[] { Materials.PulsatingIron.getMolten(r.mFluidOutputs[0].amount) };
-            }
-        })
         .build();
     public static final RecipeMap<RecipeMapBackend> packagerRecipes = RecipeMapBuilder.of("gt.recipe.packager")
         .maxIO(2, 1, 0, 0)
@@ -522,13 +552,12 @@ public final class RecipeMaps {
     public static final RecipeMap<RecipeMapBackend> fusionRecipes = RecipeMapBuilder.of("gt.recipe.fusionreactor")
         .maxIO(0, 0, 2, 1)
         .minInputs(0, 2)
-        .disableOptimize()
         .useCustomFilterForNEI()
         .neiSpecialInfoFormatter(FusionSpecialValueFormatter.INSTANCE)
         .neiRecipeComparator(
-            Comparator
-                .<GTRecipe, Integer>comparing(
-                    recipe -> FusionSpecialValueFormatter.getFusionTier(recipe.mSpecialValue, recipe.mEUt))
+            Comparator.<GTRecipe, Integer>comparing(
+                recipe -> FusionSpecialValueFormatter
+                    .getFusionTier(recipe.getMetadataOrDefault(GTRecipeConstants.FUSION_THRESHOLD, 0L), recipe.mEUt))
                 .thenComparing(GTRecipe::compareTo))
         .frontend(FluidOnlyFrontend::new)
         .build();
@@ -579,7 +608,6 @@ public final class RecipeMaps {
      */
     public static final RecipeMap<RecipeMapBackend> plasmaForgeRecipes = RecipeMapBuilder.of("gt.recipe.plasmaforge")
         .maxIO(9, 9, 9, 9)
-        .disableOptimize()
         .neiSpecialInfoFormatter(HeatingCoilSpecialValueFormatter.INSTANCE)
         .neiHandlerInfo(
             builder -> builder.setDisplayStack(ItemList.Machine_Multi_PlasmaForge.get(1))
@@ -596,7 +624,6 @@ public final class RecipeMaps {
             builder -> builder.setDisplayStack(ItemList.Machine_Multi_TranscendentPlasmaMixer.get(1))
                 .setMaxRecipesPerPage(1))
         .frontend(TranscendentPlasmaMixerFrontend::new)
-        .disableOptimize()
         .build();
     public static final RecipeMap<RecipeMapBackend> spaceProjectFakeRecipes = RecipeMapBuilder
         .of("gt.recipe.fakespaceprojects")
@@ -610,7 +637,10 @@ public final class RecipeMaps {
         .neiTransferRect(106, 28, 18, 72)
         .frontend(SpaceProjectFrontend::new)
         .disableRenderRealStackSizes()
-        .disableOptimize()
+        .build();
+    public static final RecipeMap<RecipeMapBackend> cokeOvenRecipes = RecipeMapBuilder.of("gt.recipe.cokeoven")
+        .maxIO(1, 1, 0, 1)
+        .minInputs(1, 0)
         .build();
     /**
      * Uses {@link GTRecipeConstants#ADDITIVE_AMOUNT} for coal/charcoal amount.
@@ -625,7 +655,6 @@ public final class RecipeMaps {
                 .validateOutputCount(1, 2)
                 .validateNoInputFluid()
                 .validateNoOutputFluid()
-                .noOptimize()
                 .build();
             if (!rr.isPresent()) return Collections.emptyList();
             ItemStack aInput1 = builder.getItemInputBasic(0);
@@ -636,32 +665,73 @@ public final class RecipeMaps {
                 return Collections.emptyList();
             int aCoalAmount = builder.getMetadataOrDefault(ADDITIVE_AMOUNT, 0);
             if (aCoalAmount <= 0) return Collections.emptyList();
+
+            int aDustAmount;
+            int[] baseChances = new int[] { 10000, 10000, 10000 };
+            if (builder.getChances() != null) {
+                System.arraycopy(builder.getChances(), 0, baseChances, 0, min(2, builder.getChances().length));
+            }
+
+            int[] coalChances = baseChances.clone();
+            if (aCoalAmount < 9) {
+                aDustAmount = 1;
+                coalChances[2] = aCoalAmount * 10000 / 9;
+            } else {
+                aDustAmount = aCoalAmount / 9;
+                coalChances[2] = 10000;
+            }
+
             GTRecipeTemplate coll = asTemplate(rr.get());
             for (Materials coal : new Materials[] { Materials.Coal, Materials.Charcoal }) {
                 coll.derive()
                     .setInputs(aInput1, aInput2, coal.getGems(aCoalAmount))
-                    .setOutputs(aOutput1, aOutput2, Materials.DarkAsh.getDustTiny(aCoalAmount));
+                    .setOutputs(aOutput1, aOutput2, Materials.AshDark.getDust(aDustAmount))
+                    .setChances(coalChances);
                 coll.derive()
                     .setInputs(aInput1, aInput2, coal.getDust(aCoalAmount))
-                    .setOutputs(aOutput1, aOutput2, Materials.DarkAsh.getDustTiny(aCoalAmount));
+                    .setOutputs(aOutput1, aOutput2, Materials.AshDark.getDust(aDustAmount))
+                    .setChances(coalChances);
             }
             int aDuration = builder.getDuration();
             if (Railcraft.isModLoaded()) {
+                int[] cokeChances = baseChances.clone();
+                int aCokeAmount = aCoalAmount / 2;
+                if (aCokeAmount < 9) {
+                    aDustAmount = 1;
+                    cokeChances[2] = aCokeAmount * 10000 / 9;
+                } else {
+                    aDustAmount = aCokeAmount / 9;
+                    cokeChances[2] = 10000;
+                }
                 coll.derive()
-                    .setInputs(aInput1, aInput2, RailcraftToolItems.getCoalCoke(aCoalAmount / 2))
-                    .setOutputs(aOutput1, aOutput2, Materials.Ash.getDustTiny(aCoalAmount / 2))
-                    .setDuration(aDuration * 2 / 3);
+                    .setInputs(aInput1, aInput2, RailcraftToolItems.getCoalCoke(aCokeAmount))
+                    .setOutputs(aOutput1, aOutput2, Materials.Ash.getDust(aDustAmount))
+                    .setDuration(aDuration * 2 / 3)
+                    .setChances(cokeChances);
             }
-            ItemStack cactusCoke = new ItemStack(ModItems.itemCactusCoke, aCoalAmount * 2);
-            ItemStack sugarCoke = new ItemStack(ModItems.itemSugarCoke, aCoalAmount * 2);
+            long aCactusSugarCokeAmount = aCoalAmount * 2L;
+            int[] cactusSugarCokeChances = baseChances.clone();
+            if (aCactusSugarCokeAmount < 9) {
+                aDustAmount = 1;
+                // Simple Cast to Int ok here
+                cactusSugarCokeChances[2] = (int) (aCactusSugarCokeAmount * 10000 / 9);
+            } else {
+                // Simple Cast to Int ok here
+                aDustAmount = (int) (aCactusSugarCokeAmount / 9);
+                cactusSugarCokeChances[2] = 10000;
+            }
+            ItemStack cactusCoke = GregtechItemList.CactusCoke.get(aCactusSugarCokeAmount);
+            ItemStack sugarCoke = GregtechItemList.SugarCoke.get(aCactusSugarCokeAmount);
             coll.derive()
                 .setInputs(aInput1, aInput2, cactusCoke)
-                .setOutputs(aOutput1, aOutput2, Materials.Ash.getDustTiny(aCoalAmount * 2))
-                .setDuration(aDuration * 2 / 3);
+                .setOutputs(aOutput1, aOutput2, Materials.Ash.getDust(aDustAmount))
+                .setDuration(aDuration * 2 / 3)
+                .setChances(cactusSugarCokeChances);
             coll.derive()
                 .setInputs(aInput1, aInput2, sugarCoke)
-                .setOutputs(aOutput1, aOutput2, Materials.Ash.getDustTiny(aCoalAmount * 2))
-                .setDuration(aDuration * 2 / 3);
+                .setOutputs(aOutput1, aOutput2, Materials.Ash.getDust(aDustAmount))
+                .setDuration(aDuration * 2 / 3)
+                .setChances(cactusSugarCokeChances);
             if ((aInput1 == null || aInput1.stackSize <= 6) && (aInput2 == null || aInput2.stackSize <= 6)
                 && (aOutput1 == null || aOutput1.stackSize <= 6)
                 && (aOutput2 == null || aOutput2.stackSize <= 6)) {
@@ -673,7 +743,7 @@ public final class RecipeMaps {
                 for (Materials coal : new Materials[] { Materials.Coal, Materials.Charcoal }) {
                     coll.derive()
                         .setInputs(aInput1, aInput2, coal.getBlocks(aCoalAmount))
-                        .setOutputs(aOutput1, aOutput2, Materials.DarkAsh.getDust(aCoalAmount))
+                        .setOutputs(aOutput1, aOutput2, Materials.AshDark.getDust(aCoalAmount))
                         .setDuration(aDuration * 10);
                 }
                 if (Railcraft.isModLoaded()) {
@@ -682,14 +752,8 @@ public final class RecipeMaps {
                         .setOutputs(aOutput1, aOutput2, Materials.Ash.getDust(aCoalAmount / 2))
                         .setDuration(aDuration * 20 / 3);
                 }
-                ItemStack cactusCokeBlock = new ItemStack(
-                    Item.getItemFromBlock(ModBlocks.blockCactusCoke),
-                    aCoalAmount * 2,
-                    0);
-                ItemStack sugarCokeBlock = new ItemStack(
-                    Item.getItemFromBlock(ModBlocks.blockSugarCoke),
-                    aCoalAmount * 2,
-                    0);
+                ItemStack cactusCokeBlock = GregtechItemList.BlockCactusCoke.get(aCoalAmount * 2L);
+                ItemStack sugarCokeBlock = GregtechItemList.BlockSugarCoke.get(aCoalAmount * 2L);
                 coll.derive()
                     .setInputs(aInput1, aInput2, cactusCokeBlock)
                     .setOutputs(aOutput1, aOutput2, Materials.Ash.getDust(aCoalAmount * 2))
@@ -719,7 +783,6 @@ public final class RecipeMaps {
             return null;
         })
         .progressBar(GTUITextures.PROGRESSBAR_COMPRESS)
-        .disableOptimize()
         .recipeEmitter(b -> {
             switch (b.getItemInputsBasic().length) {
                 case 0:
@@ -731,8 +794,7 @@ public final class RecipeMaps {
                         .map(Collections::singletonList)
                         .orElse(Collections.emptyList());
             }
-            Optional<GTRecipe> t = b.noOptimize()
-                .duration(20)
+            Optional<GTRecipe> t = b.duration(20)
                 .eut(30)
                 .validateInputCount(1, 1)
                 .validateOutputCount(1, 2)
@@ -756,12 +818,16 @@ public final class RecipeMaps {
                 .setInputs(input, GTModHandler.getIC2Item("industrialTnt", tITNT, null));
             return coll.getAll();
         })
+        .builderTransformer(
+            b -> b.copy()
+                .duration(1 * TICK)
+                .eut(TierEU.RECIPE_UEV)
+                .addTo(BartWorksRecipeMaps.electricImplosionCompressorRecipes))
         .build();
     public static final RecipeMap<RecipeMapBackend> vacuumFreezerRecipes = RecipeMapBuilder
         .of("gt.recipe.vacuumfreezer")
         .maxIO(1, 1, 2, 1)
         .recipeEmitter(b -> {
-            b.noOptimize();
             FluidStack in, out;
             if (isArrayOfLength(b.getItemInputsBasic(), 1) && isArrayOfLength(b.getItemOutputs(), 1)
                 && isArrayEmptyOrNull(b.getFluidInputs())
@@ -806,17 +872,15 @@ public final class RecipeMaps {
             }
         })
         .progressBar(GTUITextures.PROGRESSBAR_ARROW_MULTIPLE)
-        .disableOptimize()
         .build();
     /**
-     * Using {@code .addTo(multiblockChemicalReactorRecipes)} will cause the recipe to be added to
-     * multiblock recipe map ONLY! Use {@link GTRecipeConstants#UniversalChemical} to add to both.
+     * Using {@code .addTo(multiblockChemicalReactorRecipes)} will cause the recipe to be added to multiblock recipe map
+     * ONLY! Use {@link GTRecipeConstants#UniversalChemical} to add to both.
      */
     public static final RecipeMap<RecipeMapBackend> multiblockChemicalReactorRecipes = RecipeMapBuilder
         .of("gt.recipe.largechemicalreactor")
         .maxIO(6, 6, 6, 6)
         .progressBar(GTUITextures.PROGRESSBAR_ARROW_MULTIPLE)
-        .disableOptimize()
         .frontend(LargeNEIFrontend::new)
         .build();
     public static final RecipeMap<RecipeMapBackend> distillationTowerRecipes = RecipeMapBuilder
@@ -835,7 +899,6 @@ public final class RecipeMaps {
         .progressBar(GTUITextures.PROGRESSBAR_ARROW_MULTIPLE)
         .logoPos(80, 62)
         .frontend(DistillationTowerFrontend::new)
-        .disableOptimize()
         .build();
     public static final RecipeMap<OilCrackerBackend> crackingRecipes = RecipeMapBuilder
         .of("gt.recipe.craker", OilCrackerBackend::new)
@@ -846,7 +909,10 @@ public final class RecipeMaps {
     public static final RecipeMap<RecipeMapBackend> pyrolyseRecipes = RecipeMapBuilder.of("gt.recipe.pyro")
         .maxIO(2, 1, 1, 1)
         .minInputs(1, 0)
-        .disableOptimize()
+        .build();
+    public static final RecipeMap<RecipeMapBackend> solarFactoryRecipes = RecipeMapBuilder.of("gt.recipe.solarfactory")
+        .maxIO(9, 1, 3, 0)
+        .minInputs(1, 0)
         .build();
     public static final RecipeMap<RecipeMapBackend> wiremillRecipes = RecipeMapBuilder.of("gt.recipe.wiremill")
         .maxIO(2, 1, 0, 0)
@@ -892,7 +958,6 @@ public final class RecipeMaps {
         .slotOverlays(
             (index, isFluid, isOutput, isSpecial) -> !isFluid && !isOutput ? GTUITextures.OVERLAY_SLOT_CIRCUIT : null)
         .progressBar(GTUITextures.PROGRESSBAR_ASSEMBLE)
-        .disableOptimize()
         .build();
     public static final RecipeMap<RecipeMapBackend> circuitAssemblerRecipes = RecipeMapBuilder
         .of("gt.recipe.circuitassembler")
@@ -1040,6 +1105,17 @@ public final class RecipeMaps {
     public static final RecipeMap<FuelBackend> dieselFuels = RecipeMapBuilder
         .of("gt.recipe.dieselgeneratorfuel", FuelBackend::new)
         .maxIO(1, 1, 0, 0)
+        .builderTransformer(b -> {
+            b.copy()
+                .build()
+                .ifPresent(
+                    r -> RecipeMaps.largeBoilerFakeFuels.getBackend()
+                        .addDieselRecipe(r));
+            if (b.getMetadataOrDefault(FUEL_VALUE, 0) >= 1500) {
+                b.copy()
+                    .addTo(RecipeMaps.extremeDieselFuels);
+            }
+        })
         .neiSpecialInfoFormatter(FuelSpecialValueFormatter.INSTANCE)
         .build();
     public static final RecipeMap<FuelBackend> extremeDieselFuels = RecipeMapBuilder
@@ -1060,6 +1136,12 @@ public final class RecipeMaps {
     public static final RecipeMap<FuelBackend> denseLiquidFuels = RecipeMapBuilder
         .of("gt.recipe.semifluidboilerfuels", FuelBackend::new)
         .maxIO(1, 1, 0, 0)
+        .builderTransformer(
+            b -> b.copy()
+                .build()
+                .ifPresent(
+                    r -> RecipeMaps.largeBoilerFakeFuels.getBackend()
+                        .addDenseLiquidRecipe(r)))
         .disableRegisterNEI()
         .build();
     public static final RecipeMap<FuelBackend> plasmaFuels = RecipeMapBuilder
@@ -1101,7 +1183,6 @@ public final class RecipeMaps {
         .of("gt.recipe.largeboilerfakefuels", LargeBoilerFuelBackend::new)
         .maxIO(1, 1, 0, 0)
         .minInputs(1, 0)
-        .disableOptimize()
         .frontend(LargeBoilerFuelFrontend::new)
         .build();
     public static final RecipeMap<RecipeMapBackend> nanoForgeRecipes = RecipeMapBuilder.of("gt.recipe.nanoforge")
@@ -1111,14 +1192,27 @@ public final class RecipeMaps {
             (index, isFluid, isOutput,
                 isSpecial) -> !isFluid && !isOutput && index == 0 ? GTUITextures.OVERLAY_SLOT_LENS : null)
         .progressBar(GTUITextures.PROGRESSBAR_ASSEMBLE)
-        .disableOptimize()
         .neiSpecialInfoFormatter(new SimpleSpecialValueFormatter("GT5U.nei.tier"))
+        .neiRecipeComparator(
+            Comparator.<GTRecipe, Integer>comparing(recipe -> recipe.getMetadataOrDefault(NANO_FORGE_TIER, 1))
+                .thenComparing(GTRecipe::compareTo))
         .build();
     public static final RecipeMap<RecipeMapBackend> pcbFactoryRecipes = RecipeMapBuilder.of("gt.recipe.pcbfactory")
         .maxIO(6, 9, 3, 0)
         .minInputs(3, 1)
         .progressBar(GTUITextures.PROGRESSBAR_ASSEMBLE)
-        .disableOptimize()
+        .neiItemInputsGetter(recipe -> {
+            Materials naniteMaterial = recipe.getMetadata(PCB_NANITE_MATERIAL);
+            if (naniteMaterial == null) {
+                return recipe.mInputs;
+            }
+            List<ItemStack> inputs = new ArrayList<>();
+            inputs.add(recipe.mInputs[0]);
+            ItemStack naniteStack = naniteMaterial.getNanite(1);
+            inputs.add(new ItemStack(naniteStack.getItem(), 0, naniteStack.getItemDamage()));
+            inputs.addAll(Arrays.asList(Arrays.copyOfRange(recipe.mInputs, 1, recipe.mInputs.length)));
+            return inputs.toArray(new ItemStack[0]);
+        })
         .neiRecipeComparator(
             Comparator
                 .<GTRecipe, Integer>comparing(recipe -> recipe.getMetadataOrDefault(PCBFactoryTierKey.INSTANCE, 1))
@@ -1129,7 +1223,6 @@ public final class RecipeMaps {
         .maxIO(1, 4, 1, 1)
         .minInputs(0, 1)
         .frontend(PurificationUnitClarifierFrontend::new)
-        .disableOptimize()
         .build();
     public static final RecipeMap<RecipeMapBackend> purificationOzonationRecipes = RecipeMapBuilder
         .of("gt.recipe.purificationplantozonation")
@@ -1146,7 +1239,6 @@ public final class RecipeMaps {
             builder -> builder.setMaxRecipesPerPage(1)
                 // When setting a builder, apparently setting a display stack is also necessary
                 .setDisplayStack(ItemList.Machine_Multi_PurificationUnitOzonation.get(1)))
-        .disableOptimize()
         .build();
     public static final RecipeMap<RecipeMapBackend> purificationFlocculationRecipes = RecipeMapBuilder
         .of("gt.recipe.purificationplantflocculation")
@@ -1159,7 +1251,6 @@ public final class RecipeMaps {
                     recipe -> recipe.getMetadataOrDefault(PurificationPlantBaseChanceKey.INSTANCE, 0.0f))
                 .thenComparing(GTRecipe::compareTo))
         .frontend(PurificationUnitFlocculatorFrontend::new)
-        .disableOptimize()
         .build();
 
     public static final RecipeMap<RecipeMapBackend> purificationPhAdjustmentRecipes = RecipeMapBuilder
@@ -1168,7 +1259,6 @@ public final class RecipeMaps {
         .minInputs(0, 1)
         .progressBar(GTUITextures.PROGRESSBAR_MIXER)
         .frontend(PurificationUnitPhAdjustmentFrontend::new)
-        .disableOptimize()
         .build();
 
     public static final RecipeMap<RecipeMapBackend> purificationPlasmaHeatingRecipes = RecipeMapBuilder
@@ -1177,7 +1267,6 @@ public final class RecipeMaps {
         .minInputs(0, 1)
         .progressBar(GTUITextures.PROGRESSBAR_BOILER_HEAT)
         .frontend(PurificationUnitPlasmaHeaterFrontend::new)
-        .disableOptimize()
         .build();
     public static final RecipeMap<RecipeMapBackend> purificationUVTreatmentRecipes = RecipeMapBuilder
         .of("gt.recipe.purificationplantuvtreatment")
@@ -1185,14 +1274,12 @@ public final class RecipeMaps {
         .minInputs(0, 1)
         .progressBar(GTUITextures.PROGRESSBAR_ARROW)
         .frontend(PurificationUnitLaserFrontend::new)
-        .disableOptimize()
         .build();
     public static final RecipeMap<RecipeMapBackend> purificationDegasifierRecipes = RecipeMapBuilder
         .of("gt.recipe.purificationplantdegasifier")
         .maxIO(0, 3, 1, 2)
         .minInputs(0, 1)
         .progressBar(GTUITextures.PROGRESSBAR_ARROW)
-        .disableOptimize()
         .build();
     public static final RecipeMap<RecipeMapBackend> purificationParticleExtractionRecipes = RecipeMapBuilder
         .of("gt.recipe.purificationplantquarkextractor")
@@ -1200,50 +1287,34 @@ public final class RecipeMaps {
         .minInputs(0, 1)
         .progressBar(GTUITextures.PROGRESSBAR_ARROW)
         .frontend(PurificationUnitParticleExtractorFrontend::new)
-        .disableOptimize()
         .build();
     public static final RecipeMap<RecipeMapBackend> ic2NuclearFakeRecipes = RecipeMapBuilder.of("gt.recipe.ic2nuke")
         .maxIO(1, 1, 0, 0)
         .minInputs(1, 0)
-        .disableOptimize()
         .logo(GTUITextures.PICTURE_RADIATION_WARNING)
         .logoPos(152, 41)
         .neiRecipeBackgroundSize(170, 60)
         .neiHandlerInfo(builder -> builder.setDisplayStack(GTModHandler.getIC2Item("nuclearReactor", 1, null)))
         .build();
 
-    static {
-        RecipeMaps.dieselFuels.addDownstream(
-            IRecipeMap.newRecipeMap(
-                b -> b.build()
-                    .map(
-                        r -> RecipeMaps.largeBoilerFakeFuels.getBackend()
-                            .addDieselRecipe(r))
-                    .map(Collections::singletonList)
-                    .orElse(Collections.emptyList())));
-        RecipeMaps.dieselFuels.addDownstream(IRecipeMap.newRecipeMap(b -> {
-            if (b.getMetadataOrDefault(FUEL_VALUE, 0) < 1500) return Collections.emptyList();
-            return b.addTo(RecipeMaps.extremeDieselFuels);
-        }));
-        RecipeMaps.denseLiquidFuels.addDownstream(
-            IRecipeMap.newRecipeMap(
-                b -> b.build()
-                    .map(
-                        r -> RecipeMaps.largeBoilerFakeFuels.getBackend()
-                            .addDenseLiquidRecipe(r))
-                    .map(Collections::singletonList)
-                    .orElse(Collections.emptyList())));
-        RecipeMaps.fermentingRecipes.addDownstream(
-            IRecipeMap.newRecipeMap(
-                b -> BartWorksRecipeMaps.bacterialVatRecipes.doAdd(
-                    b.copy()
-                        .special(BioItemList.getPetriDish(BioCultureLoader.generalPurposeFermentingBacteria))
-                        .metadata(SIEVERTS, (int) GTUtility.getTier(b.getEUt())))));
-        RecipeMaps.implosionRecipes.addDownstream(
-            IRecipeMap.newRecipeMap(
-                b -> BartWorksRecipeMaps.electricImplosionCompressorRecipes.doAdd(
-                    b.copy()
-                        .duration(1 * TICK)
-                        .eut(TierEU.RECIPE_UEV))));
-    }
+    public static final RecipeMap<RecipeMapBackend> entropicProcessing = RecipeMapBuilder
+        .of("gt.recipe.entropic-processing")
+        .maxIO(6, 6, 3, 3)
+        .minInputs(0, 1)
+        .progressBar(GTUITextures.PROGRESSBAR_ARROW_MULTIPLE)
+        .frontend(LargeNEIFrontend::new)
+        .build();
+
+    public static final RecipeMap<RecipeMapBackend> isotopeDecay = RecipeMapBuilder.of("gt.recipe.isotope-decay")
+        .maxIO(1, 1, 0, 0)
+        .minInputs(1, 0)
+        .progressBar(GTUITextures.PROGRESSBAR_ARROW)
+        .frontend(IsotopeDecayFrontend::new)
+        .build();
+    public static final RecipeMap<RecipeMapBackend> cableRecipes = RecipeMapBuilder
+        .of("gt.recipe.cable", RecipeMapBackend::new)
+        .maxIO(6, 1, 1, 0)
+        .minInputs(1, 1)
+        .progressBar(GTUITextures.PROGRESSBAR_ARROW)
+        .build();
 }

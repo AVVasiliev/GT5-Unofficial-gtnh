@@ -2,10 +2,10 @@ package gtPlusPlus.core.material;
 
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.TextureSet;
+import gregtech.api.util.StringUtils;
 import gtPlusPlus.api.objects.Logger;
 import gtPlusPlus.core.client.CustomTextureSet.TextureSets;
 import gtPlusPlus.core.material.state.MaterialState;
-import gtPlusPlus.core.util.data.StringUtils;
 import gtPlusPlus.core.util.minecraft.MaterialUtils;
 
 public final class MaterialsElements {
@@ -313,7 +313,7 @@ public final class MaterialsElements {
         90,
         142,
         false,
-        StringUtils.superscript("Th"),
+        "Th",
         1);
     public final Material PROTACTINIUM = new Material(
         "Protactinium",
@@ -484,7 +484,7 @@ public final class MaterialsElements {
             MaterialState.SOLID,
             TextureSets.REFINED.get(),
             new short[] { 50, 50, 50, 2 },
-            INSTANCE.TUNGSTEN.getMeltingPointC() + 6500,
+            INSTANCE.TUNGSTEN.getMeltingPointC() + 5200,
             INSTANCE.TUNGSTEN.getBoilingPointC() + 7500,
             160,
             101,

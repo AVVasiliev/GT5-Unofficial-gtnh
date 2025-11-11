@@ -95,7 +95,7 @@ public enum GTBranchDefinition {
         AlleleHelper.instance.set(alleles, FLOWER_PROVIDER, Flowers.END);
         AlleleHelper.instance.set(alleles, FLOWERING, Flowering.AVERAGE);
         AlleleHelper.instance.set(alleles, SPEED, GTBees.speedBlinding);
-        AlleleHelper.instance.set(alleles, SPEED, getEffect(EXTRABEES, "radioactive"));
+        AlleleHelper.instance.set(alleles, EFFECT, getEffect(EXTRABEES, "radioactive"));
     }),
     TWILIGHT("Nemoris Obscuri", alleles -> {
         AlleleHelper.instance.set(alleles, TEMPERATURE_TOLERANCE, Tolerance.BOTH_1);
@@ -144,11 +144,20 @@ public enum GTBranchDefinition {
     INFUSEDSHARD("Infusa Shard", alleles -> {
         AlleleHelper.instance.set(alleles, TEMPERATURE_TOLERANCE, Tolerance.BOTH_1);
         AlleleHelper.instance.set(alleles, TOLERANT_FLYER, true);
-        AlleleHelper.instance.set(alleles, FLOWER_PROVIDER, getFlowers(MAGICBEES, "rock"));
+        AlleleHelper.instance.set(alleles, FLOWER_PROVIDER, getFlowers(EXTRABEES, "rock"));
         AlleleHelper.instance.set(alleles, FLOWERING, Flowering.FASTEST);
         AlleleHelper.instance.set(alleles, LIFESPAN, Lifespan.SHORTEST);
         AlleleHelper.instance.set(alleles, SPEED, Speed.FASTEST);
         AlleleHelper.instance.set(alleles, TERRITORY, Territory.LARGEST);
+    }),
+    BOTANIC("Botanus", alleles -> {
+        AlleleHelper.instance.set(alleles, TEMPERATURE_TOLERANCE, Tolerance.BOTH_1);
+        AlleleHelper.instance.set(alleles, TOLERANT_FLYER, true);
+        AlleleHelper.instance.set(alleles, FLOWER_PROVIDER, getFlowers(MAGICBEES, "Botania"));
+        AlleleHelper.instance.set(alleles, FLOWERING, Flowering.SLOWEST);
+        AlleleHelper.instance.set(alleles, LIFESPAN, Lifespan.SHORTEST);
+        AlleleHelper.instance.set(alleles, SPEED, Speed.FAST);
+        AlleleHelper.instance.set(alleles, TERRITORY, Territory.AVERAGE);
     }),
     ENDGAME("ENDUS GAMUS", alleles -> {
         AlleleHelper.instance.set(alleles, TEMPERATURE_TOLERANCE, Tolerance.BOTH_5);

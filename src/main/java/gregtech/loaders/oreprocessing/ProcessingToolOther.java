@@ -118,6 +118,7 @@ public class ProcessingToolOther implements gregtech.api.interfaces.IOreRecipeRe
                     new Object[] { "LBf", "Sd ", "P  ", 'B', OrePrefixes.bolt.get(aMaterial), 'P',
                         OrePrefixes.plate.get(Materials.AnySyntheticRubber), 'S',
                         OrePrefixes.stick.get(Materials.StainlessSteel), 'L', ItemList.Battery_RE_HV_Lithium.get(1L) });
+
                 GTModHandler.addCraftingRecipe(
                     (MetaGeneratedTool01.INSTANCE
                         .getToolWithStats(IDMetaTool01.POCKET_MULTITOOL.ID, 1, aMaterial, aMaterial, null)),
@@ -125,7 +126,15 @@ public class ProcessingToolOther implements gregtech.api.interfaces.IOreRecipeRe
                     new Object[] { "ABC", "DEF", "CFG", 'A', OrePrefixes.stickLong.get(aMaterial), 'B',
                         OrePrefixes.toolHeadSaw.get(aMaterial), 'C', OrePrefixes.ring.get(aMaterial), 'D',
                         OrePrefixes.toolHeadFile.get(aMaterial), 'E', OrePrefixes.plate.get(aMaterial), 'F',
-                        OrePrefixes.toolHeadSword.get(aMaterial), 'G', Dyes.dyeBlue });
+                        OrePrefixes.spring.get(aMaterial), 'G', Dyes.dyeBlue });
+
+                GTModHandler.addCraftingRecipe(
+                    MetaGeneratedTool01.INSTANCE
+                        .getToolWithStats(IDMetaTool01.TROWEL.ID, 1, aMaterial, aMaterial.mHandleMaterial, null),
+                    GTModHandler.RecipeBits.DO_NOT_CHECK_FOR_COLLISIONS | GTModHandler.RecipeBits.BUFFERED,
+                    new Object[] { "  d", "SSC", "fPP", 'S', OrePrefixes.stick.get(aMaterial.mHandleMaterial), 'C',
+                        OrePrefixes.screw.get(aMaterial), 'P', OrePrefixes.plate.get(aMaterial) });
+
             }
         }
     }

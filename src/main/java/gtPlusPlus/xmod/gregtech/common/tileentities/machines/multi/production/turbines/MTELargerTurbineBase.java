@@ -31,7 +31,6 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 
-import gregtech.GTMod;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
@@ -41,22 +40,20 @@ import gregtech.api.items.MetaGeneratedTool;
 import gregtech.api.metatileentity.implementations.MTEHatch;
 import gregtech.api.metatileentity.implementations.MTEHatchDynamo;
 import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
-import gregtech.api.metatileentity.implementations.MTEHatchMuffler;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.TurbineStatCalculator;
 import gregtech.api.util.shutdown.ShutDownReason;
 import gregtech.api.util.shutdown.ShutDownReasonRegistry;
-import gregtech.common.pollution.Pollution;
 import gtPlusPlus.api.objects.Logger;
 import gtPlusPlus.api.objects.minecraft.BlockPos;
 import gtPlusPlus.core.block.ModBlocks;
 import gtPlusPlus.core.util.math.MathUtils;
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.MTEHatchTurbine;
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
-import gtPlusPlus.xmod.gregtech.api.objects.GTPPRenderedTexture;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 
 public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerTurbineBase>
@@ -76,7 +73,7 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
                 // m = muffler
                 .addShape(
                     STRUCTURE_PIECE_MAIN,
-                    (new String[][] { { "ccchccc", "ccccccc", "ccmmmcc", "ccm~mcc", "ccmmmcc", "ccccccc", "ccchccc" },
+                    (new String[][] { { "ccchccc", "ccccccc", "ccmcmcc", "ccc~ccc", "ccmcmcc", "ccccccc", "ccchccc" },
                         { "ctchctc", "cscccsc", "cscccsc", "cscccsc", "cscccsc", "cscccsc", "ctchctc" },
                         { "ccchccc", "ccccccc", "ccccccc", "ccccccc", "ccccccc", "ccccccc", "ccchccc" },
                         { "ccchccc", "ccccccc", "ccccccc", "ccccccc", "ccccccc", "ccccccc", "ccchccc" },
@@ -106,10 +103,8 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
                 .addElement(
                     'm',
                     lazy(
-                        t -> buildHatchAdder(MTELargerTurbineBase.class).atLeast(Muffler)
-                            .casingIndex(t.getCasingTextureIndex())
-                            .dot(7)
-                            .buildAndChain(t.getCasingBlock(), t.getCasingMeta())))
+                        t -> t.requiresMufflers() ? Muffler.newAny(t.getCasingTextureIndex(), 7)
+                            : ofBlock(t.getCasingBlock(), t.getCasingMeta())))
                 .build();
         }
     };
@@ -121,12 +116,7 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
     protected int storedFluid = 0;
     protected int counter = 0;
     protected boolean looseFit = false;
-    protected double mufflerReduction = 1;
     protected float[] flowMultipliers = new float[] { 1, 1, 1 };
-
-    public ITexture frontFace = new GTPPRenderedTexture(TexturesGtBlock.Overlay_Machine_Controller_Advanced);
-    public ITexture frontFaceActive = new GTPPRenderedTexture(
-        TexturesGtBlock.Overlay_Machine_Controller_Advanced_Active);
 
     public ArrayList<MTEHatchTurbine> mTurbineRotorHatches = new ArrayList<>();
 
@@ -142,7 +132,14 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
 
     protected abstract String getCasingName();
 
+    protected abstract boolean isDenseSteam();
+
     protected abstract boolean requiresOutputHatch();
+
+    @Override
+    public boolean supportsPowerPanel() {
+        return false;
+    }
 
     @Override
     protected final MultiblockTooltipBuilder createTooltip() {
@@ -155,13 +152,19 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
         if (getTurbineType().equals("Plasma")) {
             tt.addInfo("Plasma fuel efficiency is lower for high tier turbines when using low-grade plasmas")
                 .addInfo("Efficiency = ((FuelValue / 200,000)^2) / (EU per Turbine)");
+        } else if (getTurbineType().contains("Steam")) {
+            tt.addInfo("Dense types of steam are so energy packed, they only require 1/1000th of the original flow");
         }
+        tt.addTecTechHatchInfo();
         tt.addPollutionAmount(getPollutionPerSecond(null))
             .beginStructureBlock(7, 9, 7, false)
             .addController("Top Middle")
             .addCasingInfoMin(getCasingName(), 360, false)
-            .addCasingInfoMin("Rotor Shaft", 30, false)
-            .addOtherStructurePart("Rotor Assembly", "Any 1 dot hint", 1)
+            .addCasingInfoMin("Turbine Shaft", 30, false)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GTPP.tooltip.structure.rotor_assembly"),
+                "Any 1 dot hint",
+                1)
             .addInputBus("Any 4 dot hint (min 1)", 4)
             .addInputHatch("Any 4 dot hint(min 1)", 4);
         if (requiresOutputHatch()) {
@@ -182,24 +185,24 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
     }
 
     private boolean requiresMufflers() {
-        if (!GTMod.gregtechproxy.mPollution) {
-            return false;
-        }
         return getPollutionPerSecond(null) > 0;
-    }
-
-    public final double getMufflerReduction() {
-        double totalReduction = 0;
-        for (MTEHatchMuffler tHatch : validMTEList(mMufflerHatches)) {
-            totalReduction += ((double) tHatch.calculatePollutionReduction(100)) / 100;
-        }
-        return totalReduction / 4;
     }
 
     @Override
     public void clearHatches() {
         super.clearHatches();
         mTurbineRotorHatches.clear();
+    }
+
+    @Override
+    public boolean checkStructure(boolean aForceReset, IGregTechTileEntity aBaseMetaTileEntity) {
+        boolean f = super.checkStructure(aForceReset, aBaseMetaTileEntity);
+        if (f) {
+            for (MTEHatchTurbine tHatch : mTurbineRotorHatches) {
+                tHatch.sendUpdate();
+            }
+        }
+        return f;
     }
 
     @Override
@@ -229,7 +232,6 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
                     + mOutputHatches.size());
             return false;
         }
-        mufflerReduction = getMufflerReduction();
         return aStructure;
     }
 
@@ -242,7 +244,7 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
         int realBudget = elementBudget >= 200 ? elementBudget : Math.min(200, elementBudget * 2);
-        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 3, 3, 0, realBudget, env, false, true);
+        return survivalBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 3, 3, 0, realBudget, env, false, true);
     }
 
     public boolean addTurbineHatch(final IGregTechTileEntity aTileEntity, final int aBaseCasingIndex) {
@@ -453,7 +455,7 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
                     float aTotalBaseEff = 0;
                     float aTotalOptimalFlow = 0;
 
-                    aTotalBaseEff += turbine.getEfficiency() * 100;
+                    aTotalBaseEff += turbine.getBaseEfficiency() * 100;
                     aTotalOptimalFlow += GTUtility
                         .safeInt((long) Math.max(Float.MIN_NORMAL, getSpeedMultiplier() * turbine.getOptimalFlow()));
                     baseEff = MathUtils.roundToClosestInt(aTotalBaseEff);
@@ -548,19 +550,12 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
         return this.getMaxParallelRecipes() == 12 ? 10000 : 0;
     }
 
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
-        return false;
-    }
-
     public boolean isLooseMode() {
         return looseFit;
     }
 
     @Override
     public String[] getExtraInfoData() {
-        int mPollutionReduction = (int) (100 * mufflerReduction);
-
         String tRunning = mMaxProgresstime > 0
             ? EnumChatFormatting.GREEN + StatCollector.translateToLocal("GT5U.turbine.running.true")
                 + EnumChatFormatting.RESET
@@ -622,11 +617,12 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
                 + GTUtility.formatNumbers(maxEnergy)
                 + EnumChatFormatting.RESET
                 + " EU",
-            StatCollector.translateToLocal("GT5U.turbine.flow") + ": "
-                + EnumChatFormatting.YELLOW
-                + GTUtility.formatNumbers(MathUtils.safeInt((long) realOptFlow))
+            StatCollector.translateToLocal("GT5U.turbine.flow") + ": " + EnumChatFormatting.YELLOW
+            // Divides optimal flow by 1000 if it's a dense steam
+                + GTUtility.formatNumbers(MathUtils.safeInt((long) realOptFlow) / (isDenseSteam() ? 1000 : 1))
                 + EnumChatFormatting.RESET
-                + " L/s"
+                + " L/"
+                + (getTurbineType().equals("Plasma") ? 's' : 't') // based on turbine type changes flow timing
                 + EnumChatFormatting.YELLOW
                 + " ("
                 + (isLooseMode() ? StatCollector.translateToLocal("GT5U.turbine.loose")
@@ -640,33 +636,9 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
             StatCollector.translateToLocal("GT5U.turbine.dmg") + ": " + aTurbineDamage,
             StatCollector.translateToLocal("GT5U.multiblock.pollution") + ": "
                 + EnumChatFormatting.GREEN
-                + GTUtility.formatNumbers(mPollutionReduction)
+                + getAveragePollutionPercentage()
                 + EnumChatFormatting.RESET
                 + " %" };
-    }
-
-    @Override
-    public boolean isGivingInformation() {
-        return true;
-    }
-
-    @Override
-    public boolean polluteEnvironment(int aPollutionLevel) {
-        if (this.requiresMufflers()) {
-            mPollution += aPollutionLevel * getPollutionMultiplier() * mufflerReduction;
-            for (MTEHatchMuffler tHatch : validMTEList(mMufflerHatches)) {
-                if (mPollution >= 10000) {
-                    if (GTMod.gregtechproxy.mPollution) {
-                        Pollution.addPollution(this.getBaseMetaTileEntity(), 10000);
-                        mPollution -= 10000;
-                    }
-                } else {
-                    break;
-                }
-            }
-            return mPollution < 10000;
-        }
-        return true;
     }
 
     @Override
@@ -689,7 +661,9 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
     @Override
     public void onModeChangeByScrewdriver(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
         if (side == getBaseMetaTileEntity().getFrontFacing()) {
-            looseFit ^= true;
+            looseFit = !looseFit;
+            // Clear recipe maps so they don't attempt to filter off of a dummy recipe map
+            clearRecipeMapForAllInputHatches();
             GTUtility.sendChatToPlayer(
                 aPlayer,
                 looseFit ? "Fitting: Loose - More Flow" : "Fitting: Tight - More Efficiency");
@@ -705,9 +679,15 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
 
     protected ITexture getFrontFacingTurbineTexture(boolean isActive) {
         if (isActive) {
-            return frontFaceActive;
+            return TextureFactory.builder()
+                .addIcon(TexturesGtBlock.Overlay_Machine_Controller_Advanced_Active)
+                .extFacing()
+                .build();
         }
-        return frontFace;
+        return TextureFactory.builder()
+            .addIcon(TexturesGtBlock.Overlay_Machine_Controller_Advanced)
+            .extFacing()
+            .build();
     }
 
     @Override
@@ -841,16 +821,17 @@ public abstract class MTELargerTurbineBase extends GTPPMultiBlockBase<MTELargerT
         return 1;
     }
 
-    public int getPollutionMultiplier() {
-        return 1;
-    }
-
     public int getTurbineDamageMultiplier() {
         return 1;
     }
 
     @Override
     public boolean supportsBatchMode() {
+        return false;
+    }
+
+    @Override
+    public boolean showRecipeTextInGUI() {
         return false;
     }
 }

@@ -11,9 +11,8 @@ import static net.minecraft.util.EnumChatFormatting.YELLOW;
 import java.math.BigInteger;
 import java.util.ArrayList;
 
-import javax.annotation.Nonnull;
-
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -54,7 +53,7 @@ public class MTEMoltenModule extends MTEBaseModule {
 
             @NotNull
             @Override
-            protected CheckRecipeResult validateRecipe(@Nonnull GTRecipe recipe) {
+            protected CheckRecipeResult validateRecipe(@NotNull GTRecipe recipe) {
                 if (recipe.mSpecialValue > getHeat()) {
                     return CheckRecipeResultRegistry.insufficientHeat(recipe.mSpecialValue);
                 }
@@ -63,17 +62,17 @@ public class MTEMoltenModule extends MTEBaseModule {
                     return CheckRecipeResultRegistry.insufficientPower(recipe.mEUt);
                 }
 
-                wirelessEUt = (long) recipe.mEUt * getMaxParallel();
+                wirelessEUt = (long) recipe.mEUt * getActualParallel();
                 if (getUserEU(userUUID).compareTo(BigInteger.valueOf(wirelessEUt * recipe.mDuration)) < 0) {
                     return CheckRecipeResultRegistry.insufficientPower(wirelessEUt * recipe.mDuration);
                 }
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }
 
-            @Nonnull
+            @NotNull
             @Override
-            protected OverclockCalculator createOverclockCalculator(@Nonnull GTRecipe recipe) {
-                return super.createOverclockCalculator(recipe).setEUt(getProcessingVoltage())
+            protected OverclockCalculator createOverclockCalculator(@NotNull GTRecipe recipe) {
+                return super.createOverclockCalculator(recipe).setEUt(getSafeProcessingVoltage())
                     .setRecipeHeat(recipe.mSpecialValue)
                     .setHeatOC(true)
                     .setHeatDiscount(true)
@@ -85,17 +84,18 @@ public class MTEMoltenModule extends MTEBaseModule {
 
             @NotNull
             @Override
-            protected CheckRecipeResult onRecipeStart(@Nonnull GTRecipe recipe) {
-                if (!addEUToGlobalEnergyMap(userUUID, -calculatedEut * duration)) {
-                    return CheckRecipeResultRegistry.insufficientPower(calculatedEut * duration);
+            protected CheckRecipeResult onRecipeStart(@NotNull GTRecipe recipe) {
+                BigInteger powerForRecipe = BigInteger.valueOf(calculatedEut)
+                    .multiply(BigInteger.valueOf(duration));
+                if (!addEUToGlobalEnergyMap(userUUID, powerForRecipe.negate())) {
+                    return CheckRecipeResultRegistry.insufficientStartupPower(powerForRecipe);
                 }
-                addToPowerTally(
-                    BigInteger.valueOf(calculatedEut)
-                        .multiply(BigInteger.valueOf(duration)));
+                addToPowerTally(powerForRecipe);
                 addToRecipeTally(calculatedParallels);
                 currentParallel = calculatedParallels;
                 EUt = calculatedEut;
-                setCalculatedEut(0);
+                overwriteCalculatedEut(0);
+                setCurrentRecipeHeat(recipe.mSpecialValue);
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }
         };
@@ -106,7 +106,8 @@ public class MTEMoltenModule extends MTEBaseModule {
         logic.setAvailableVoltage(Long.MAX_VALUE);
         logic.setAvailableAmperage(Integer.MAX_VALUE);
         logic.setAmperageOC(false);
-        logic.setMaxParallel(getMaxParallel());
+        logic.setUnlimitedTierSkips();
+        logic.setMaxParallel(getActualParallel());
         logic.setSpeedBonus(getSpeedBonus());
         logic.setEuModifier(getEnergyDiscount());
     }
@@ -120,29 +121,41 @@ public class MTEMoltenModule extends MTEBaseModule {
     public String[] getInfoData() {
         ArrayList<String> str = new ArrayList<>();
         str.add(
-            "Progress: " + GREEN
-                + formatNumbers(mProgresstime / 20)
-                + RESET
-                + " s / "
-                + YELLOW
-                + formatNumbers(mMaxProgresstime / 20)
-                + RESET
-                + " s");
+            StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.progress",
+                GREEN + formatNumbers(mProgresstime / 20) + RESET,
+                YELLOW + formatNumbers(mMaxProgresstime / 20) + RESET));
         str.add(
-            "Currently using: " + RED
-                + (getBaseMetaTileEntity().isActive() ? formatNumbers(EUt) : "0")
-                + RESET
-                + " EU/t");
-        str.add(YELLOW + "Max Parallel: " + RESET + formatNumbers(getMaxParallel()));
+            StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.currently_using",
+                RED + (getBaseMetaTileEntity().isActive() ? formatNumbers(EUt) : "0") + RESET));
         str.add(
-            YELLOW + "Current Parallel: "
-                + RESET
-                + (getBaseMetaTileEntity().isActive() ? formatNumbers(currentParallel) : "0"));
-        str.add(YELLOW + "Heat Capacity: " + RESET + formatNumbers(getHeat()));
-        str.add(YELLOW + "Effective Heat Capacity: " + RESET + formatNumbers(getHeatForOC()));
-        str.add(YELLOW + "Recipe time multiplier: " + RESET + formatNumbers(getSpeedBonus()));
-        str.add(YELLOW + "Energy multiplier: " + RESET + formatNumbers(getEnergyDiscount()));
-        str.add(YELLOW + "Recipe time divisor per non-perfect OC: " + RESET + formatNumbers(getOverclockTimeFactor()));
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.max_parallel",
+                RESET + formatNumbers(getActualParallel())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.parallel.current",
+                RESET + (getBaseMetaTileEntity().isActive() ? formatNumbers(currentParallel) : "0")));
+        str.add(
+            YELLOW + StatCollector
+                .translateToLocalFormatted("tt.infodata.multi.capacity.heat", RESET + formatNumbers(getHeat())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.capacity.heat.effective",
+                RESET + formatNumbers(getHeatForOC())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.multiplier.recipe_time",
+                RESET + formatNumbers(getSpeedBonus())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.multiplier.energy",
+                RESET + formatNumbers(getEnergyDiscount())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.divisor.recipe_time.non_perfect_oc",
+                RESET + formatNumbers(getOverclockTimeFactor())));
         return str.toArray(new String[0]);
     }
 
@@ -150,14 +163,14 @@ public class MTEMoltenModule extends MTEBaseModule {
     public MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType("Blast Smelter")
-            .addInfo("This is a module of the Godforge.")
-            .addInfo("Must be part of a Godforge to function.")
-            .addInfo("Used for high temperature material liquefaction.")
+            .addInfo("This is a module of the Godforge")
+            .addInfo("Must be part of a Godforge to function")
+            .addInfo("Used for high temperature material liquefaction")
             .addSeparator(EnumChatFormatting.AQUA, 74)
             .addInfo("The second module of the Godforge, this module melts materials directly into")
             .addInfo("their liquid form. If an output material does not have a liquid form, it will be output")
-            .addInfo("as a regular solid instead.")
-            .addInfo("This module is specialized towards parallel processing.")
+            .addInfo("as a regular solid instead")
+            .addInfo("This module is specialized towards parallel processing")
             .beginStructureBlock(7, 7, 13, false)
             .addStructureInfo(
                 EnumChatFormatting.GOLD + "20"

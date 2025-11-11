@@ -2,7 +2,6 @@ package gregtech.api.metatileentity.implementations;
 
 import static gregtech.api.enums.GTValues.V;
 
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.ForgeDirection;
 
@@ -12,10 +11,6 @@ import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 
 public class MTEHatchEnergy extends MTEHatch {
-
-    public MTEHatchEnergy(int aID, String aName, String aNameRegional, int aTier, String[] aDescription) {
-        super(aID, aName, aNameRegional, aTier, 0, aDescription);
-    }
 
     public MTEHatchEnergy(int aID, String aName, String aNameRegional, int aTier) {
         super(
@@ -27,45 +22,32 @@ public class MTEHatchEnergy extends MTEHatch {
             new String[] { "Energy Injector for Multiblocks", "Accepts up to 2 Amps" });
     }
 
-    public MTEHatchEnergy(int aID, String aName, String aNameRegional, int aTier, int aInvSlotCount,
-        String[] aDescription, ITexture... aTextures) {
-        super(aID, aName, aNameRegional, aTier, aInvSlotCount, aDescription, aTextures);
-    }
-
-    public MTEHatchEnergy(String aName, int aTier, String aDescription, ITexture[][][] aTextures) {
-        super(aName, aTier, 0, aDescription, aTextures);
+    @SuppressWarnings("unused") // needed in an addon
+    public MTEHatchEnergy(int aID, String aName, String aNameRegional, int aTier, int aInventorySize,
+        String[] aDescriptionArray) {
+        super(aID, aName, aNameRegional, aTier, aInventorySize, aDescriptionArray);
     }
 
     public MTEHatchEnergy(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
         super(aName, aTier, 0, aDescription, aTextures);
     }
 
-    public MTEHatchEnergy(String aName, int aTier, int aInvSlotCount, String[] aDescription, ITexture[][][] aTextures) {
-        super(aName, aTier, aInvSlotCount, aDescription, aTextures);
+    public MTEHatchEnergy(String name, int tier, int invSlotCount, String[] description, ITexture[][][] textures) {
+        super(name, tier, invSlotCount, description, textures);
     }
 
     @Override
     public ITexture[] getTexturesActive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture, Textures.BlockIcons.OVERLAYS_ENERGY_IN_MULTI[mTier] };
+        return new ITexture[] { aBaseTexture, Textures.BlockIcons.OVERLAYS_ENERGY_IN_MULTI_2A[mTier + 1] };
     }
 
     @Override
     public ITexture[] getTexturesInactive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture, Textures.BlockIcons.OVERLAYS_ENERGY_IN_MULTI[mTier] };
-    }
-
-    @Override
-    public boolean isSimpleMachine() {
-        return true;
+        return new ITexture[] { aBaseTexture, Textures.BlockIcons.OVERLAYS_ENERGY_IN_MULTI_2A[mTier + 1] };
     }
 
     @Override
     public boolean isFacingValid(ForgeDirection facing) {
-        return true;
-    }
-
-    @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
         return true;
     }
 
@@ -82,11 +64,6 @@ public class MTEHatchEnergy extends MTEHatch {
     @Override
     public boolean isValidSlot(int aIndex) {
         return false;
-    }
-
-    @Override
-    public long getMinimumStoredEU() {
-        return 512;
     }
 
     @Override

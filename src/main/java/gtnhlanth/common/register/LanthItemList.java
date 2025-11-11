@@ -7,7 +7,12 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
 import cpw.mods.fml.common.registry.GameRegistry;
+import gregtech.api.enums.OrePrefixes;
+import gregtech.api.enums.Textures;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTLanguageManager;
+import gregtech.api.util.GTOreDictUnificator;
+import gregtech.common.misc.GTStructureChannels;
 import gtnhlanth.common.beamline.MTEBeamlinePipe;
 import gtnhlanth.common.block.BlockAntennaCasing;
 import gtnhlanth.common.block.BlockCasing;
@@ -70,7 +75,6 @@ public final class LanthItemList {
 
     public static final Block COOLANT_DELIVERY_CASING = new BlockCasing("coolant_delivery");
 
-    // public static final Block ANTENNA_CASING_T1 = new Casing("antenna_t1");
     public static final Block ANTENNA_CASING_T1 = new BlockAntennaCasing(1);
     public static final Block ANTENNA_CASING_T2 = new BlockAntennaCasing(2);
 
@@ -131,6 +135,8 @@ public final class LanthItemList {
         GameRegistry.registerItem(PARTICLE_ITEM, "particle");
 
         GameRegistry.registerBlock(SHIELDED_ACCELERATOR_CASING, SHIELDED_ACCELERATOR_CASING.getUnlocalizedName());
+        // Steal a texture page index from good generator, this desperately needs a refactor
+        Textures.BlockIcons.casingTexturePages[12][126] = TextureFactory.of(SHIELDED_ACCELERATOR_CASING);
 
         GameRegistry.registerBlock(ELECTRODE_CASING, ELECTRODE_CASING.getUnlocalizedName());
 
@@ -164,11 +170,21 @@ public final class LanthItemList {
                 descSpectrum);
             GameRegistry.registerItem(maskItem, maskItem.getUnlocalizedName());
 
+            if (!mask.getName()
+                .contains("blank")) {
+                GTOreDictUnificator.registerOre(
+                    OrePrefixes.mask + mask.getName()
+                        .toUpperCase(),
+                    new ItemStack(maskItem));
+            }
+
             GTLanguageManager.addStringLocalization(maskItem.getUnlocalizedName() + ".name", "Mask (" + english + ")");
 
             maskMap.put(mask, maskItem);
 
         }
 
+        GTStructureChannels.SYNCHROTRON_ANTENNA.registerAsIndicator(new ItemStack(ANTENNA_CASING_T1), 1);
+        GTStructureChannels.SYNCHROTRON_ANTENNA.registerAsIndicator(new ItemStack(ANTENNA_CASING_T2), 2);
     }
 }

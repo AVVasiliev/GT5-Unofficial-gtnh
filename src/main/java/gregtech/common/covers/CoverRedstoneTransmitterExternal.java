@@ -1,53 +1,43 @@
 package gregtech.common.covers;
 
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraft.nbt.NBTBase;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagInt;
 
 import gregtech.api.GregTechAPI;
+import gregtech.api.covers.CoverContext;
 import gregtech.api.interfaces.ITexture;
-import gregtech.api.interfaces.covers.IControlsWorkCover;
-import gregtech.api.interfaces.tileentity.ICoverable;
-import gregtech.api.util.ISerializableObject;
 
 public class CoverRedstoneTransmitterExternal extends CoverRedstoneWirelessBase {
 
-    public CoverRedstoneTransmitterExternal(ITexture coverTexture) {
-        super(coverTexture);
+    public CoverRedstoneTransmitterExternal(CoverContext context, ITexture coverTexture) {
+        super(context, coverTexture);
     }
 
     @Override
-    public int doCoverThings(ForgeDirection side, byte aInputRedstone, int aCoverID, int aCoverVariable,
-        ICoverable aTileEntity, long aTimer) {
-        // TODO remove next line after 2.3.0
-        if (!IControlsWorkCover.makeSureOnlyOne(side, aTileEntity)) return aCoverVariable;
-        GregTechAPI.sWirelessRedstone.put(aCoverVariable, aInputRedstone);
-        return aCoverVariable;
+    public void onCoverRemoval() {
+        GregTechAPI.sWirelessRedstone.remove(getMapFrequency());
     }
 
     @Override
-    protected boolean isRedstoneSensitiveImpl(ForgeDirection side, int aCoverID,
-        ISerializableObject.LegacyCoverData aCoverVariable, ICoverable aTileEntity, long aTimer) {
+    public void doCoverThings(byte aInputRedstone, long aTimer) {
+        GregTechAPI.sWirelessRedstone.put(getMapFrequency(), aInputRedstone);
+    }
+
+    @Override
+    public boolean letsRedstoneGoIn() {
         return true;
     }
 
+    // TODO: Remove this in 2.9 unless class moved from CoverLegacyData
     @Override
-    public boolean letsRedstoneGoIn(ForgeDirection side, int aCoverID, int aCoverVariable, ICoverable aTileEntity) {
-        return true;
-    }
-
-    @Override
-    public int getTickRate(ForgeDirection side, int aCoverID, int aCoverVariable, ICoverable aTileEntity) {
-        return 1;
-    }
-
-    @Override
-    public boolean isCoverPlaceable(ForgeDirection side, ItemStack aStack, ICoverable aTileEntity) {
-        if (!super.isCoverPlaceable(side, aStack, aTileEntity)) return false;
-        for (final ForgeDirection tSide : ForgeDirection.VALID_DIRECTIONS) {
-            if (aTileEntity.getCoverBehaviorAtSideNew(tSide) instanceof IControlsWorkCover) {
-                return false;
-            }
+    protected void readDataFromNbt(NBTBase nbt) {
+        if (nbt instanceof NBTTagInt nbtInt) {
+            int data = nbtInt.func_150287_d();
+            processCoverData(getFlagFrequency(data), getFlagCheckbox(data));
+            return;
         }
-        return true;
+        NBTTagCompound tag = (NBTTagCompound) nbt;
+        processCoverData(tag.getInteger("frequency"), tag.getBoolean("privateChannel"));
     }
 }

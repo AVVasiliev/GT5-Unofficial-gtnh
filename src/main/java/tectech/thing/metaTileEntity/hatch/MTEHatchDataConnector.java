@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
@@ -18,17 +19,16 @@ import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatch;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.render.TextureFactory;
 import gregtech.mixin.interfaces.accessors.EntityPlayerMPAccessor;
 import tectech.mechanics.dataTransport.DataPacket;
 import tectech.mechanics.pipe.IConnectsToDataPipe;
 import tectech.util.CommonValues;
-import tectech.util.TTUtility;
 
 /**
  * Created by danie_000 on 11.12.2016.
  */
-public abstract class MTEHatchDataConnector<T extends DataPacket> extends MTEHatch implements IConnectsToDataPipe {
+public abstract class MTEHatchDataConnector<T extends DataPacket<?>> extends MTEHatch implements IConnectsToDataPipe {
 
     public static Textures.BlockIcons.CustomIcon EM_D_SIDES;
     public static Textures.BlockIcons.CustomIcon EM_D_ACTIVE;
@@ -42,7 +42,6 @@ public abstract class MTEHatchDataConnector<T extends DataPacket> extends MTEHat
 
     protected MTEHatchDataConnector(int aID, String aName, String aNameRegional, int aTier, String[] descr) {
         super(aID, aName, aNameRegional, aTier, 0, descr);
-        TTUtility.setTier(aTier, this);
     }
 
     protected MTEHatchDataConnector(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
@@ -60,20 +59,17 @@ public abstract class MTEHatchDataConnector<T extends DataPacket> extends MTEHat
 
     @Override
     public ITexture[] getTexturesActive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture,
-            new GTRenderedTexture(
-                EM_D_ACTIVE,
-                Dyes.getModulation(getBaseMetaTileEntity().getColorization(), MACHINE_METAL.getRGBA())),
-            new GTRenderedTexture(EM_D_CONN) };
+        return new ITexture[] { aBaseTexture, TextureFactory
+            .of(EM_D_ACTIVE, Dyes.getModulation(getBaseMetaTileEntity().getColorization(), MACHINE_METAL.getRGBA())),
+            TextureFactory.of(EM_D_CONN) };
     }
 
     @Override
     public ITexture[] getTexturesInactive(ITexture aBaseTexture) {
         return new ITexture[] { aBaseTexture,
-            new GTRenderedTexture(
-                EM_D_SIDES,
-                Dyes.getModulation(getBaseMetaTileEntity().getColorization(), MACHINE_METAL.getRGBA())),
-            new GTRenderedTexture(EM_D_CONN) };
+            TextureFactory
+                .of(EM_D_SIDES, Dyes.getModulation(getBaseMetaTileEntity().getColorization(), MACHINE_METAL.getRGBA())),
+            TextureFactory.of(EM_D_CONN) };
     }
 
     @Override
@@ -99,9 +95,12 @@ public abstract class MTEHatchDataConnector<T extends DataPacket> extends MTEHat
     @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
         if (aBaseMetaTileEntity.isServerSide()) {
+            aTick = MinecraftServer.getServer()
+                .getTickCounter();
             if (CommonValues.MOVE_AT == aTick % 20) {
                 if (q == null) {
                     getBaseMetaTileEntity().setActive(false);
+                    resetHistory();
                 } else {
                     getBaseMetaTileEntity().setActive(true);
                     moveAround(aBaseMetaTileEntity);
@@ -111,6 +110,10 @@ public abstract class MTEHatchDataConnector<T extends DataPacket> extends MTEHat
     }
 
     public abstract void moveAround(IGregTechTileEntity aBaseMetaTileEntity);
+
+    protected void resetHistory() {
+
+    }
 
     @Override
     public boolean onRightclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
@@ -125,11 +128,6 @@ public abstract class MTEHatchDataConnector<T extends DataPacket> extends MTEHat
 
     @Override
     public boolean isFacingValid(ForgeDirection facing) {
-        return true;
-    }
-
-    @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
         return true;
     }
 

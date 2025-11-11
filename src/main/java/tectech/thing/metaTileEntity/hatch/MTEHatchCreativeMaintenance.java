@@ -10,14 +10,15 @@ import net.minecraftforge.common.util.ForgeDirection;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import gregtech.api.enums.SoundResource;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatchMaintenance;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
+import gregtech.api.render.TextureFactory;
 import tectech.util.CommonValues;
-import tectech.util.TTUtility;
 
 public class MTEHatchCreativeMaintenance extends MTEHatchMaintenance {
 
@@ -25,7 +26,6 @@ public class MTEHatchCreativeMaintenance extends MTEHatchMaintenance {
 
     public MTEHatchCreativeMaintenance(int aID, String aName, String aNameRegional, int aTier) {
         super(aID, aName, aNameRegional, aTier);
-        TTUtility.setTier(aTier, this);
     }
 
     public MTEHatchCreativeMaintenance(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
@@ -52,12 +52,12 @@ public class MTEHatchCreativeMaintenance extends MTEHatchMaintenance {
 
     @Override
     public ITexture[] getTexturesActive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture, new GTRenderedTexture(face) };
+        return new ITexture[] { aBaseTexture, TextureFactory.of(face) };
     }
 
     @Override
     public ITexture[] getTexturesInactive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture, new GTRenderedTexture(face) };
+        return new ITexture[] { aBaseTexture, TextureFactory.of(face) };
     }
 
     @Override
@@ -67,13 +67,19 @@ public class MTEHatchCreativeMaintenance extends MTEHatchMaintenance {
 
     @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
-        this.mWrench = this.mScrewdriver = this.mSoftHammer = this.mHardHammer = this.mCrowbar = this.mSolderingTool = true;
+        this.mWrench = this.mScrewdriver = this.mSoftMallet = this.mHardHammer = this.mCrowbar = this.mSolderingTool = true;
     }
 
     @Override
     public boolean onRightclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer, ForgeDirection side,
         float aX, float aY, float aZ) {
         return false;
+    }
+
+    @Override
+    public void onMaintenancePerformed(MTEMultiBlockBase aMaintenanceTarget) {
+        setMaintenanceSound(SoundResource.GT_MAINTENANCE_CREATIVE_HATCH, 1.0F, 1.0F);
+        super.onMaintenancePerformed(aMaintenanceTarget);
     }
 
     @Override

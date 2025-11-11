@@ -1,6 +1,6 @@
 package tectech.thing;
 
-import static gregtech.api.enums.GTValues.W;
+import static gregtech.api.util.GTRecipeBuilder.WILDCARD;
 
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
@@ -12,42 +12,6 @@ import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTUtility;
 
 public enum CustomItemList implements IItemContainer {
-
-    Casing_UEV,
-    Casing_UIV,
-    Casing_UMV,
-    Casing_UXV,
-    Casing_MAXV,
-    Hull_UEV,
-    Hull_UIV,
-    Hull_UMV,
-    Hull_UXV,
-    Hull_MAXV,
-    Transformer_UEV_UHV,
-    Transformer_UIV_UEV,
-    Transformer_UMV_UIV,
-    Transformer_UXV_UMV,
-    Transformer_MAXV_UXV,
-    WetTransformer_LV_ULV,
-    WetTransformer_MV_LV,
-    WetTransformer_HV_MV,
-    WetTransformer_EV_HV,
-    WetTransformer_IV_EV,
-    WetTransformer_LuV_IV,
-    WetTransformer_ZPM_LuV,
-    WetTransformer_UV_ZPM,
-    WetTransformer_UHV_UV,
-    WetTransformer_UEV_UHV,
-    WetTransformer_UIV_UEV,
-    WetTransformer_UMV_UIV,
-    WetTransformer_UXV_UMV,
-    WetTransformer_MAXV_UXV,
-
-    Transformer_HA_UEV_UHV,
-    Transformer_HA_UIV_UEV,
-    Transformer_HA_UMV_UIV,
-    Transformer_HA_UXV_UMV,
-    Transformer_HA_MAXV_UXV,
 
     hatch_CreativeMaintenance,
     hatch_CreativeData,
@@ -68,6 +32,8 @@ public enum CustomItemList implements IItemContainer {
     Machine_DebugPollutor,
     DATApipe,
     LASERpipe,
+    TestPipe,
+    TestHatch,
     rack_Hatch,
     holder_Hatch,
     capacitor_Hatch,
@@ -169,7 +135,7 @@ public enum CustomItemList implements IItemContainer {
     eM_dynamoTunnel8_UXV,
     eM_dynamoTunnel9_UXV,
     eM_dynamoTunnel9001,
-
+    eM_dynamoWirelessMulti,
     eM_energyMulti4_EV,
     eM_energyMulti16_EV,
     eM_energyMulti64_EV,
@@ -310,9 +276,6 @@ public enum CustomItemList implements IItemContainer {
     eM_energyWirelessTunnel8_UXV,
     eM_energyWirelessTunnel9_UXV,
 
-    Parametrizer_Hatch,
-    ParametrizerX_Hatch,
-    ParametrizerTXT_Hatch,
     Uncertainty_Hatch,
     UncertaintyX_Hatch,
     dataIn_Hatch,
@@ -359,6 +322,7 @@ public enum CustomItemList implements IItemContainer {
     Machine_Multi_Transformer,
     Machine_Multi_Computer,
     Machine_Multi_Switch,
+    Machine_Multi_Switch_Adv,
     Machine_Multi_Research,
     Machine_Multi_DataBank,
     Machine_Multi_Infuser,
@@ -550,7 +514,7 @@ public enum CustomItemList implements IItemContainer {
         if (GTUtility.isStackInvalid(mStack)) {
             return GTUtility.copyAmount(aAmount, aReplacements);
         }
-        return GTUtility.copyAmountAndMetaData(aAmount, W, GTOreDictUnificator.get(mStack));
+        return GTUtility.copyAmountAndMetaData(aAmount, WILDCARD, GTOreDictUnificator.get(mStack));
     }
 
     @Override

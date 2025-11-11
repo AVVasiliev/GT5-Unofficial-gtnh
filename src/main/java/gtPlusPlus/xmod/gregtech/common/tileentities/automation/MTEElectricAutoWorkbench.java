@@ -19,15 +19,14 @@ import gregtech.api.enums.GTValues;
 import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.Textures;
 import gregtech.api.enums.Textures.BlockIcons;
-import gregtech.api.gui.modularui.GTUIInfos;
 import gregtech.api.gui.modularui.GTUITextures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.modularui.IAddGregtechLogo;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEBasicTank;
-import gregtech.api.objects.GTItemStack;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.render.TextureFactory;
+import gregtech.api.util.GTItemTransfer;
 import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTUtility;
@@ -58,21 +57,6 @@ public class MTEElectricAutoWorkbench extends MTEBasicTank implements IAddGregte
     public MTEElectricAutoWorkbench(final String aName, final int aTier, final String[] aDescription,
         final ITexture[][][] aTextures) {
         super(aName, aTier, 30, aDescription, aTextures);
-    }
-
-    @Override
-    public boolean isTransformerUpgradable() {
-        return true;
-    }
-
-    @Override
-    public boolean isOverclockerUpgradable() {
-        return false;
-    }
-
-    @Override
-    public boolean isSimpleMachine() {
-        return false;
     }
 
     @Override
@@ -136,13 +120,8 @@ public class MTEElectricAutoWorkbench extends MTEBasicTank implements IAddGregte
     }
 
     @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
-        return true;
-    }
-
-    @Override
     public boolean onRightclick(final IGregTechTileEntity aBaseMetaTileEntity, final EntityPlayer aPlayer) {
-        GTUIInfos.openGTTileEntityUI(aBaseMetaTileEntity, aPlayer);
+        openGui(aPlayer);
         return true;
     }
 
@@ -186,17 +165,7 @@ public class MTEElectricAutoWorkbench extends MTEBasicTank implements IAddGregte
     }
 
     @Override
-    public boolean displaysItemStack() {
-        return false;
-    }
-
-    @Override
-    public boolean displaysStackSize() {
-        return false;
-    }
-
-    @Override
-    public boolean allowCoverOnSide(ForgeDirection side, GTItemStack aStack) {
+    public boolean allowCoverOnSide(ForgeDirection side, ItemStack coverItem) {
         return side != getBaseMetaTileEntity().getFrontFacing() && side != getBaseMetaTileEntity().getBackFacing();
     }
 
@@ -632,19 +601,11 @@ public class MTEElectricAutoWorkbench extends MTEBasicTank implements IAddGregte
             }
 
             if (mThroughPut < 2) {
-                getBaseMetaTileEntity().decreaseStoredEnergyUnits(
-                    GTUtility.moveOneItemStack(
-                        getBaseMetaTileEntity(),
-                        getBaseMetaTileEntity().getIInventoryAtSide(getBaseMetaTileEntity().getBackFacing()),
-                        getBaseMetaTileEntity().getBackFacing(),
-                        getBaseMetaTileEntity().getFrontFacing(),
-                        null,
-                        false,
-                        (byte) 64,
-                        (byte) 1,
-                        (byte) 64,
-                        (byte) 1) * 10,
-                    true);
+                GTItemTransfer transfer = new GTItemTransfer();
+
+                transfer.outOfMachine(this, aBaseMetaTileEntity.getBackFacing());
+
+                getBaseMetaTileEntity().decreaseStoredEnergyUnits(transfer.transfer() * 10L, true);
             }
         }
     }
@@ -700,7 +661,7 @@ public class MTEElectricAutoWorkbench extends MTEBasicTank implements IAddGregte
     @Override
     public boolean allowPullStack(IGregTechTileEntity aBaseMetaTileEntity, int aIndex, ForgeDirection side,
         ItemStack aStack) {
-        return mMode == 0 ? aIndex >= 10 : aIndex >= 18;
+        return mMode == 0 ? aIndex >= 9 : aIndex >= 18;
     }
 
     @Override
@@ -717,11 +678,6 @@ public class MTEElectricAutoWorkbench extends MTEBasicTank implements IAddGregte
     @Override
     public int getCapacity() {
         return 16000;
-    }
-
-    @Override
-    public int getTankPressure() {
-        return -100;
     }
 
     @Override
@@ -763,12 +719,12 @@ public class MTEElectricAutoWorkbench extends MTEBasicTank implements IAddGregte
 
     public ITexture[] getFront(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Adv_Workbench_Crafting_Overlay) };
+            TextureFactory.of(TexturesGtBlock.Casing_Adv_Workbench_Crafting_Overlay) };
     }
 
     public ITexture[] getBack(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[mTier][aColor + 1],
-            new GTRenderedTexture(BlockIcons.OVERLAY_PIPE) };
+            TextureFactory.of(BlockIcons.OVERLAY_PIPE) };
     }
 
     public ITexture[] getBottom(final byte aColor) {
@@ -777,12 +733,12 @@ public class MTEElectricAutoWorkbench extends MTEBasicTank implements IAddGregte
 
     public ITexture[] getTop(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Adv_Workbench_Crafting_Overlay) };
+            TextureFactory.of(TexturesGtBlock.Casing_Adv_Workbench_Crafting_Overlay) };
     }
 
     public ITexture[] getSides(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Adv_Workbench_Crafting_Overlay) };
+            TextureFactory.of(TexturesGtBlock.Casing_Adv_Workbench_Crafting_Overlay) };
     }
 
     @Override

@@ -1,21 +1,14 @@
 package kekztech;
 
-import java.util.List;
-import java.util.Set;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.google.common.collect.ImmutableSet;
 
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
-import cpw.mods.fml.common.event.FMLMissingMappingsEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import gregtech.GT_Version;
-import gregtech.api.enums.Mods;
 import kekztech.common.CommonProxy;
 
 /**
@@ -36,15 +29,11 @@ import kekztech.common.CommonProxy;
 public class KekzCore {
 
     public static final String NAME = "KekzTech";
-    public static final String MODID = Mods.Names.KEKZ_TECH;
+    public static final String MODID = "kekztech";
     public static final String VERSION = GT_Version.VERSION;
-
     public static final Logger LOGGER = LogManager.getLogger(NAME);
 
-    public static boolean isThaumcraftLoaded = false;
-    public static boolean isThaumicTiinkererLoaded = false;
-
-    @Mod.Instance(Mods.Names.KEKZ_TECH)
+    @Mod.Instance(MODID)
     public static KekzCore instance;
 
     @SidedProxy(clientSide = "kekztech.client.ClientProxy", serverSide = "kekztech.ServerProxy")
@@ -63,25 +52,5 @@ public class KekzCore {
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         proxy.postInit(event);
-    }
-
-    @Mod.EventHandler
-    public void onMissingMapping(FMLMissingMappingsEvent event) {
-        List<FMLMissingMappingsEvent.MissingMapping> missingMappings = event.get();
-
-        // intentionally not a static final field to save a bit of ram.
-        Set<String> removedStuff = ImmutableSet.of(
-            MODID + ":kekztech_tfftcasingblock_block",
-            MODID + ":kekztech_tfftmultihatch_block",
-            MODID + ":kekztech_tfftstoragefieldblock1_block",
-            MODID + ":kekztech_tfftstoragefieldblock2_block",
-            MODID + ":kekztech_tfftstoragefieldblock3_block",
-            MODID + ":kekztech_tfftstoragefieldblock4_block",
-            MODID + ":kekztech_tfftstoragefieldblock5_block");
-
-        for (FMLMissingMappingsEvent.MissingMapping mapping : missingMappings) {
-            if (removedStuff.contains(mapping.name)) mapping.ignore();
-            else mapping.warn(); // we don't know what happened. probably warn the user.
-        }
     }
 }

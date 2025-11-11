@@ -13,7 +13,6 @@ import net.minecraftforge.fluids.FluidStack;
 import org.apache.commons.lang3.ArrayUtils;
 
 import gregtech.api.enums.Textures;
-import gregtech.api.gui.modularui.GTUIInfos;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.interfaces.tileentity.RecipeMapWorkable;
@@ -86,7 +85,7 @@ public abstract class MTERocketFuelGeneratorBase extends MTEBasicTank implements
 
     @Override
     public boolean onRightclick(final IGregTechTileEntity aBaseMetaTileEntity, final EntityPlayer aPlayer) {
-        GTUIInfos.openGTTileEntityUI(aBaseMetaTileEntity, aPlayer);
+        openGui(aPlayer);
         return true;
     }
 
@@ -136,11 +135,6 @@ public abstract class MTERocketFuelGeneratorBase extends MTEBasicTank implements
     }
 
     @Override
-    public boolean isSimpleMachine() {
-        return false;
-    }
-
-    @Override
     public boolean isValidSlot(final int aIndex) {
         return aIndex < 2;
     }
@@ -154,11 +148,6 @@ public abstract class MTERocketFuelGeneratorBase extends MTEBasicTank implements
     public boolean isOutputFacing(final ForgeDirection side) {
         return this.getBaseMetaTileEntity()
             .getFrontFacing() == side;
-    }
-
-    @Override
-    public boolean isAccessAllowed(final EntityPlayer aPlayer) {
-        return true;
     }
 
     @Override
@@ -188,16 +177,6 @@ public abstract class MTERocketFuelGeneratorBase extends MTEBasicTank implements
 
     @Override
     public boolean canTankBeEmptied() {
-        return false;
-    }
-
-    @Override
-    public boolean displaysItemStack() {
-        return true;
-    }
-
-    @Override
-    public boolean displaysStackSize() {
         return false;
     }
 
@@ -233,7 +212,7 @@ public abstract class MTERocketFuelGeneratorBase extends MTEBasicTank implements
                         && aBaseMetaTileEntity.increaseStoredEnergyUnits(tFluidAmountToUse * tFuelValue, true)) {
                         int aSafeFloor = (int) Math.max(((tFluidAmountToUse * tConsumed) / 3), 1);
                         this.mFluid.amount -= aSafeFloor;
-                        Pollution.addPollution(getBaseMetaTileEntity(), 10 * getPollution());
+                        Pollution.addPollution(getBaseMetaTileEntity(), getPollution() / 2);
                     }
                 }
             }
@@ -331,8 +310,4 @@ public abstract class MTERocketFuelGeneratorBase extends MTEBasicTank implements
         return 32000;
     }
 
-    @Override
-    public int getTankPressure() {
-        return -100;
-    }
 }

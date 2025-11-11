@@ -1,6 +1,7 @@
 package gregtech.common.tileentities.machines.basic;
 
 import static gregtech.api.enums.GTValues.D1;
+import static gregtech.api.enums.GTValues.V;
 import static gregtech.api.enums.Mods.GalacticraftCore;
 import static gregtech.api.enums.Mods.GalacticraftMars;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_BOTTOM_SCANNER;
@@ -349,14 +350,16 @@ public class MTEScanner extends MTEBasicMachine {
             if (ItemList.Tool_DataStick.isStackEqual(getSpecialSlot(), false, true)) {
                 for (GTRecipe.RecipeAssemblyLine tRecipe : GTRecipe.RecipeAssemblyLine.sAssemblylineRecipes) {
                     if (GTUtility.areStacksEqual(tRecipe.mResearchItem, aStack, true)) {
-                        boolean failScanner = true;
+                        GTRecipe matchingRecipe = null;
+
                         for (GTRecipe scannerRecipe : scannerFakeRecipes.getAllRecipes()) {
                             if (GTUtility.areStacksEqual(scannerRecipe.mInputs[0], aStack, true)) {
-                                failScanner = false;
+                                matchingRecipe = scannerRecipe;
                                 break;
                             }
                         }
-                        if (failScanner) {
+
+                        if (matchingRecipe == null || aStack.stackSize < matchingRecipe.mInputs[0].stackSize) {
                             return FOUND_RECIPE_BUT_DID_NOT_MEET_REQUIREMENTS;
                         }
 
@@ -364,11 +367,12 @@ public class MTEScanner extends MTEBasicMachine {
 
                         // Use Assline Utils
                         if (AssemblyLineUtils.setAssemblyLineRecipeOnDataStick(this.mOutputItems[0], tRecipe)) {
-                            aStack.stackSize -= 1;
-                            calculateOverclockedNess(30, tRecipe.mResearchTime);
                             // In case recipe is too OP for that machine
-                            if (mMaxProgresstime == Integer.MAX_VALUE - 1 && mEUt == Integer.MAX_VALUE - 1)
+                            if (tRecipe.mResearchVoltage > V[this.mTier]) {
                                 return FOUND_RECIPE_BUT_DID_NOT_MEET_REQUIREMENTS;
+                            }
+                            aStack.stackSize -= matchingRecipe.mInputs[0].stackSize;
+                            calculateOverclockedNess(tRecipe.mResearchVoltage, tRecipe.mResearchTime);
                             getSpecialSlot().stackSize -= 1;
                             return 2;
                         }
@@ -414,7 +418,7 @@ public class MTEScanner extends MTEBasicMachine {
     public void startSoundLoop(byte aIndex, double aX, double aY, double aZ) {
         super.startSoundLoop(aIndex, aX, aY, aZ);
         if (aIndex == 1) {
-            GTUtility.doSoundAtClient(SoundResource.IC2_MACHINES_MAGNETIZER_LOOP, 10, 1.0F, aX, aY, aZ);
+            GTUtility.doSoundAtClient(SoundResource.GTCEU_OP_PORTABLE_SCANNER, 10, 1.0F, aX, aY, aZ);
         }
     }
 

@@ -8,6 +8,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.IIcon;
+import net.minecraft.util.StatCollector;
 import net.minecraft.world.IBlockAccess;
 
 import cpw.mods.fml.relauncher.Side;
@@ -37,10 +38,10 @@ public class GregtechMetaSpecialMultiCasings2 extends GregtechMetaCasingBlocksAb
         public void addInformation(ItemStack aStack, EntityPlayer aPlayer, List aList, boolean aF3_H) {
             int aMeta = aStack.getItemDamage();
             if (aMeta < 4) {
-                aList.add("Provides quantum stability");
+                aList.add(StatCollector.translateToLocal("GTPP.tooltip.meta_special.quantum_stability"));
             }
             if (aMeta >= 4 && aMeta < 8) {
-                aList.add("Provides quantum modulation");
+                aList.add(StatCollector.translateToLocal("GTPP.tooltip.meta_special.quantum_modulation"));
             }
             super.addInformation(aStack, aPlayer, aList, aF3_H);
         }
@@ -48,10 +49,7 @@ public class GregtechMetaSpecialMultiCasings2 extends GregtechMetaCasingBlocksAb
 
     public GregtechMetaSpecialMultiCasings2() {
         super(SpecialCasingItemBlock.class, "gtplusplus.blockspecialcasings.3", MaterialCasings.INSTANCE);
-        for (byte i = 0; i < 16; i = (byte) (i + 1)) {
-            // TAE.registerTextures(new GT_CopiedBlockTexture(this, 6, i));
-            // Don't register these Textures, They already exist within vanilla GT. (May not exist in 5.08)
-        }
+
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".0.name", "Resonance Chamber I");
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".1.name", "Resonance Chamber II");
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".2.name", "Resonance Chamber III");
@@ -75,15 +73,15 @@ public class GregtechMetaSpecialMultiCasings2 extends GregtechMetaCasingBlocksAb
     @SideOnly(Side.CLIENT)
     public IIcon getIcon(final IBlockAccess aWorld, final int xCoord, final int yCoord, final int zCoord,
         final int ordinalSide) {
-        return getStaticIcon((byte) ordinalSide, (byte) aWorld.getBlockMetadata(xCoord, yCoord, zCoord));
+        return getStaticIcon((byte) ordinalSide, aWorld.getBlockMetadata(xCoord, yCoord, zCoord));
     }
 
     @Override
     public IIcon getIcon(final int ordinalSide, final int aMeta) {
-        return getStaticIcon((byte) ordinalSide, (byte) aMeta);
+        return getStaticIcon((byte) ordinalSide, aMeta);
     }
 
-    public static IIcon getStaticIcon(final byte aSide, final byte aMeta) {
+    public static IIcon getStaticIcon(final byte aSide, final int aMeta) {
         return switch (aMeta) {
             case 0 -> TexturesGtBlock.Casing_Resonance_1.getIcon();
             case 1 -> TexturesGtBlock.Casing_Resonance_2.getIcon();

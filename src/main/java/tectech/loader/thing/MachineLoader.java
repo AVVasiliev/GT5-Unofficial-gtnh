@@ -109,6 +109,7 @@ import static gregtech.api.enums.MetaTileEntityIDs.MAX4AWirelessEnergyHatch;
 import static gregtech.api.enums.MetaTileEntityIDs.MAX64AWirelessEnergyHatch;
 import static gregtech.api.enums.MetaTileEntityIDs.MegaUltimateBuckConverter;
 import static gregtech.api.enums.MetaTileEntityIDs.MicrowaveGrinder;
+import static gregtech.api.enums.MetaTileEntityIDs.NetworkSwitchAdv;
 import static gregtech.api.enums.MetaTileEntityIDs.NetworkSwitchWithQoS;
 import static gregtech.api.enums.MetaTileEntityIDs.ObjectHolder;
 import static gregtech.api.enums.MetaTileEntityIDs.OpticalFiberCable;
@@ -116,12 +117,11 @@ import static gregtech.api.enums.MetaTileEntityIDs.OpticalFiberCableCasing;
 import static gregtech.api.enums.MetaTileEntityIDs.OpticalMasterConnector;
 import static gregtech.api.enums.MetaTileEntityIDs.OpticalSlaveConnector;
 import static gregtech.api.enums.MetaTileEntityIDs.Ownerdetector;
-import static gregtech.api.enums.MetaTileEntityIDs.Parametrizer;
-import static gregtech.api.enums.MetaTileEntityIDs.ParametrizerX;
-import static gregtech.api.enums.MetaTileEntityIDs.ParametrizertXt;
 import static gregtech.api.enums.MetaTileEntityIDs.QuantumComputer;
 import static gregtech.api.enums.MetaTileEntityIDs.Researchstation;
 import static gregtech.api.enums.MetaTileEntityIDs.TeslaTower;
+import static gregtech.api.enums.MetaTileEntityIDs.TestFactoryHatch;
+import static gregtech.api.enums.MetaTileEntityIDs.TestFactoryPipe;
 import static gregtech.api.enums.MetaTileEntityIDs.UEV1024AtLaserSourceHatch;
 import static gregtech.api.enums.MetaTileEntityIDs.UEV1024AtLaserTargetHatch;
 import static gregtech.api.enums.MetaTileEntityIDs.UEV1048576AtLaserSourceHatch;
@@ -330,6 +330,7 @@ import static tectech.thing.CustomItemList.Machine_Multi_QuarkGluonPlasmaModule;
 import static tectech.thing.CustomItemList.Machine_Multi_Research;
 import static tectech.thing.CustomItemList.Machine_Multi_SmeltingModule;
 import static tectech.thing.CustomItemList.Machine_Multi_Switch;
+import static tectech.thing.CustomItemList.Machine_Multi_Switch_Adv;
 import static tectech.thing.CustomItemList.Machine_Multi_TeslaCoil;
 import static tectech.thing.CustomItemList.Machine_Multi_Transformer;
 import static tectech.thing.CustomItemList.Machine_OwnerDetector;
@@ -353,9 +354,8 @@ import static tectech.thing.CustomItemList.Machine_TeslaCoil_4by4_HV;
 import static tectech.thing.CustomItemList.Machine_TeslaCoil_4by4_IV;
 import static tectech.thing.CustomItemList.Machine_TeslaCoil_4by4_LV;
 import static tectech.thing.CustomItemList.Machine_TeslaCoil_4by4_MV;
-import static tectech.thing.CustomItemList.ParametrizerTXT_Hatch;
-import static tectech.thing.CustomItemList.ParametrizerX_Hatch;
-import static tectech.thing.CustomItemList.Parametrizer_Hatch;
+import static tectech.thing.CustomItemList.TestHatch;
+import static tectech.thing.CustomItemList.TestPipe;
 import static tectech.thing.CustomItemList.UncertaintyX_Hatch;
 import static tectech.thing.CustomItemList.Uncertainty_Hatch;
 import static tectech.thing.CustomItemList.UnusedStuff;
@@ -465,6 +465,7 @@ import static tectech.thing.CustomItemList.eM_dynamoTunnel8_UMV;
 import static tectech.thing.CustomItemList.eM_dynamoTunnel8_UXV;
 import static tectech.thing.CustomItemList.eM_dynamoTunnel9001;
 import static tectech.thing.CustomItemList.eM_dynamoTunnel9_UXV;
+import static tectech.thing.CustomItemList.eM_dynamoWirelessMulti;
 import static tectech.thing.CustomItemList.eM_energyMulti16_EV;
 import static tectech.thing.CustomItemList.eM_energyMulti16_IV;
 import static tectech.thing.CustomItemList.eM_energyMulti16_LuV;
@@ -612,9 +613,12 @@ import static tectech.thing.CustomItemList.rack_Hatch;
 
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
+import net.minecraft.launchwrapper.Launch;
 
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.MetaTileEntityIDs;
+import gregtech.api.factory.test.TestFactoryHatch;
+import gregtech.api.factory.test.TestFactoryPipe;
 import tectech.thing.metaTileEntity.hatch.MTEHatchCapacitor;
 import tectech.thing.metaTileEntity.hatch.MTEHatchCreativeData;
 import tectech.thing.metaTileEntity.hatch.MTEHatchCreativeMaintenance;
@@ -628,14 +632,13 @@ import tectech.thing.metaTileEntity.hatch.MTEHatchDynamoTunnel;
 import tectech.thing.metaTileEntity.hatch.MTEHatchEnergyMulti;
 import tectech.thing.metaTileEntity.hatch.MTEHatchEnergyTunnel;
 import tectech.thing.metaTileEntity.hatch.MTEHatchObjectHolder;
-import tectech.thing.metaTileEntity.hatch.MTEHatchParam;
-import tectech.thing.metaTileEntity.hatch.MTEHatchParamText;
 import tectech.thing.metaTileEntity.hatch.MTEHatchRack;
 import tectech.thing.metaTileEntity.hatch.MTEHatchUncertainty;
 import tectech.thing.metaTileEntity.hatch.MTEHatchWirelessComputationInput;
 import tectech.thing.metaTileEntity.hatch.MTEHatchWirelessComputationOutput;
 import tectech.thing.metaTileEntity.hatch.MTEHatchWirelessDataItemsInput;
 import tectech.thing.metaTileEntity.hatch.MTEHatchWirelessDataItemsOutput;
+import tectech.thing.metaTileEntity.hatch.MTEHatchWirelessDynamoMulti;
 import tectech.thing.metaTileEntity.hatch.MTEHatchWirelessMulti;
 import tectech.thing.metaTileEntity.multi.MTEActiveTransformer;
 import tectech.thing.metaTileEntity.multi.MTEDataBank;
@@ -643,6 +646,7 @@ import tectech.thing.metaTileEntity.multi.MTEEnergyInfuser;
 import tectech.thing.metaTileEntity.multi.MTEEyeOfHarmony;
 import tectech.thing.metaTileEntity.multi.MTEMicrowave;
 import tectech.thing.metaTileEntity.multi.MTENetworkSwitch;
+import tectech.thing.metaTileEntity.multi.MTENetworkSwitchAdv;
 import tectech.thing.metaTileEntity.multi.MTEQuantumComputer;
 import tectech.thing.metaTileEntity.multi.MTEResearchStation;
 import tectech.thing.metaTileEntity.multi.MTETeslaTower;
@@ -652,10 +656,10 @@ import tectech.thing.metaTileEntity.multi.godforge.MTEMoltenModule;
 import tectech.thing.metaTileEntity.multi.godforge.MTEPlasmaModule;
 import tectech.thing.metaTileEntity.multi.godforge.MTESmeltingModule;
 import tectech.thing.metaTileEntity.pipe.MTEPipeBlockData;
-import tectech.thing.metaTileEntity.pipe.MTEPipeBlockEnergy;
+import tectech.thing.metaTileEntity.pipe.MTEPipeBlockLaser;
 import tectech.thing.metaTileEntity.pipe.MTEPipeData;
-import tectech.thing.metaTileEntity.pipe.MTEPipeEnergy;
-import tectech.thing.metaTileEntity.pipe.MTEPipeEnergyMirror;
+import tectech.thing.metaTileEntity.pipe.MTEPipeLaser;
+import tectech.thing.metaTileEntity.pipe.MTEPipeLaserMirror;
 import tectech.thing.metaTileEntity.single.MTEBuckConverter;
 import tectech.thing.metaTileEntity.single.MTEDebugPollutor;
 import tectech.thing.metaTileEntity.single.MTEDebugPowerGenerator;
@@ -1589,6 +1593,17 @@ public class MachineLoader implements Runnable {
                 (int) V[13]).getStackForm(1L));
 
         // ===================================================================================================
+        // Multi AMP Wireless OUTPUTS
+        // ===================================================================================================
+        eM_dynamoWirelessMulti.set(
+            new MTEHatchWirelessDynamoMulti(
+                MetaTileEntityIDs.WIRELESS_DYNAMO_ENERGIZED.ID,
+                "hatch.wireless.transmitter.energized.tier.12",
+                "Energized Wireless Dynamo Hatch",
+                12,
+                65536).getStackForm(1L));
+
+        // ===================================================================================================
         // Multi AMP Power OUTPUTS
         // ===================================================================================================
         eM_dynamoMulti4_EV.set(
@@ -2214,7 +2229,10 @@ public class MachineLoader implements Runnable {
         Machine_Multi_TeslaCoil
             .set(new MTETeslaTower(TeslaTower.ID, "multimachine.tm.teslaCoil", "Tesla Tower").getStackForm(1L));
         Machine_Multi_Switch.set(
-            new MTENetworkSwitch(NetworkSwitchWithQoS.ID, "multimachine.em.switch", "Network Switch With QoS")
+            new MTENetworkSwitch(NetworkSwitchWithQoS.ID, "multimachine.em.switch", "Weighted Network Switch With QoS")
+                .getStackForm(1L));
+        Machine_Multi_Switch_Adv.set(
+            new MTENetworkSwitchAdv(NetworkSwitchAdv.ID, "multimachine.em.switch.adv", "Static Network Switch With QoS")
                 .getStackForm(1L));
         Machine_Multi_Computer.set(
             new MTEQuantumComputer(QuantumComputer.ID, "multimachine.em.computer", "Quantum Computer")
@@ -2222,7 +2240,7 @@ public class MachineLoader implements Runnable {
         Machine_Multi_DataBank
             .set(new MTEDataBank(DataBank.ID, "multimachine.em.databank", "Data Bank").getStackForm(1L));
         Machine_Multi_Research.set(
-            new MTEResearchStation(Researchstation.ID, "multimachine.em.research", "Research station")
+            new MTEResearchStation(Researchstation.ID, "multimachine.em.research", "Research Station")
                 .getStackForm(1L));
         Machine_Multi_Infuser
             .set(new MTEEnergyInfuser(EnergyInfuser.ID, "multimachine.em.infuser", "Energy Infuser").getStackForm(1));
@@ -2255,34 +2273,11 @@ public class MachineLoader implements Runnable {
         // ===================================================================================================
         // Hatches
         // ===================================================================================================
-
-        Parametrizer_Hatch
-            .set(new MTEHatchParam(Parametrizer.ID, "hatch.param.tier.05", "Parametrizer", 5).getStackForm(1L)); // TODO
-                                                                                                                 // refactor
-                                                                                                                 // aName
-                                                                                                                 // to
-                                                                                                                 // hatch.param.tier.04
-                                                                                                                 // and
-                                                                                                                 // aTier
-                                                                                                                 // to
-                                                                                                                 // 4,
-                                                                                                                 // check
-                                                                                                                 // recipe
-                                                                                                                 // for
-                                                                                                                 // NH
-        ParametrizerX_Hatch
-            .set(new MTEHatchParam(ParametrizerX.ID, "hatch.param.tier.07", "Parametrizer X", 7).getStackForm(1L));
-        ParametrizerTXT_Hatch.set(
-            new MTEHatchParamText(ParametrizertXt.ID, "hatch.param.tier.10", "Parametrizer tXt", 10).getStackForm(1L)); // TODO
-                                                                                                                        // check
-                                                                                                                        // recipe
-                                                                                                                        // for
-                                                                                                                        // NH
         Uncertainty_Hatch.set(
-            new MTEHatchUncertainty(UncertaintyResolver.ID, "hatch.certain.tier.07", "Uncertainty Resolver", 7)
+            new MTEHatchUncertainty(UncertaintyResolver.ID, "hatch.certain.tier.05", "Uncertainty Resolver", 5)
                 .getStackForm(1L));
         UncertaintyX_Hatch.set(
-            new MTEHatchUncertainty(UncertaintyResolverX.ID, "hatch.certain.tier.10", "Uncertainty Resolver X", 10)
+            new MTEHatchUncertainty(UncertaintyResolverX.ID, "hatch.certain.tier.07", "Uncertainty Resolver X", 7)
                 .getStackForm(1L));
         dataIn_Hatch.set(
             new MTEHatchDataInput(OpticalSlaveConnector.ID, "hatch.datain.tier.07", "Optical Reception Connector", 7)
@@ -2322,13 +2317,13 @@ public class MachineLoader implements Runnable {
                 WirelessAssemblylineSlaveConnector.ID,
                 "hatch.datainass.wireless.tier.12",
                 "Wireless Assembly line Reception Connector",
-                12).getStackForm(1L));
+                10).getStackForm(1L));
         dataOutAss_Wireless_Hatch.set(
             new MTEHatchWirelessDataItemsOutput(
                 WirelessDataBankMasterConnector.ID,
                 "hatch.dataoutass.wireless.tier.12",
                 "Wireless Data Bank Transmission Connector",
-                12).getStackForm(1L));
+                10).getStackForm(1L));
         rack_Hatch.set(new MTEHatchRack(ComputerRack.ID, "hatch.rack.tier.08", "Computer Rack", 8).getStackForm(1L));
         holder_Hatch.set(
             new MTEHatchObjectHolder(ObjectHolder.ID, "hatch.holder.tier.09", "Object Holder", 8).getStackForm(1L));
@@ -2339,13 +2334,19 @@ public class MachineLoader implements Runnable {
         // Pipes
         // ===================================================================================================
 
-        LASERpipe.set(new MTEPipeEnergy(LaserVacuumPipe.ID, "pipe.energystream", "Laser Vacuum Pipe").getStackForm(1L));
+        LASERpipe.set(new MTEPipeLaser(LaserVacuumPipe.ID, "pipe.energystream", "Laser Vacuum Pipe").getStackForm(1L));
         LASERpipeSmart.set(
-            new MTEPipeEnergyMirror(LaserVacuumMirror.ID, "pipe.energymirror", "Laser Vacuum Mirror").getStackForm(1L));
+            new MTEPipeLaserMirror(LaserVacuumMirror.ID, "pipe.energymirror", "Laser Vacuum Mirror").getStackForm(1L));
         DATApipe.set(new MTEPipeData(OpticalFiberCable.ID, "pipe.datastream", "Optical Fiber Cable").getStackForm(1L));
 
+        if ((boolean) Launch.blackboard.get("fml.deobfuscatedEnvironment")) {
+            TestPipe.set(new TestFactoryPipe(TestFactoryPipe.ID, "pipe.test", "Test Factory Pipe").getStackForm(1));
+            TestHatch
+                .set(new TestFactoryHatch(TestFactoryHatch.ID, "hatch.test", "Test Factory Hatch", 7).getStackForm(1));
+        }
+
         LASERpipeBlock.set(
-            new MTEPipeBlockEnergy(LaserVacuumPipeCasing.ID, "pipe.energystream.block", "Laser Vacuum Pipe Casing")
+            new MTEPipeBlockLaser(LaserVacuumPipeCasing.ID, "pipe.energystream.block", "Laser Vacuum Pipe Casing")
                 .getStackForm(1L));
         DATApipeBlock.set(
             new MTEPipeBlockData(OpticalFiberCableCasing.ID, "pipe.datastream.block", "Optical Fiber Cable Casing")
@@ -2506,7 +2507,7 @@ public class MachineLoader implements Runnable {
                 AutoTapingMaintenanceHatch.ID,
                 "debug.tt.maintenance",
                 "Auto-Taping Maintenance Hatch",
-                14).getStackForm(1L));
+                8).getStackForm(1L));
         Machine_DebugGenny.set(
             new MTEDebugPowerGenerator(DebugPowerGenerator.ID, "debug.tt.genny", "Debug Power Generator", 14)
                 .getStackForm(1L));
@@ -2515,7 +2516,7 @@ public class MachineLoader implements Runnable {
                 .getStackForm(1L));
         UnusedStuff.set(new ItemStack(Blocks.air));
         hatch_CreativeUncertainty.set(
-            new MTEHatchCreativeUncertainty(UncertaintyResolution.ID, "debug.tt.certain", "Uncertainty Resolution", 14)
+            new MTEHatchCreativeUncertainty(UncertaintyResolution.ID, "debug.tt.certain", "Uncertainty Resolution", 11)
                 .getStackForm(1));
 
         // ===================================================================================================

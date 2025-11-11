@@ -1,7 +1,6 @@
 package gregtech.loaders.postload.chains;
 
 import static bartworks.system.material.WerkstoffLoader.FluorBuergerit;
-import static gregtech.api.enums.MaterialsBotania.ManaDiamond;
 import static gregtech.api.recipe.RecipeMaps.assemblerRecipes;
 import static gregtech.api.recipe.RecipeMaps.blastFurnaceRecipes;
 import static gregtech.api.recipe.RecipeMaps.chemicalBathRecipes;
@@ -17,13 +16,13 @@ import static gregtech.api.recipe.RecipeMaps.purificationParticleExtractionRecip
 import static gregtech.api.recipe.RecipeMaps.purificationPhAdjustmentRecipes;
 import static gregtech.api.recipe.RecipeMaps.purificationPlasmaHeatingRecipes;
 import static gregtech.api.recipe.RecipeMaps.purificationUVTreatmentRecipes;
-import static gregtech.api.util.GTRecipeBuilder.HOURS;
+import static gregtech.api.util.GTRecipeBuilder.INGOTS;
 import static gregtech.api.util.GTRecipeBuilder.MINUTES;
 import static gregtech.api.util.GTRecipeBuilder.SECONDS;
 import static gregtech.api.util.GTRecipeConstants.AssemblyLine;
 import static gregtech.api.util.GTRecipeConstants.COIL_HEAT;
 import static gregtech.api.util.GTRecipeConstants.RESEARCH_ITEM;
-import static gregtech.api.util.GTRecipeConstants.RESEARCH_TIME;
+import static gregtech.api.util.GTRecipeConstants.SCANNING;
 
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
@@ -33,14 +32,13 @@ import gregtech.api.enums.GTValues;
 import gregtech.api.enums.HeatingCoilLevel;
 import gregtech.api.enums.ItemList;
 import gregtech.api.enums.Materials;
-import gregtech.api.enums.MaterialsUEVplus;
 import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.TierEU;
 import gregtech.api.recipe.maps.PurificationUnitParticleExtractorFrontend;
 import gregtech.api.recipe.metadata.PurificationPlantBaseChanceKey;
-import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTUtility;
+import gregtech.api.util.recipe.Scanning;
 import gregtech.common.tileentities.machines.multi.purification.MTEPurificationPlant;
 import gregtech.common.tileentities.machines.multi.purification.MTEPurificationUnitUVTreatment;
 import gtPlusPlus.core.material.Particle;
@@ -48,6 +46,7 @@ import gtPlusPlus.core.material.Particle;
 public class PurifiedWaterRecipes {
 
     static final PurificationPlantBaseChanceKey BASE_CHANCE = PurificationPlantBaseChanceKey.INSTANCE;
+    public static final int extraBaryonicOutput = 500;
 
     public static void run() {
         final int duration = MTEPurificationPlant.CYCLE_TIME_TICKS;
@@ -55,8 +54,8 @@ public class PurifiedWaterRecipes {
         // Grade 1 - Clarifier
         GTValues.RA.stdBuilder()
             .itemInputs(ItemList.ActivatedCarbonFilterMesh.get(1))
-            .fluidInputs(GTModHandler.getWater(1000L))
-            .fluidOutputs(Materials.Grade1PurifiedWater.getFluid(900L))
+            .fluidInputs(Materials.Water.getFluid(1_000))
+            .fluidOutputs(Materials.Grade1PurifiedWater.getFluid(900))
             .itemOutputs(new ItemStack(Items.stick, 1), Materials.Stone.getDust(1), Materials.Gold.getNuggets(1))
             .outputChances(1000, 500, 100)
             .duration(duration)
@@ -67,7 +66,7 @@ public class PurifiedWaterRecipes {
         // Activated Carbon Line
         GTValues.RA.stdBuilder()
             .itemInputs(Materials.Carbon.getDust(1))
-            .fluidInputs(Materials.PhosphoricAcid.getFluid(1000L))
+            .fluidInputs(Materials.PhosphoricAcid.getFluid(1_000))
             .itemOutputs(Materials.PreActivatedCarbon.getDust(1))
             .duration(5 * SECONDS)
             .eut(TierEU.RECIPE_LuV)
@@ -81,10 +80,9 @@ public class PurifiedWaterRecipes {
             .addTo(blastFurnaceRecipes);
         GTValues.RA.stdBuilder()
             .itemInputs(Materials.DirtyActivatedCarbon.getDust(1))
-            .fluidInputs(Materials.Water.getFluid(1000L))
+            .fluidInputs(Materials.Water.getFluid(1_000))
             .itemOutputs(Materials.ActivatedCarbon.getDust(1))
-            .fluidOutputs(Materials.PhosphoricAcid.getFluid(1000L))
-            .noOptimize()
+            .fluidOutputs(Materials.PhosphoricAcid.getFluid(1_000))
             .duration(2 * SECONDS)
             .eut(TierEU.RECIPE_IV)
             .addTo(chemicalBathRecipes);
@@ -101,9 +99,8 @@ public class PurifiedWaterRecipes {
         for (ItemStack lens : GTOreDictUnificator.getOres("craftingLensBlue")) {
             GTValues.RA.stdBuilder()
                 .itemInputs(GTUtility.copyAmount(0, lens))
-                .noOptimize()
-                .fluidInputs(Materials.Air.getGas(10000L))
-                .fluidOutputs(Materials.Ozone.getGas(2000L))
+                .fluidInputs(Materials.Air.getGas(10_000))
+                .fluidOutputs(Materials.Ozone.getGas(2_000))
                 .duration(1 * SECONDS)
                 .eut(TierEU.RECIPE_LuV)
                 .addTo(laserEngraverRecipes);
@@ -114,11 +111,10 @@ public class PurifiedWaterRecipes {
         // Gets you up to 80%, need to water boost for 95%
         for (int tier = 1; tier <= 4; ++tier) {
             GTValues.RA.stdBuilder()
-                .noOptimize()
                 .fluidInputs(
-                    Materials.Grade1PurifiedWater.getFluid(1000L),
-                    Materials.Ozone.getGas(1000 * (long) Math.pow(2, (tier + 6))))
-                .fluidOutputs(Materials.Grade2PurifiedWater.getFluid(900L))
+                    Materials.Grade1PurifiedWater.getFluid(1_000),
+                    Materials.Ozone.getGas(1000 * (long) GTUtility.powInt(2, (tier + 6))))
+                .fluidOutputs(Materials.Grade2PurifiedWater.getFluid(900))
                 .itemOutputs(Materials.Manganese.getDust(1), Materials.Iron.getDust(1), Materials.Sulfur.getDust(1))
                 .outputChances(500, 500, 500)
                 .duration(duration)
@@ -130,8 +126,8 @@ public class PurifiedWaterRecipes {
 
         // Grade 3 - Flocculation.
         GTValues.RA.stdBuilder()
-            .fluidInputs(Materials.Grade2PurifiedWater.getFluid(1000L))
-            .fluidOutputs(Materials.Grade3PurifiedWater.getFluid(900L))
+            .fluidInputs(Materials.Grade2PurifiedWater.getFluid(1_000))
+            .fluidOutputs(Materials.Grade3PurifiedWater.getFluid(900))
             .itemOutputs(
                 new ItemStack(Items.clay_ball, 1),
                 Materials.QuartzSand.getDust(1),
@@ -145,24 +141,24 @@ public class PurifiedWaterRecipes {
         // 2 Al(OH)3 + 3 HCl -> Al2(OH)3 Cl3 + 3 H2O
         GTValues.RA.stdBuilder()
             .itemInputs(Materials.Aluminiumhydroxide.getDust(8))
-            .fluidInputs(Materials.HydrochloricAcid.getFluid(3000L))
-            .fluidOutputs(Materials.PolyAluminiumChloride.getFluid(1000L), Materials.Water.getFluid(3000L))
+            .fluidInputs(Materials.HydrochloricAcid.getFluid(3_000))
+            .fluidOutputs(Materials.PolyAluminiumChloride.getFluid(1_000), Materials.Water.getFluid(3_000))
             .duration(4 * SECONDS)
             .eut(TierEU.RECIPE_EV)
             .addTo(multiblockChemicalReactorRecipes);
 
         GTValues.RA.stdBuilder()
-            .fluidInputs(Materials.FlocculationWasteLiquid.getFluid(10000L))
+            .fluidInputs(Materials.FlocculationWasteLiquid.getFluid(10_000))
             .itemOutputs(Materials.Aluminium.getDust(20))
-            .fluidOutputs(Materials.Oxygen.getGas(30000L), Materials.HydrochloricAcid.getFluid(30000L))
+            .fluidOutputs(Materials.Oxygen.getGas(30_000), Materials.HydrochloricAcid.getFluid(30_000))
             .duration(1 * SECONDS)
             .eut(TierEU.RECIPE_EV)
             .addTo(distillationTowerRecipes);
 
         // Grade 4 - pH adjustment
         GTValues.RA.stdBuilder()
-            .fluidInputs(Materials.Grade3PurifiedWater.getFluid(1000L))
-            .fluidOutputs(Materials.Grade4PurifiedWater.getFluid(900L))
+            .fluidInputs(Materials.Grade3PurifiedWater.getFluid(1_000))
+            .fluidOutputs(Materials.Grade4PurifiedWater.getFluid(900))
             .ignoreCollision()
             .duration(duration)
             .eut(TierEU.RECIPE_ZPM)
@@ -171,8 +167,8 @@ public class PurifiedWaterRecipes {
 
         // Grade 5 - Plasma Heating
         GTValues.RA.stdBuilder()
-            .fluidInputs(Materials.Grade4PurifiedWater.getFluid(1000L))
-            .fluidOutputs(Materials.Grade5PurifiedWater.getFluid(900L))
+            .fluidInputs(Materials.Grade4PurifiedWater.getFluid(1_000))
+            .fluidOutputs(Materials.Grade5PurifiedWater.getFluid(900))
             .ignoreCollision()
             .duration(duration)
             .eut(TierEU.RECIPE_UV)
@@ -184,7 +180,8 @@ public class PurifiedWaterRecipes {
         MTEPurificationUnitUVTreatment.LENS_ITEMS
             .add(GTOreDictUnificator.get(OrePrefixes.lens, Materials.InfusedAir, 1));
         MTEPurificationUnitUVTreatment.LENS_ITEMS.add(GTOreDictUnificator.get(OrePrefixes.lens, Materials.Emerald, 1));
-        MTEPurificationUnitUVTreatment.LENS_ITEMS.add(GTOreDictUnificator.get(OrePrefixes.lens, ManaDiamond, 1));
+        MTEPurificationUnitUVTreatment.LENS_ITEMS
+            .add(GTOreDictUnificator.get(OrePrefixes.lens, Materials.ManaDiamond, 1));
         MTEPurificationUnitUVTreatment.LENS_ITEMS
             .add(GTOreDictUnificator.get(OrePrefixes.lens, Materials.BlueTopaz, 1));
         MTEPurificationUnitUVTreatment.LENS_ITEMS.add(GTOreDictUnificator.get(OrePrefixes.lens, Materials.Amethyst, 1));
@@ -194,8 +191,8 @@ public class PurifiedWaterRecipes {
 
         // Grade 6 - UV treatment
         GTValues.RA.stdBuilder()
-            .fluidInputs(Materials.Grade5PurifiedWater.getFluid(1000L))
-            .fluidOutputs(Materials.Grade6PurifiedWater.getFluid(900L))
+            .fluidInputs(Materials.Grade5PurifiedWater.getFluid(1_000))
+            .fluidOutputs(Materials.Grade6PurifiedWater.getFluid(900))
             .ignoreCollision()
             .duration(duration)
             .eut(TierEU.RECIPE_UV)
@@ -204,8 +201,8 @@ public class PurifiedWaterRecipes {
 
         // Grade 7 - Degasification
         GTValues.RA.stdBuilder()
-            .fluidInputs(Materials.Grade6PurifiedWater.getFluid(1000L))
-            .fluidOutputs(Materials.Grade7PurifiedWater.getFluid(900L))
+            .fluidInputs(Materials.Grade6PurifiedWater.getFluid(1_000))
+            .fluidOutputs(Materials.Grade7PurifiedWater.getFluid(900))
             .ignoreCollision()
             .duration(duration)
             .eut(TierEU.RECIPE_UHV)
@@ -232,11 +229,12 @@ public class PurifiedWaterRecipes {
         for (int i = 0; i < catalystInputs.length; ++i) {
             GTValues.RA.stdBuilder()
                 .itemInputs(ItemList.Quark_Creation_Catalyst_Unaligned.get(1), GTUtility.getIntegratedCircuit(i + 1))
-                .fluidInputs(Materials.StableBaryonicMatter.getFluid(1000L))
+                .fluidInputs(Materials.StableBaryonicMatter.getFluid(1_000))
                 .itemOutputs(catalystInputs[i])
                 .duration(30 * SECONDS)
                 .eut(TierEU.RECIPE_UHV)
-                // Not sure how I feel about it being in the laser engraver, but I don't see a better multi for it right
+                // Not sure how I feel about it being in the laser engraver, but I don't see a better multi for it
+                // right
                 // now,
                 // and we can't really add a new one specifically for this (... for now)
                 .addTo(laserEngraverRecipes);
@@ -251,8 +249,9 @@ public class PurifiedWaterRecipes {
         for (int i = 0; i < catalystInputs.length; ++i) {
             GTValues.RA.stdBuilder()
                 .itemInputs(ItemList.Quark_Catalyst_Housing.get(1), quarks[i])
-                .fluidInputs(MaterialsUEVplus.ExcitedDTRC.getFluid(10000L))
+                .fluidInputs(Materials.ExcitedDTRC.getFluid(10_000))
                 .itemOutputs(catalystInputs[i])
+                .fluidOutputs(Materials.DTR.getFluid(5_000))
                 .metadata(COIL_HEAT, 10800)
                 .eut(TierEU.RECIPE_UMV)
                 .duration(5 * MINUTES)
@@ -262,7 +261,7 @@ public class PurifiedWaterRecipes {
         // Recipe for quark catalyst housing
         GTValues.RA.stdBuilder()
             .metadata(RESEARCH_ITEM, ItemList.Electromagnet_Tengam.get(1))
-            .metadata(RESEARCH_TIME, 1 * HOURS)
+            .metadata(SCANNING, new Scanning(2 * MINUTES, TierEU.RECIPE_UHV))
             .itemInputs(
                 GTOreDictUnificator.get(OrePrefixes.plate, Materials.Neutronium, 16),
                 GTOreDictUnificator.get(OrePrefixes.plate, Materials.Infinity, 16),
@@ -276,10 +275,10 @@ public class PurifiedWaterRecipes {
                 new Object[] { OrePrefixes.circuit.get(Materials.UEV), 8 },
                 ItemList.Field_Generator_UEV.get(1))
             .fluidInputs(
-                Materials.Neutronium.getMolten(16 * 144),
-                Materials.Infinity.getMolten(16 * 144),
-                Materials.Tritanium.getMolten(16 * 144),
-                Materials.CosmicNeutronium.getMolten(16 * 144))
+                Materials.Neutronium.getMolten(16 * INGOTS),
+                Materials.Infinity.getMolten(16 * INGOTS),
+                Materials.Tritanium.getMolten(16 * INGOTS),
+                Materials.CosmicNeutronium.getMolten(16 * INGOTS))
             .itemOutputs(ItemList.Quark_Catalyst_Housing.get(1))
             .eut(TierEU.RECIPE_UIV)
             .duration(60 * SECONDS)
@@ -288,8 +287,8 @@ public class PurifiedWaterRecipes {
         GTValues.RA.stdBuilder()
             // Fake item inputs
             .itemInputs(ItemList.Quark_Creation_Catalyst_Charm.get(1), ItemList.Quark_Creation_Catalyst_Strange.get(1))
-            .fluidInputs(Materials.Grade7PurifiedWater.getFluid(1000L))
-            .fluidOutputs(Materials.Grade8PurifiedWater.getFluid(900L), Materials.StableBaryonicMatter.getFluid(500))
+            .fluidInputs(Materials.Grade7PurifiedWater.getFluid(1_000))
+            .fluidOutputs(Materials.Grade8PurifiedWater.getFluid(900), Materials.StableBaryonicMatter.getFluid(500))
             .itemOutputs(ItemList.Quark_Creation_Catalyst_Unaligned.get(2L), Particle.getBaseParticle(Particle.UNKNOWN))
             .outputChances(10000, 100)
             .ignoreCollision()
@@ -301,8 +300,10 @@ public class PurifiedWaterRecipes {
 
         // real recipe
         GTValues.RA.stdBuilder()
-            .fluidInputs(Materials.Grade7PurifiedWater.getFluid(1000L))
-            .fluidOutputs(Materials.Grade8PurifiedWater.getFluid(900L), Materials.StableBaryonicMatter.getFluid(500))
+            .fluidInputs(Materials.Grade7PurifiedWater.getFluid(1_000))
+            .fluidOutputs(
+                Materials.Grade8PurifiedWater.getFluid(900),
+                Materials.StableBaryonicMatter.getFluid(extraBaryonicOutput))
             .itemOutputs(ItemList.Quark_Creation_Catalyst_Unaligned.get(2L), Particle.getBaseParticle(Particle.UNKNOWN))
             .outputChances(10000, 100)
             .ignoreCollision()

@@ -42,7 +42,7 @@ public class MTELargeFusionComputer5 extends MTELargeFusionComputerPP {
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType("Fusion Reactor")
-            .addInfo("Galaxy Collapse.")
+            .addInfo("Galaxy Collapse")
             .addInfo(
                 EnumChatFormatting.AQUA + GTUtility.formatNumbers(getSingleHatchPower())
                     + EnumChatFormatting.GRAY
@@ -58,21 +58,9 @@ public class MTELargeFusionComputer5 extends MTELargeFusionComputerPP {
                 "If the recipe requires a voltage tier over " + GTUtility.getColoredTierNameFromTier((byte) tier())
                     + EnumChatFormatting.GRAY
                     + " , you can't do it either")
-            .addInfo("Make sure the whole structure is built in the 3x3")
-            .addInfo("chunk area of the ring center (not controller).")
-            .addInfo("Performs 4/4 overclock.")
-            .addInfo("Startup < 160,000,000 EU: 320x Parallel")
-            .addInfo("Startup < 320,000,000 EU: 256x Parallel")
-            .addInfo("Startup < 640,000,000 EU: 192x Parallel")
-            .addInfo("Startup < 1,200,000,000 EU: 128x Parallel")
-            .addInfo("Startup >= 1,200,000,000 EU: 64x Parallel")
-            .addInfo(
-                "Support" + EnumChatFormatting.BLUE
-                    + " Tec"
-                    + EnumChatFormatting.DARK_BLUE
-                    + "Tech"
-                    + EnumChatFormatting.GRAY
-                    + " Energy/Laser Hatches!")
+            .addInfo("Performs 4/4 overclock")
+            .addInfo(createParallelText())
+            .addTecTechHatchInfo()
             .addCasingInfoMin("Fusion Machine Casing MK IV", 1664, false)
             .addCasingInfoMin("Compact Fusion Coil MK-II Finaltype", 560, false)
             .addCasingInfoMin("Infinity Frame Box", 128, false)
@@ -82,7 +70,7 @@ public class MTELargeFusionComputer5 extends MTELargeFusionComputerPP {
             .addOutputHatch("1-16, Hint block with dot 1", 1)
             .addStructureInfo("Supports Crafting Input Buffer")
             .addStructureInfo(
-                "ALL Hatches must be " + GTUtility.getColoredTierNameFromTier((byte) hatchTier())
+                "Energy Hatches must be " + GTUtility.getColoredTierNameFromTier((byte) energyHatchTier())
                     + EnumChatFormatting.GRAY
                     + " or better")
             .toolTipFinisher();
@@ -130,7 +118,7 @@ public class MTELargeFusionComputer5 extends MTELargeFusionComputerPP {
     }
 
     @Override
-    public int hatchTier() {
+    public int energyHatchTier() {
         return 10;
     }
 
@@ -161,11 +149,11 @@ public class MTELargeFusionComputer5 extends MTELargeFusionComputerPP {
     }
 
     @Override
-    public int extraPara(int startEnergy) {
-        if (startEnergy < 160000000) return 5;
-        if (startEnergy < 320000000) return 4;
-        if (startEnergy < 640000000) return 3;
-        if (startEnergy < 1200000000) return 2;
+    public int extraPara(long startEnergy) {
+        if (startEnergy < 160000000L) return 5;
+        if (startEnergy < 320000000L) return 4;
+        if (startEnergy < 640000000L) return 3;
+        if (startEnergy < 5120000000L) return 2;
         return 1;
     }
 

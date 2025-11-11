@@ -62,38 +62,13 @@ public class ToolSolderingIron extends GTTool {
     }
 
     @Override
-    public int getBaseQuality() {
-        return 0;
-    }
-
-    @Override
     public float getBaseDamage() {
         return 1.5F;
     }
 
     @Override
-    public float getSpeedMultiplier() {
-        return 1.0F;
-    }
-
-    @Override
-    public float getMaxDurabilityMultiplier() {
-        return 1.0F;
-    }
-
-    @Override
     public String getCraftingSound() {
-        return SoundResource.IC2_TOOLS_WRENCH.toString();
-    }
-
-    @Override
-    public String getEntityHitSound() {
-        return null;
-    }
-
-    @Override
-    public String getMiningSound() {
-        return null;
+        return SoundResource.IC2_TOOLS_BATTERY_USE.toString();
     }
 
     @Override
@@ -102,24 +77,14 @@ public class ToolSolderingIron extends GTTool {
     }
 
     @Override
-    public boolean isCrowbar() {
-        return false;
-    }
-
-    @Override
     public boolean isMiningTool() {
         return false;
     }
 
     @Override
-    public boolean isMinableBlock(Block aBlock, byte aMetaData) {
+    public boolean isMinableBlock(Block aBlock, int aMetaData) {
         return GTToolHarvestHelper.isAppropriateTool(aBlock, aMetaData, "soldering_iron")
             || GTToolHarvestHelper.isAppropriateMaterial(aBlock, Material.circuits);
-    }
-
-    @Override
-    public ItemStack getBrokenItem(ItemStack aStack) {
-        return null;
     }
 
     @Override

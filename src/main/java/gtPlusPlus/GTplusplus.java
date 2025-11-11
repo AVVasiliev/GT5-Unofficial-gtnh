@@ -1,17 +1,13 @@
 package gtPlusPlus;
 
-import static gregtech.api.enums.Mods.GTPlusPlus;
-import static gregtech.api.enums.Mods.Names;
+import static gregtech.api.enums.Mods.ModIDs;
 import static gregtech.api.enums.Mods.Thaumcraft;
 
-import java.util.HashMap;
-
-import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.launchwrapper.Launch;
+import net.minecraftforge.oredict.OreDictionary;
 
 import com.gtnewhorizon.gtnhlib.config.ConfigException;
 import com.gtnewhorizon.gtnhlib.config.ConfigurationManager;
@@ -21,18 +17,16 @@ import cpw.mods.fml.common.Mod.EventHandler;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
-import cpw.mods.fml.common.event.FMLMissingMappingsEvent;
-import cpw.mods.fml.common.event.FMLMissingMappingsEvent.MissingMapping;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
-import cpw.mods.fml.common.registry.GameRegistry;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.Materials;
+import gregtech.api.enums.Mods;
 import gregtech.api.recipe.RecipeMaps;
-import gregtech.api.util.FishPondFakeRecipe;
+import gregtech.api.util.FishPondRecipes;
 import gregtech.api.util.SemiFluidFuelHandler;
 import gtPlusPlus.api.objects.Logger;
 import gtPlusPlus.api.recipe.GTPPRecipeMaps;
@@ -44,9 +38,6 @@ import gtPlusPlus.core.handler.Recipes.RegistrationHandler;
 import gtPlusPlus.core.lib.GTPPCore;
 import gtPlusPlus.core.material.Material;
 import gtPlusPlus.core.util.data.LocaleUtils;
-import gtPlusPlus.core.util.minecraft.ItemUtils;
-import gtPlusPlus.plugin.agrichem.block.AgrichemFluids;
-import gtPlusPlus.plugin.fixes.vanilla.VanillaBedHeightFix;
 import gtPlusPlus.xmod.gregtech.common.MetaGTProxy;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtTools;
@@ -55,7 +46,7 @@ import gtPlusPlus.xmod.gregtech.loaders.RecipeGenMultisUsingFluidInsteadOfCells;
 import gtPlusPlus.xmod.thaumcraft.commands.CommandDumpAspects;
 
 @Mod(
-    modid = Names.G_T_PLUS_PLUS,
+    modid = ModIDs.G_T_PLUS_PLUS,
     name = GTPPCore.name,
     version = GTPPCore.VERSION,
     guiFactory = "gtPlusPlus.core.gui.config.GTPPGuiFactory",
@@ -120,7 +111,7 @@ public class GTplusplus {
     }
     public static INIT_PHASE CURRENT_LOAD_PHASE = INIT_PHASE.SUPER;
 
-    @Mod.Instance(Names.G_T_PLUS_PLUS)
+    @Mod.Instance(Mods.ModIDs.G_T_PLUS_PLUS)
     public static GTplusplus instance;
 
     @SidedProxy(clientSide = "gtPlusPlus.core.proxy.ClientProxy", serverSide = "gtPlusPlus.core.common.CommonProxy")
@@ -162,9 +153,7 @@ public class GTplusplus {
         proxy.preInit(event);
         Logger.INFO("Setting up our own GTProxy.");
         MetaGTProxy.preInit();
-        AgrichemFluids.preInit();
         fixVanillaOreDict();
-        new VanillaBedHeightFix();
     }
 
     @EventHandler
@@ -238,7 +227,7 @@ public class GTplusplus {
     protected void generateGregtechRecipeMaps() {
 
         RecipeGenBlastSmelterGTNH.generateGTNHBlastSmelterRecipesFromEBFList();
-        FishPondFakeRecipe.generateFishPondRecipes();
+        FishPondRecipes.generateFishPondRecipes();
         SemiFluidFuelHandler.generateFuels();
 
         RecipeGenMultisUsingFluidInsteadOfCells
@@ -283,130 +272,24 @@ public class GTplusplus {
 
     }
 
-    private static final HashMap<String, Item> sMissingItemMappings = new HashMap<>();
-    private static final HashMap<String, Block> sMissingBlockMappings = new HashMap<>();
-
-    private static void processMissingMappings() {
-        sMissingItemMappings.put("miscutils:Ammonium", GameRegistry.findItem(GTPlusPlus.ID, "itemCellAmmonium"));
-        sMissingItemMappings.put("miscutils:Hydroxide", GameRegistry.findItem(GTPlusPlus.ID, "itemCellHydroxide"));
-        sMissingItemMappings.put(
-            "miscutils:BerylliumHydroxide",
-            GameRegistry.findItem(GTPlusPlus.ID, "itemCellmiscutils:BerylliumHydroxide"));
-        sMissingItemMappings.put("miscutils:Bromine", GameRegistry.findItem(GTPlusPlus.ID, "itemCellBromine"));
-        sMissingItemMappings.put("miscutils:Krypton", GameRegistry.findItem(GTPlusPlus.ID, "itemCellKrypton"));
-        sMissingItemMappings.put(
-            "miscutils:itemCellZirconiumTetrafluoride",
-            GameRegistry.findItem(GTPlusPlus.ID, "ZirconiumTetrafluoride"));
-        sMissingItemMappings
-            .put("miscutils:Li2BeF4", GameRegistry.findItem(GTPlusPlus.ID, "itemCellLithiumTetrafluoroberyllate"));
-
-        // Cryolite
-        sMissingBlockMappings.put("miscutils:oreCryolite", GameRegistry.findBlock(GTPlusPlus.ID, "oreCryoliteF"));
-        sMissingItemMappings
-            .put("miscutils:itemDustTinyCryolite", GameRegistry.findItem(GTPlusPlus.ID, "itemDustTinyCryoliteF"));
-        sMissingItemMappings
-            .put("miscutils:itemDustSmallCryolite", GameRegistry.findItem(GTPlusPlus.ID, "itemDustSmallCryoliteF"));
-        sMissingItemMappings
-            .put("miscutils:itemDustCryolite", GameRegistry.findItem(GTPlusPlus.ID, "itemDustCryoliteF"));
-        sMissingItemMappings
-            .put("miscutils:dustPureCryolite", GameRegistry.findItem(GTPlusPlus.ID, "dustPureCryoliteF"));
-        sMissingItemMappings
-            .put("miscutils:dustImpureCryolite", GameRegistry.findItem(GTPlusPlus.ID, "dustImpureCryoliteF"));
-        sMissingItemMappings.put("miscutils:crushedCryolite", GameRegistry.findItem(GTPlusPlus.ID, "crushedCryoliteF"));
-        sMissingItemMappings
-            .put("miscutils:crushedPurifiedCryolite", GameRegistry.findItem(GTPlusPlus.ID, "crushedPurifiedCryoliteF"));
-        sMissingItemMappings.put(
-            "miscutils:crushedCentrifugedCryolite",
-            GameRegistry.findItem(GTPlusPlus.ID, "crushedCentrifugedCryoliteF"));
-        sMissingItemMappings.put("miscutils:oreCryolite", GameRegistry.findItem(GTPlusPlus.ID, "oreCryoliteF"));
-
-        // Fluorite
-        sMissingBlockMappings.put("miscutils:oreFluorite", GameRegistry.findBlock(GTPlusPlus.ID, "oreFluoriteF"));
-        sMissingItemMappings
-            .put("miscutils:itemDustTinyFluorite", GameRegistry.findItem(GTPlusPlus.ID, "itemDustTinyFluoriteF"));
-        sMissingItemMappings
-            .put("miscutils:itemDustSmallFluorite", GameRegistry.findItem(GTPlusPlus.ID, "itemDustSmallFluoriteF"));
-        sMissingItemMappings
-            .put("miscutils:itemDustFluorite", GameRegistry.findItem(GTPlusPlus.ID, "itemDustFluoriteF"));
-        sMissingItemMappings
-            .put("miscutils:dustPureFluorite", GameRegistry.findItem(GTPlusPlus.ID, "dustPureFluoriteF"));
-        sMissingItemMappings
-            .put("miscutils:dustImpureFluorite", GameRegistry.findItem(GTPlusPlus.ID, "dustImpureFluoriteF"));
-        sMissingItemMappings.put("miscutils:crushedFluorite", GameRegistry.findItem(GTPlusPlus.ID, "crushedFluoriteF"));
-        sMissingItemMappings
-            .put("miscutils:crushedPurifiedFluorite", GameRegistry.findItem(GTPlusPlus.ID, "crushedPurifiedFluoriteF"));
-        sMissingItemMappings.put(
-            "miscutils:crushedCentrifugedFluorite",
-            GameRegistry.findItem(GTPlusPlus.ID, "crushedCentrifugedFluoriteF"));
-        sMissingItemMappings.put("miscutils:oreFluorite", GameRegistry.findItem(GTPlusPlus.ID, "oreFluoriteF"));
-    }
-
-    @EventHandler
-    public void missingMapping(FMLMissingMappingsEvent event) {
-        processMissingMappings();
-        for (MissingMapping mapping : event.getAll()) {
-            if (mapping.name.startsWith("Australia:")) {
-                mapping.ignore();
-                continue;
-            }
-            if (mapping.type == GameRegistry.Type.ITEM) {
-                Item aReplacement = sMissingItemMappings.get(mapping.name);
-                if (aReplacement != null) {
-                    remap(aReplacement, mapping);
-                }
-
-            } else if (mapping.type == GameRegistry.Type.BLOCK) {
-                Block aReplacement = sMissingBlockMappings.get(mapping.name);
-                if (aReplacement != null) {
-                    remap(aReplacement, mapping);
-                }
-
-            }
-        }
-    }
-
-    private static void remap(Item item, FMLMissingMappingsEvent.MissingMapping mapping) {
-        mapping.remap(item);
-        Logger.INFO("Remapping item " + mapping.name + " to " + GTPlusPlus.ID + ":" + item.getUnlocalizedName());
-    }
-
-    private static void remap(Block block, FMLMissingMappingsEvent.MissingMapping mapping) {
-        mapping.remap(block);
-        Logger.INFO("Remapping block " + mapping.name + " to " + GTPlusPlus.ID + ":" + block.getUnlocalizedName());
-    }
-
     private static void fixVanillaOreDict() {
-        registerToOreDict(ItemUtils.getSimpleStack(Items.blaze_rod), "rodBlaze");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.nether_wart), "cropNetherWart");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.reeds), "sugarcane");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.paper), "paper");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.ender_pearl), "enderpearl");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.bone), "bone");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.gunpowder), "gunpowder");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.string), "string");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.nether_star), "netherStar");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.leather), "leather");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.feather), "feather");
-        registerToOreDict(ItemUtils.getSimpleStack(Items.egg), "egg");
-        registerToOreDict(ItemUtils.getSimpleStack(Blocks.end_stone), "endstone");
-        registerToOreDict(ItemUtils.getSimpleStack(Blocks.vine), "vine");
-        registerToOreDict(ItemUtils.getSimpleStack(Blocks.cactus), "blockCactus");
-        registerToOreDict(ItemUtils.getSimpleStack(Blocks.grass), "grass");
-        registerToOreDict(ItemUtils.getSimpleStack(Blocks.obsidian), "obsidian");
-        registerToOreDict(ItemUtils.getSimpleStack(Blocks.crafting_table), "workbench");
-    }
-
-    private static void registerToOreDict(ItemStack aStack, String aString) {
-        if (aStack.getItem() == Items.blaze_rod) {
-            Logger
-                .INFO("Registering " + aStack.getDisplayName() + " to OreDictionary under the tag '" + aString + "'.");
-        } else {
-            Logger.INFO(
-                "Registering " + aStack.getDisplayName()
-                    + " to OreDictionary under the tag '"
-                    + aString
-                    + "'. (Added to Forge in 1.8.9)");
-        }
-        ItemUtils.addItemToOreDictionary(aStack, aString);
+        OreDictionary.registerOre("rodBlaze", new ItemStack(Items.blaze_rod));
+        OreDictionary.registerOre("cropNetherWart", new ItemStack(Items.nether_wart));
+        OreDictionary.registerOre("sugarcane", new ItemStack(Items.reeds));
+        OreDictionary.registerOre("paper", new ItemStack(Items.paper));
+        OreDictionary.registerOre("enderpearl", new ItemStack(Items.ender_pearl));
+        OreDictionary.registerOre("bone", new ItemStack(Items.bone));
+        OreDictionary.registerOre("gunpowder", new ItemStack(Items.gunpowder));
+        OreDictionary.registerOre("string", new ItemStack(Items.string));
+        OreDictionary.registerOre("netherStar", new ItemStack(Items.nether_star));
+        OreDictionary.registerOre("leather", new ItemStack(Items.leather));
+        OreDictionary.registerOre("feather", new ItemStack(Items.feather));
+        OreDictionary.registerOre("egg", new ItemStack(Items.egg));
+        OreDictionary.registerOre("endstone", new ItemStack(Blocks.end_stone));
+        OreDictionary.registerOre("vine", new ItemStack(Blocks.vine));
+        OreDictionary.registerOre("blockCactus", new ItemStack(Blocks.cactus));
+        OreDictionary.registerOre("grass", new ItemStack(Blocks.grass));
+        OreDictionary.registerOre("obsidian", new ItemStack(Blocks.obsidian));
+        OreDictionary.registerOre("workbench", new ItemStack(Blocks.crafting_table));
     }
 }

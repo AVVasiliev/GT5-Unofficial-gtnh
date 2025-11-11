@@ -1,5 +1,7 @@
 package gregtech.common.redstonecircuits;
 
+import net.minecraft.util.StatCollector;
+
 import gregtech.api.interfaces.IRedstoneCircuitBlock;
 import gregtech.api.util.CircuitryBehavior;
 
@@ -55,36 +57,31 @@ public class CircuitPulser extends CircuitryBehavior {
 
     @Override
     public String getName() {
-        return "Pulser";
+        return StatCollector.translateToLocal("GT5U.gui.circuit.pulser.name");
     }
 
     @Override
     public String getDescription() {
-        return "Limits&Enlengths";
+        return StatCollector.translateToLocal("GT5U.gui.circuit.pulser.description");
     }
 
     @Override
     public String getDataDescription(int[] aCircuitData, int aCircuitDataIndex) {
         return switch (aCircuitDataIndex) {
-            case 0 -> "Length";
-            case 1 -> "RS Out";
+            case 0 -> StatCollector.translateToLocal("GT5U.gui.circuit.data_description.length");
+            case 1 -> StatCollector.translateToLocal("GT5U.gui.circuit.pulser.data_description.rs_out");
             default -> "";
         };
-    }
-
-    @Override
-    public boolean displayItemStack(int[] aCircuitData, IRedstoneCircuitBlock aRedstoneCircuitBlock, int aIndex) {
-        return false;
     }
 
     @Override
     public String getDataDisplay(int[] aCircuitData, int aCircuitDataIndex) {
         if (aCircuitDataIndex == 1) {
             if (aCircuitData[aCircuitDataIndex] == 16) {
-                return "HIGHEST";
+                return StatCollector.translateToLocal("GT5U.gui.circuit.pulser.data_display.highest");
             }
             if (aCircuitData[aCircuitDataIndex] == 0) {
-                return "LOWEST";
+                return StatCollector.translateToLocal("GT5U.gui.circuit.pulser.data_display.lowest");
             }
         }
         return aCircuitDataIndex > 1 ? "" : null;

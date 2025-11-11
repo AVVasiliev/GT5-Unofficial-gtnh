@@ -10,7 +10,14 @@ import static gregtech.api.enums.HatchElement.Maintenance;
 import static gregtech.api.enums.HatchElement.Muffler;
 import static gregtech.api.enums.HatchElement.OutputBus;
 import static gregtech.api.enums.HatchElement.OutputHatch;
+import static gregtech.api.enums.Textures.BlockIcons.LARGETURBINE_NEW5;
+import static gregtech.api.enums.Textures.BlockIcons.LARGETURBINE_NEW_ACTIVE5;
+import static gregtech.api.enums.Textures.BlockIcons.TURBINE_NEW;
+import static gregtech.api.enums.Textures.BlockIcons.TURBINE_NEW_ACTIVE;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayer;
@@ -18,36 +25,43 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import org.jetbrains.annotations.NotNull;
+
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
+import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 
 import gregtech.api.enums.TAE;
 import gregtech.api.interfaces.IIconContainer;
+import gregtech.api.interfaces.INEIPreviewModifier;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.logic.ProcessingLogic;
 import gregtech.api.recipe.RecipeMap;
+import gregtech.api.render.RenderOverlay;
 import gregtech.api.util.GTUtility;
+import gregtech.api.util.GTUtilityClient;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.pollution.PollutionConfig;
 import gtPlusPlus.api.objects.Logger;
 import gtPlusPlus.api.recipe.GTPPRecipeMaps;
 import gtPlusPlus.core.block.ModBlocks;
-import gtPlusPlus.core.util.minecraft.PlayerUtils;
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
-import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock.CustomIcon;
 
 public class MTEIndustrialCentrifuge extends GTPPMultiBlockBase<MTEIndustrialCentrifuge>
-    implements ISurvivalConstructable {
+    implements ISurvivalConstructable, INEIPreviewModifier {
 
     private boolean mIsAnimated;
-    private static final CustomIcon frontFaceActive = new CustomIcon("iconsets/LARGECENTRIFUGE_ACTIVE5");
-    private static final CustomIcon frontFace = new CustomIcon("iconsets/LARGECENTRIFUGE5");
     private int mCasing;
     private static IStructureDefinition<MTEIndustrialCentrifuge> STRUCTURE_DEFINITION = null;
     // public static double recipesComplete = 0;
+    // client side stuff
+    // mMachine got overwritten by StructureLib extended facing query response
+    // so we use a separate field for this
+    protected final List<RenderOverlay.OverlayTicket> overlayTickets = new ArrayList<>();
+    protected boolean mFormed;
 
     public MTEIndustrialCentrifuge(final int aID, final String aName, final String aNameRegional) {
         super(aID, aName, aNameRegional);
@@ -73,10 +87,8 @@ public class MTEIndustrialCentrifuge extends GTPPMultiBlockBase<MTEIndustrialCen
     protected MultiblockTooltipBuilder createTooltip() {
         MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType(getMachineType())
-            .addInfo("125% faster than using single block machines of the same voltage")
+            .addBulkMachineInfo(6, 2.25F, 0.9F)
             .addInfo("Disable animations with a screwdriver")
-            .addInfo("Only uses 90% of the EU/t normally required")
-            .addInfo("Processes six items per voltage tier")
             .addPollutionAmount(getPollutionPerSecond(null))
             .beginStructureBlock(3, 3, 3, true)
             .addController("Front Center")
@@ -120,7 +132,7 @@ public class MTEIndustrialCentrifuge extends GTPPMultiBlockBase<MTEIndustrialCen
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return survivialBuildPiece(mName, stackSize, 1, 1, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(mName, stackSize, 1, 1, 0, elementBudget, env, false, true);
     }
 
     @Override
@@ -132,15 +144,53 @@ public class MTEIndustrialCentrifuge extends GTPPMultiBlockBase<MTEIndustrialCen
     @Override
     protected IIconContainer getActiveOverlay() {
         if (usingAnimations()) {
-            return frontFaceActive;
+            return LARGETURBINE_NEW_ACTIVE5;
         } else {
-            return frontFace;
+            return getInactiveOverlay();
         }
     }
 
     @Override
     protected IIconContainer getInactiveOverlay() {
-        return frontFace;
+        return LARGETURBINE_NEW5;
+    }
+
+    @Override
+    public void onFirstTick(IGregTechTileEntity aBaseMetaTileEntity) {
+        super.onFirstTick(aBaseMetaTileEntity);
+        setTurbineOverlay();
+    }
+
+    @Override
+    public void setExtendedFacing(ExtendedFacing newExtendedFacing) {
+        boolean extendedFacingChanged = newExtendedFacing != getExtendedFacing();
+        super.setExtendedFacing(newExtendedFacing);
+        if (extendedFacingChanged) {
+            setTurbineOverlay();
+        }
+    }
+
+    @Override
+    public void onTextureUpdate() {
+        setTurbineOverlay();
+    }
+
+    protected void setTurbineOverlay() {
+        IGregTechTileEntity tile = getBaseMetaTileEntity();
+        if (tile.isServerSide()) return;
+
+        IIconContainer[] tTextures;
+        if (getBaseMetaTileEntity().isActive() && usingAnimations()) tTextures = TURBINE_NEW_ACTIVE;
+        else tTextures = TURBINE_NEW;
+
+        GTUtilityClient.setTurbineOverlay(
+            tile.getWorld(),
+            tile.getXCoord(),
+            tile.getYCoord(),
+            tile.getZCoord(),
+            getExtendedFacing(),
+            tTextures,
+            overlayTickets);
     }
 
     @Override
@@ -155,9 +205,10 @@ public class MTEIndustrialCentrifuge extends GTPPMultiBlockBase<MTEIndustrialCen
 
     @Override
     protected ProcessingLogic createProcessingLogic() {
-        return new ProcessingLogic().setEuModifier(0.9F)
+        return new ProcessingLogic().noRecipeCaching()
+            .setEuModifier(0.9F)
             .setSpeedBonus(1F / 2.25F)
-            .setMaxParallelSupplier(this::getMaxParallelRecipes);
+            .setMaxParallelSupplier(this::getTrueParallel);
     }
 
     @Override
@@ -178,18 +229,8 @@ public class MTEIndustrialCentrifuge extends GTPPMultiBlockBase<MTEIndustrialCen
     }
 
     @Override
-    public int getMaxEfficiency(final ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
     public int getPollutionPerSecond(final ItemStack aStack) {
         return PollutionConfig.pollutionPerSecondMultiIndustrialCentrifuge;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(final ItemStack aStack) {
-        return false;
     }
 
     @Override
@@ -197,9 +238,9 @@ public class MTEIndustrialCentrifuge extends GTPPMultiBlockBase<MTEIndustrialCen
         this.mIsAnimated = !mIsAnimated;
         Logger.INFO("Is Centrifuge animated " + this.mIsAnimated);
         if (this.mIsAnimated) {
-            PlayerUtils.messagePlayer(aPlayer, "Using Animated Turbine Texture. ");
+            GTUtility.sendChatToPlayer(aPlayer, "Using Animated Turbine Texture. ");
         } else {
-            PlayerUtils.messagePlayer(aPlayer, "Using Static Turbine Texture. ");
+            GTUtility.sendChatToPlayer(aPlayer, "Using Static Turbine Texture. ");
         }
     }
 
@@ -222,5 +263,27 @@ public class MTEIndustrialCentrifuge extends GTPPMultiBlockBase<MTEIndustrialCen
     public boolean usingAnimations() {
         // Logger.INFO("Is animated? "+this.mIsAnimated);
         return this.mIsAnimated;
+    }
+
+    @Override
+    public void onValueUpdate(byte aValue) {
+        mFormed = (aValue & 0x1) != 0;
+        setTurbineOverlay();
+    }
+
+    @Override
+    public byte getUpdateData() {
+        return (byte) ((mMachine ? 1 : 0));
+    }
+
+    @Override
+    public void onRemoval() {
+        super.onRemoval();
+        if (getBaseMetaTileEntity().isClientSide()) GTUtilityClient.clearTurbineOverlay(overlayTickets);
+    }
+
+    @Override
+    public void onPreviewStructureComplete(@NotNull ItemStack trigger) {
+        mFormed = true;
     }
 }

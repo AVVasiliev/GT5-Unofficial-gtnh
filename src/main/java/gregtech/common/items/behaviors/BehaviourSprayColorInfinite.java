@@ -3,10 +3,12 @@ package gregtech.common.items.behaviors;
 import static gregtech.api.enums.GTValues.AuthorQuerns;
 import static net.minecraft.util.MovingObjectPosition.MovingObjectType.BLOCK;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import net.minecraft.client.settings.GameSettings;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
@@ -21,6 +23,7 @@ import com.gtnewhorizon.gtnhlib.GTNHLib;
 import com.gtnewhorizons.modularui.api.UIInfos;
 import com.gtnewhorizons.modularui.api.widget.Widget;
 
+import gregtech.GTMod;
 import gregtech.api.enums.Dyes;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.ItemList;
@@ -29,7 +32,7 @@ import gregtech.api.net.GTPacketInfiniteSpraycan;
 import gregtech.api.util.ColoredBlockContainer;
 import gregtech.api.util.GTUtility;
 import gregtech.common.config.Other;
-import gregtech.common.gui.modularui.uifactory.SelectItemUIFactory;
+import gregtech.common.gui.modularui.base.ItemSelectBaseGui;
 
 public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
 
@@ -38,6 +41,7 @@ public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
     private static final List<ItemStack> COLOR_SELECTIONS;
     public static final String COLOR_NBT_TAG = "current_color";
     public static final String LOCK_NBT_TAG = "is_locked";
+    public static final String PREVENT_SHAKE_TAG = "prevent_shake";
 
     private byte mCurrentColor;
 
@@ -96,7 +100,7 @@ public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
 
     @Override
     protected boolean colorize(World aWorld, int aX, int aY, int aZ, ForgeDirection side, EntityPlayer player) {
-        ColoredBlockContainer block = ColoredBlockContainer.getInstance(aWorld, aX, aY, aZ, side, player);
+        ColoredBlockContainer block = ColoredBlockContainer.getInstance(player, aX, aY, aZ, side);
         if (mCurrentColor == REMOVE_COLOR) {
             return block.removeColor();
         }
@@ -106,11 +110,23 @@ public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
     @Override
     public List<String> getAdditionalToolTips(final MetaBaseItem aItem, final List<String> aList,
         final ItemStack itemStack) {
+        final List<String> statuses = new ArrayList<>();
+        if (isLocked(itemStack)) {
+            statuses.add(StatCollector.translateToLocal("gt.behaviour.paintspray.infinite.tooltip.locked"));
+        }
+        if (isPreventingShake(itemStack)) {
+            statuses.add(StatCollector.translateToLocal("gt.behaviour.paintspray.infinite.tooltip.preventing_shake"));
+        }
+
         aList.add(StatCollector.translateToLocal("gt.behaviour.paintspray.infinite.tooltip.infinite"));
         aList.add(mTooltipChain);
         aList.add(" ");
+
+        if (!statuses.isEmpty()) {
+            aList.add(String.join(" :: ", statuses));
+        }
         aList.add(StatCollector.translateToLocal("gt.behaviour.paintspray.infinite.tooltip.more_info"));
-        aList.add(AuthorQuerns);
+        aList.add(StatCollector.translateToLocal("gt.behaviour.paintspray.infinite.tooltip.author_byline"));
         return aList;
     }
 
@@ -124,6 +140,10 @@ public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
         aList.add(StatCollector.translateToLocal("gt.behaviour.paintspray.infinite.tooltip.gui"));
         aList.add(StatCollector.translateToLocal("gt.behaviour.paintspray.infinite.tooltip.pick"));
         aList.add(StatCollector.translateToLocal("gt.behaviour.paintspray.infinite.tooltip.lock"));
+        aList.add(
+            StatCollector.translateToLocalFormatted(
+                "gt.behaviour.paintspray.infinite.tooltip.prevent_shake",
+                GameSettings.getKeyDisplayString(GTMod.clientProxy().shakeLockKey.getKeyCode())));
         aList.add(" ");
         aList.add(AuthorQuerns);
 
@@ -131,9 +151,13 @@ public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
     }
     // endregion
 
-    // region Raw Mouse Event Handlers
+    // region Raw Event Handlers
     @Override
     public boolean onLeftClick(MetaBaseItem item, ItemStack itemStack, EntityPlayer aPlayer) {
+        if (isPreventingShake(itemStack)) {
+            return false;
+        }
+
         if (isLocked(itemStack)) {
             displayLockedMessage();
         } else {
@@ -146,6 +170,8 @@ public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
     public boolean onMiddleClick(final MetaBaseItem item, final ItemStack itemStack, final EntityPlayer player) {
         if (player.isSneaking()) {
             sendPacket(GTPacketInfiniteSpraycan.Action.LOCK_CAN);
+        } else if (GTMod.clientProxy().shakeLockKey.isPressed()) {
+            sendPacket(GTPacketInfiniteSpraycan.Action.TOGGLE_SHAKE_LOCK);
         } else if (isLocked(itemStack)) {
             displayLockedMessage();
         } else {
@@ -168,6 +194,7 @@ public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
 
         return true;
     }
+
     // endregion
 
     // region GUI
@@ -255,14 +282,11 @@ public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
     }
 
     public boolean toggleLock(final ItemStack itemStack) {
-        final NBTTagCompound tag = itemStack.hasTagCompound() ? itemStack.getTagCompound() : new NBTTagCompound();
-        final boolean newLockStatus = !tag.getBoolean(LOCK_NBT_TAG);
+        return toggleBooleanTag(itemStack, LOCK_NBT_TAG);
+    }
 
-        tag.setBoolean(LOCK_NBT_TAG, newLockStatus);
-        itemStack.setTagCompound(tag);
-        setItemStackName(itemStack);
-
-        return newLockStatus;
+    public boolean togglePreventShake(final ItemStack itemStack) {
+        return toggleBooleanTag(itemStack, PREVENT_SHAKE_TAG);
     }
 
     private void setItemStackName(final ItemStack itemStack) {
@@ -271,32 +295,57 @@ public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
         final char rBracket = isLocked ? ']' : ')';
 
         if (mCurrentColor == REMOVE_COLOR) {
-            itemStack.setStackDisplayName(String.format("Infinite Spray Can %cSolvent%c", lBracket, rBracket));
+            itemStack.setStackDisplayName(
+                StatCollector
+                    .translateToLocalFormatted("item.GT5U.infinite_spray_can.name.solvent", lBracket, rBracket));
         } else {
             itemStack.setStackDisplayName(
-                String.format("Infinite Spray Can %c" + Dyes.get(mCurrentColor).mName + "%c", lBracket, rBracket));
+                StatCollector.translateToLocalFormatted(
+                    "item.GT5U.infinite_spray_can.name.colored",
+                    lBracket,
+                    Dyes.get(mCurrentColor)
+                        .getLocalizedDyeName(),
+                    rBracket));
         }
+    }
+
+    private boolean toggleBooleanTag(final ItemStack itemStack, final String tagName) {
+        final NBTTagCompound tag = itemStack.hasTagCompound() ? itemStack.getTagCompound() : new NBTTagCompound();
+        final boolean newValue = !tag.getBoolean(tagName);
+
+        tag.setBoolean(tagName, newValue);
+        itemStack.setTagCompound(tag);
+        setItemStackName(itemStack);
+
+        return newValue;
     }
     // endregion
 
+    // region Static Methods
     public static Dyes getDye(ItemStack itemStack) {
         if (itemStack.hasTagCompound()) {
             final byte color = itemStack.getTagCompound()
                 .getByte(COLOR_NBT_TAG);
             if (color != REMOVE_COLOR) {
-                return Dyes.getDyeFromIndex(color);
+                return Dyes.getOrDefault(color, Dyes.MACHINE_METAL);
             }
         }
 
         return Dyes.MACHINE_METAL;
     }
 
-    public boolean isLocked(final ItemStack itemStack) {
+    public static boolean isLocked(final ItemStack itemStack) {
         return itemStack.hasTagCompound() && itemStack.getTagCompound()
             .getBoolean(LOCK_NBT_TAG);
     }
 
-    private static class DyeSelectGUI extends SelectItemUIFactory {
+    private static boolean isPreventingShake(final ItemStack itemStack) {
+        return itemStack.hasTagCompound() && itemStack.getTagCompound()
+            .getBoolean(PREVENT_SHAKE_TAG);
+    }
+    // endregion
+
+    private static class DyeSelectGUI extends ItemSelectBaseGui {
 
         public DyeSelectGUI(final String header, final ItemStack headerItem, final Consumer<ItemStack> selectedCallback,
             final List<ItemStack> stacks, final int selected, final boolean noDeselect) {
@@ -314,7 +363,7 @@ public class BehaviourSprayColorInfinite extends BehaviourSprayColor {
         protected List<String> getItemTooltips(final int index) {
             return ImmutableList.of(
                 index == REMOVE_COLOR ? StatCollector.translateToLocal("gt.behaviour.paintspray.infinite.gui.solvent")
-                    : Dyes.getDyeFromIndex((short) index).mName);
+                    : Dyes.getOrDefault(index, Dyes.MACHINE_METAL).mName);
         }
     }
 }

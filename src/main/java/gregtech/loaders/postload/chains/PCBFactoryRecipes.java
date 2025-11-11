@@ -2,13 +2,14 @@ package gregtech.loaders.postload.chains;
 
 import static gregtech.api.recipe.RecipeMaps.assemblerRecipes;
 import static gregtech.api.recipe.metadata.PCBFactoryUpgrade.BIO;
+import static gregtech.api.util.GTRecipeBuilder.INGOTS;
 import static gregtech.api.util.GTRecipeBuilder.MINUTES;
 import static gregtech.api.util.GTRecipeBuilder.SECONDS;
 import static gregtech.api.util.GTRecipeConstants.AssemblyLine;
+import static gregtech.api.util.GTRecipeConstants.PCB_NANITE_MATERIAL;
 import static gregtech.api.util.GTRecipeConstants.RESEARCH_ITEM;
-import static gregtech.api.util.GTRecipeConstants.RESEARCH_TIME;
+import static gregtech.api.util.GTRecipeConstants.SCANNING;
 import static gtPlusPlus.core.material.MaterialsAlloy.QUANTUM;
-import static gtPlusPlus.core.material.MaterialsElements.STANDALONE.CELESTIAL_TUNGSTEN;
 import static gtPlusPlus.core.material.MaterialsElements.STANDALONE.CHRONOMATIC_GLASS;
 import static gtPlusPlus.core.material.MaterialsElements.STANDALONE.HYPOGEN;
 
@@ -16,15 +17,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.fluids.Fluid;
-import net.minecraftforge.fluids.FluidRegistry;
-import net.minecraftforge.fluids.FluidStack;
 
 import bartworks.system.material.WerkstoffLoader;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.ItemList;
 import gregtech.api.enums.Materials;
-import gregtech.api.enums.MaterialsUEVplus;
 import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.TierEU;
 import gregtech.api.recipe.RecipeMaps;
@@ -33,6 +30,9 @@ import gregtech.api.recipe.metadata.PCBFactoryUpgradeKey;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.PCBFactoryManager;
+import gregtech.api.util.recipe.Scanning;
+import gtPlusPlus.core.material.MaterialsAlloy;
+import gtPlusPlus.core.material.MaterialsElements;
 
 @SuppressWarnings("SpellCheckingInspection")
 public class PCBFactoryRecipes {
@@ -41,20 +41,18 @@ public class PCBFactoryRecipes {
     private static final PCBFactoryUpgradeKey UPGRADE = PCBFactoryUpgradeKey.INSTANCE;
 
     public static void load() {
-        final Fluid solderLuV = FluidRegistry.getFluid("molten.indalloy140") != null
-            ? FluidRegistry.getFluid("molten.indalloy140")
-            : FluidRegistry.getFluid("molten.solderingalloy");
-
         // Load Multi Recipes
         GTValues.RA.stdBuilder()
             .metadata(RESEARCH_ITEM, ItemList.Circuit_Board_Wetware.get(1))
-            .metadata(RESEARCH_TIME, 3 * MINUTES)
+            .metadata(SCANNING, new Scanning(2 * MINUTES + 20 * SECONDS, TierEU.RECIPE_LuV))
             .itemInputs(
                 GTOreDictUnificator.get(OrePrefixes.frameGt, Materials.Neutronium, 32),
                 ItemList.Machine_ZPM_CircuitAssembler.get(4),
                 new Object[] { OrePrefixes.circuit.get(Materials.LuV), 16 },
                 ItemList.Robot_Arm_ZPM.get(8))
-            .fluidInputs(new FluidStack(solderLuV, 144 * 36), Materials.Naquadah.getMolten(144 * 18))
+            .fluidInputs(
+                MaterialsAlloy.INDALLOY_140.getFluidStack(36 * INGOTS),
+                Materials.Naquadah.getMolten(18 * INGOTS))
             .itemOutputs(ItemList.PCBFactory.get(1))
             .eut(TierEU.RECIPE_UV)
             .duration(5 * MINUTES)
@@ -78,7 +76,10 @@ public class PCBFactoryRecipes {
             .eut(TierEU.RECIPE_UHV)
             .addTo(assemblerRecipes);
         GTValues.RA.stdBuilder()
-            .itemInputs(CELESTIAL_TUNGSTEN.getFrameBox(1), QUANTUM.getPlate(6))
+            .itemInputs(
+                MaterialsElements.STANDALONE.CELESTIAL_TUNGSTEN.getFrameBox(1),
+                QUANTUM.getPlate(6),
+                ItemList.Radiation_Proof_Prismatic_Naquadah_Composite_Sheet.get(24))
             .itemOutputs(ItemList.RadiationProofPhotolithographicFrameworkCasing.get(1))
             .duration(30 * SECONDS)
             .eut(TierEU.RECIPE_UIV)
@@ -89,7 +90,7 @@ public class PCBFactoryRecipes {
                 GTOreDictUnificator.get(OrePrefixes.rotor, Materials.Infinity, 2),
                 Materials.Thulium.getPlates(6))
             .itemOutputs(ItemList.InfinityCooledCasing.get(1))
-            .fluidInputs(MaterialsUEVplus.SpaceTime.getMolten(8 * 144))
+            .fluidInputs(Materials.SpaceTime.getMolten(8 * INGOTS))
             .duration(10 * SECONDS)
             .eut(TierEU.RECIPE_UMV)
             .addTo(assemblerRecipes);
@@ -98,7 +99,7 @@ public class PCBFactoryRecipes {
 
         // Plastic Circuit Board
         for (int tier = 1; tier <= PCBFactoryManager.mTiersOfPlastics; tier++) {
-            int amountOfBoards = (int) Math.ceil(8 * (Math.sqrt(Math.pow(2, tier - 1))));
+            int amountOfBoards = (int) Math.ceil(8 * (Math.sqrt(GTUtility.powInt(2, tier - 1))));
             List<ItemStack> aBoards = new ArrayList<>();
             for (int i = amountOfBoards; i > 64; i -= 64) {
                 aBoards.add(ItemList.Circuit_Board_Plastic_Advanced.get(64));
@@ -133,7 +134,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(2),
-                    GTUtility.getNaniteAsCatalyst(Materials.Silver),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     GTOreDictUnificator
@@ -146,10 +146,11 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(500 / Math.sqrt(Math.pow(1.5, tier - 1.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 2)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Silver)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
         for (int tier = 1; tier <= PCBFactoryManager.mTiersOfPlastics; tier++) {
-            int amountOfBoards = (int) Math.ceil(8 * (Math.sqrt(Math.pow(2, tier))));
+            int amountOfBoards = (int) Math.ceil(8 * (Math.sqrt(GTUtility.powInt(2, tier))));
             List<ItemStack> aBoards = new ArrayList<>();
             for (int i = amountOfBoards; i > 64; i -= 64) {
                 aBoards.add(ItemList.Circuit_Board_Plastic_Advanced.get(64));
@@ -159,7 +160,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(3),
-                    GTUtility.getNaniteAsCatalyst(Materials.Gold),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     GTOreDictUnificator
@@ -172,12 +172,13 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(400 / Math.sqrt(Math.pow(1.5, tier - 1.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 3)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Gold)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
 
         // Advanced Circuit Board
         for (int tier = 2; tier <= PCBFactoryManager.mTiersOfPlastics; tier++) {
-            int amountOfBoards = (int) Math.ceil(8 * (Math.sqrt(Math.pow(2, tier - 2))));
+            int amountOfBoards = (int) Math.ceil(8 * (Math.sqrt(GTUtility.powInt(2, tier - 2))));
             List<ItemStack> aBoards = new ArrayList<>();
             for (int i = amountOfBoards; i > 64; i -= 64) {
                 aBoards.add(ItemList.Circuit_Board_Epoxy_Advanced.get(i));
@@ -211,7 +212,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(2),
-                    GTUtility.getNaniteAsCatalyst(Materials.Silver),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     GTOreDictUnificator.get(OrePrefixes.foil, Materials.Gold, (long) (16 * (Math.sqrt(tier - 1)))),
@@ -223,10 +223,11 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(500 / Math.sqrt(Math.pow(1.5, tier - 2.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 2)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Silver)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
         for (int tier = 2; tier <= PCBFactoryManager.mTiersOfPlastics; tier++) {
-            int amountOfBoards = (int) Math.ceil(8 * (Math.sqrt(Math.pow(2, tier - 1))));
+            int amountOfBoards = (int) Math.ceil(8 * (Math.sqrt(GTUtility.powInt(2, tier - 1))));
             List<ItemStack> aBoards = new ArrayList<>();
             for (int i = amountOfBoards; i > 64; i -= 64) {
                 aBoards.add(ItemList.Circuit_Board_Epoxy_Advanced.get(i));
@@ -236,7 +237,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(3),
-                    GTUtility.getNaniteAsCatalyst(Materials.Gold),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     GTOreDictUnificator.get(OrePrefixes.foil, Materials.Gold, (long) (16 * (Math.sqrt(tier - 1)))),
@@ -248,6 +248,7 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(400 / Math.sqrt(Math.pow(1.5, tier - 2.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 3)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Gold)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
 
@@ -288,7 +289,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(2),
-                    GTUtility.getNaniteAsCatalyst(Materials.Silver),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     GTOreDictUnificator.get(OrePrefixes.foil, Materials.Aluminium, (long) (16 * (Math.sqrt(tier - 2)))),
@@ -301,6 +301,7 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(500 / Math.sqrt(Math.pow(1.5, tier - 3.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 2)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Silver)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
         for (int tier = 3; tier <= PCBFactoryManager.mTiersOfPlastics; tier++) {
@@ -314,7 +315,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(3),
-                    GTUtility.getNaniteAsCatalyst(Materials.Gold),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     GTOreDictUnificator.get(OrePrefixes.foil, Materials.Aluminium, (long) (16 * (Math.sqrt(tier - 2)))),
@@ -327,6 +327,7 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(400 / Math.sqrt(Math.pow(1.5, tier - 3.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 3)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Gold)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
 
@@ -366,7 +367,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(2),
-                    GTUtility.getNaniteAsCatalyst(Materials.Silver),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     GTOreDictUnificator.get(OrePrefixes.foil, Materials.Palladium, (long) (16 * (Math.sqrt(tier - 3)))),
@@ -378,6 +378,7 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(500 / Math.sqrt(Math.pow(1.5, tier - 4.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 2)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Silver)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
         for (int tier = 4; tier <= PCBFactoryManager.mTiersOfPlastics; tier++) {
@@ -391,7 +392,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(3),
-                    GTUtility.getNaniteAsCatalyst(Materials.Gold),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     GTOreDictUnificator.get(OrePrefixes.foil, Materials.Palladium, (long) (16 * (Math.sqrt(tier - 3)))),
@@ -403,6 +403,7 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(400 / Math.sqrt(Math.pow(1.5, tier - 4.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 3)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Gold)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
 
@@ -446,7 +447,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(2),
-                    GTUtility.getNaniteAsCatalyst(Materials.Silver),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     GTOreDictUnificator
@@ -461,6 +461,7 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(500 / Math.sqrt(Math.pow(1.5, tier - 5.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 2)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Silver)
                 .metadata(UPGRADE, BIO)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
@@ -475,7 +476,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(3),
-                    GTUtility.getNaniteAsCatalyst(Materials.Gold),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     GTOreDictUnificator
@@ -490,6 +490,7 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(400 / Math.sqrt(Math.pow(1.5, tier - 5.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 3)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Gold)
                 .metadata(UPGRADE, BIO)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
@@ -508,10 +509,8 @@ public class PCBFactoryRecipes {
                     GTUtility.getIntegratedCircuit(1),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
-                    GTOreDictUnificator.get(
-                        OrePrefixes.foil,
-                        Materials.Longasssuperconductornameforuvwire,
-                        (long) (16 * (Math.sqrt(tier - 5)))),
+                    GTOreDictUnificator
+                        .get(OrePrefixes.foil, Materials.SuperconductorUVBase, (long) (16 * (Math.sqrt(tier - 5)))),
                     GTOreDictUnificator
                         .get(OrePrefixes.foil, Materials.Neutronium, (long) (16 * (Math.sqrt(tier - 5)))))
                 .fluidInputs(
@@ -536,13 +535,10 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(2),
-                    GTUtility.getNaniteAsCatalyst(Materials.Silver),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
-                    GTOreDictUnificator.get(
-                        OrePrefixes.foil,
-                        Materials.Longasssuperconductornameforuvwire,
-                        (long) (16 * (Math.sqrt(tier - 5)))),
+                    GTOreDictUnificator
+                        .get(OrePrefixes.foil, Materials.SuperconductorUVBase, (long) (16 * (Math.sqrt(tier - 5)))),
                     GTOreDictUnificator
                         .get(OrePrefixes.foil, Materials.Neutronium, (long) (16 * (Math.sqrt(tier - 5)))))
                 .fluidInputs(
@@ -553,6 +549,7 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(500 / Math.sqrt(Math.pow(1.5, tier - 6.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 2)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Silver)
                 .metadata(UPGRADE, BIO)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
@@ -567,13 +564,10 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(3),
-                    GTUtility.getNaniteAsCatalyst(Materials.Gold),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
-                    GTOreDictUnificator.get(
-                        OrePrefixes.foil,
-                        Materials.Longasssuperconductornameforuvwire,
-                        (long) (16 * (Math.sqrt(tier - 5)))),
+                    GTOreDictUnificator
+                        .get(OrePrefixes.foil, Materials.SuperconductorUVBase, (long) (16 * (Math.sqrt(tier - 5)))),
                     GTOreDictUnificator
                         .get(OrePrefixes.foil, Materials.Neutronium, (long) (16 * (Math.sqrt(tier - 5)))))
                 .fluidInputs(
@@ -584,6 +578,7 @@ public class PCBFactoryRecipes {
                 .duration((int) Math.ceil(400 / Math.sqrt(Math.pow(1.5, tier - 6.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 3)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Gold)
                 .metadata(UPGRADE, BIO)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
@@ -611,8 +606,8 @@ public class PCBFactoryRecipes {
                     CHRONOMATIC_GLASS.getFoil((int) (16 * (Math.sqrt(tier - 6)))))
                 .fluidInputs(
                     Materials.SulfuricAcid.getFluid((long) (500 * (Math.sqrt(tier - 6)))),
-                    Materials.IronIIIChloride.getFluid((long) (12500 * (Math.sqrt(tier - 6)))),
-                    Materials.MysteriousCrystal.getMolten((long) (2880 * (Math.sqrt(tier - 6)))))
+                    Materials.IronIIIChloride.getFluid((long) (12_500 * (Math.sqrt(tier - 6)))),
+                    Materials.MysteriousCrystal.getMolten((long) (20 * INGOTS * (Math.sqrt(tier - 6)))))
                 .itemOutputs(aBoards.toArray(new ItemStack[0]))
                 .duration((int) Math.ceil(600 / Math.sqrt(Math.pow(1.5, tier - 5.5))))
                 .eut((int) GTValues.VP[tier] * 3 / 4)
@@ -630,7 +625,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(2),
-                    GTUtility.getNaniteAsCatalyst(Materials.Silver),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     new ItemStack(
@@ -642,12 +636,13 @@ public class PCBFactoryRecipes {
                     CHRONOMATIC_GLASS.getFoil((int) (16 * (Math.sqrt(tier - 6)))))
                 .fluidInputs(
                     Materials.SulfuricAcid.getFluid((long) (500 * (Math.sqrt(tier - 6)))),
-                    Materials.IronIIIChloride.getFluid((long) (12500 * (Math.sqrt(tier - 6)))),
-                    Materials.MysteriousCrystal.getMolten((long) (2880 * (Math.sqrt(tier - 6)))))
+                    Materials.IronIIIChloride.getFluid((long) (12_500 * (Math.sqrt(tier - 6)))),
+                    Materials.MysteriousCrystal.getMolten((long) (20 * INGOTS * (Math.sqrt(tier - 6)))))
                 .itemOutputs(aBoards.toArray(new ItemStack[0]))
                 .duration((int) Math.ceil(500 / Math.sqrt(Math.pow(1.5, tier - 6.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 2)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Silver)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
         for (int tier = 7; tier <= PCBFactoryManager.mTiersOfPlastics; tier++) {
@@ -661,7 +656,6 @@ public class PCBFactoryRecipes {
             GTValues.RA.stdBuilder()
                 .itemInputs(
                     GTUtility.getIntegratedCircuit(3),
-                    GTUtility.getNaniteAsCatalyst(Materials.Gold),
                     PCBFactoryManager.getPlasticMaterialFromTier(tier)
                         .getPlates(1),
                     new ItemStack(
@@ -673,12 +667,13 @@ public class PCBFactoryRecipes {
                     CHRONOMATIC_GLASS.getFoil((int) (16 * (Math.sqrt(tier - 6)))))
                 .fluidInputs(
                     Materials.SulfuricAcid.getFluid((long) (500 * (Math.sqrt(tier - 6)))),
-                    Materials.IronIIIChloride.getFluid((long) (12500 * (Math.sqrt(tier - 6)))),
-                    Materials.MysteriousCrystal.getMolten((long) (2880 * (Math.sqrt(tier - 6)))))
+                    Materials.IronIIIChloride.getFluid((long) (12_500 * (Math.sqrt(tier - 6)))),
+                    Materials.MysteriousCrystal.getMolten((long) (20 * INGOTS * (Math.sqrt(tier - 6)))))
                 .itemOutputs(aBoards.toArray(new ItemStack[0]))
                 .duration((int) Math.ceil(400 / Math.sqrt(Math.pow(1.5, tier - 6.5))))
                 .eut((int) GTValues.VP[tier + 1] * 3 / 4)
                 .metadata(TIER, 3)
+                .metadata(PCB_NANITE_MATERIAL, Materials.Gold)
                 .addTo(RecipeMaps.pcbFactoryRecipes);
         }
     }

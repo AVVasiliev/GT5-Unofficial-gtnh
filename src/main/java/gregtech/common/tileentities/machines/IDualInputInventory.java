@@ -5,7 +5,10 @@ import net.minecraftforge.fluids.FluidStack;
 
 public interface IDualInputInventory {
 
+    boolean isEmpty();
+
     ItemStack[] getItemInputs();
 
     FluidStack[] getFluidInputs();
+
 }

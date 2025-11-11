@@ -1,13 +1,14 @@
 package gtPlusPlus.xmod.gregtech.common.tileentities.redstone;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.render.TextureFactory;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock.CustomIcon;
 
@@ -35,7 +36,8 @@ public class MTERedstoneStrengthScale extends MTERedstoneStrengthDisplay {
     }
 
     @Override
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ,
+        ItemStack aTool) {
         if (side == getBaseMetaTileEntity().getFrontFacing()) mType = (byte) ((mType + 1) % 2);
     }
 
@@ -44,7 +46,7 @@ public class MTERedstoneStrengthScale extends MTERedstoneStrengthDisplay {
         final ForgeDirection facing, final int aColorIndex, final boolean aActive, final boolean aRedstone) {
         if (side == facing) {
             return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[mTier][aColorIndex + 1],
-                new GTRenderedTexture(sIconList[mType * 16 + mRedstoneStrength]) };
+                TextureFactory.of(sIconList[mType * 16 + mRedstoneStrength]) };
         }
         return this.mTextures[(aActive || hasRedstoneSignal() ? 5 : 0) + (side == facing ? 0
             : side == facing.getOpposite() ? 1

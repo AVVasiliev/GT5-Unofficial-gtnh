@@ -1,5 +1,6 @@
 package tectech.thing.metaTileEntity.multi.godforge;
 
+import static gregtech.api.enums.Mods.NewHorizonsCoreMod;
 import static gregtech.api.metatileentity.BaseTileEntity.TOOLTIP_DELAY;
 import static gregtech.api.util.GTRecipeBuilder.INGOTS;
 import static gregtech.api.util.GTRecipeBuilder.SECONDS;
@@ -22,12 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import javax.annotation.Nonnull;
-
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.oredict.OreDictionary;
@@ -42,6 +42,8 @@ import com.gtnewhorizons.modularui.api.drawable.IDrawable;
 import com.gtnewhorizons.modularui.api.drawable.ItemDrawable;
 import com.gtnewhorizons.modularui.api.fluids.FluidTanksHandler;
 import com.gtnewhorizons.modularui.api.fluids.IFluidTanksHandler;
+import com.gtnewhorizons.modularui.api.forge.IItemHandlerModifiable;
+import com.gtnewhorizons.modularui.api.forge.ItemStackHandler;
 import com.gtnewhorizons.modularui.api.math.Alignment;
 import com.gtnewhorizons.modularui.api.math.Pos2d;
 import com.gtnewhorizons.modularui.api.math.Size;
@@ -53,9 +55,11 @@ import com.gtnewhorizons.modularui.common.widget.ButtonWidget;
 import com.gtnewhorizons.modularui.common.widget.DrawableWidget;
 import com.gtnewhorizons.modularui.common.widget.FakeSyncWidget;
 import com.gtnewhorizons.modularui.common.widget.FluidSlotWidget;
+import com.gtnewhorizons.modularui.common.widget.SlotWidget;
 import com.gtnewhorizons.modularui.common.widget.TextWidget;
 
-import gregtech.api.enums.MaterialsUEVplus;
+import gregtech.api.enums.GTValues;
+import gregtech.api.enums.Materials;
 import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.TierEU;
 import gregtech.api.gui.modularui.GTUITextures;
@@ -69,13 +73,15 @@ import gregtech.api.recipe.check.SimpleCheckRecipeResult;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTStreamUtil;
+import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.OverclockCalculator;
 import tectech.TecTech;
 import tectech.recipe.TecTechRecipeMaps;
 import tectech.thing.CustomItemList;
 import tectech.thing.gui.TecTechUITextures;
-import tectech.util.GodforgeMath;
+import tectech.thing.metaTileEntity.multi.godforge.util.ForgeOfGodsUI;
+import tectech.thing.metaTileEntity.multi.godforge.util.GodforgeMath;
 
 public class MTEExoticModule extends MTEBaseModule {
 
@@ -87,12 +93,13 @@ public class MTEExoticModule extends MTEBaseModule {
     private boolean recipeInProgress = false;
     private boolean recipeRegenerated = false;
     private boolean magmatterMode = false;
-    private FluidStack[] randomizedFluidInput = new FluidStack[] {};
-    private ItemStack[] randomizedItemInput = new ItemStack[] {};
+    private FluidStack[] randomizedFluidInput = GTValues.emptyFluidStackArray;
+    private ItemStack[] randomizedItemInput = GTValues.emptyItemStackArray;
     private GTRecipe plasmaRecipe = null;
     private BigInteger powerForRecipe = BigInteger.ZERO;
     private static final int NUMBER_OF_INPUTS = 7;
     private static final int INPUT_LIST_WINDOW_ID = 11;
+    private static final int POSSIBLE_INPUTS_WINDOW_ID = 12;
 
     public MTEExoticModule(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
@@ -126,9 +133,9 @@ public class MTEExoticModule extends MTEBaseModule {
 
             @NotNull
             @Override
-            protected CheckRecipeResult validateRecipe(@Nonnull GTRecipe recipe) {
+            protected CheckRecipeResult validateRecipe(@NotNull GTRecipe recipe) {
                 if (!recipeInProgress || recipeRegenerated) {
-                    powerForRecipe = BigInteger.valueOf(getProcessingVoltage())
+                    powerForRecipe = BigInteger.valueOf(getSafeProcessingVoltage())
                         .multiply(BigInteger.valueOf(recipe.mDuration * actualParallel));
                     if (getUserEU(userUUID).compareTo(powerForRecipe) < 0) {
                         plasmaRecipe = null;
@@ -145,9 +152,7 @@ public class MTEExoticModule extends MTEBaseModule {
                     }
 
                     if (numberOfItems != 0) {
-                        for (ItemStack itemStack : randomizedItemInput) {
-                            addOutput(itemStack);
-                        }
+                        addItemOutputs(randomizedItemInput);
                     }
 
                     recipeInProgress = true;
@@ -155,7 +160,8 @@ public class MTEExoticModule extends MTEBaseModule {
                 }
 
                 for (FluidStack stack : recipe.mFluidInputs) {
-                    if (!ArrayUtils.contains(inputFluids, stack)) {
+                    if (!ArrayUtils.contains(inputFluids, stack)
+                        || inputFluids[ArrayUtils.indexOf(inputFluids, stack)].amount != stack.amount) {
                         return SimpleCheckRecipeResult.ofFailure("waiting_for_inputs");
                     }
                 }
@@ -164,7 +170,7 @@ public class MTEExoticModule extends MTEBaseModule {
 
             @NotNull
             @Override
-            protected CheckRecipeResult onRecipeStart(@Nonnull GTRecipe recipe) {
+            protected CheckRecipeResult onRecipeStart(@NotNull GTRecipe recipe) {
                 EUt = calculatedEut;
                 powerForRecipe = BigInteger.valueOf(EUt)
                     .multiply(BigInteger.valueOf(duration * actualParallel));
@@ -175,16 +181,16 @@ public class MTEExoticModule extends MTEBaseModule {
 
                 addToPowerTally(powerForRecipe);
                 addToRecipeTally(calculatedParallels);
-                setCalculatedEut(0);
+                overwriteCalculatedEut(0);
                 plasmaRecipe = null;
                 recipeInProgress = false;
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }
 
-            @Nonnull
+            @NotNull
             @Override
-            protected OverclockCalculator createOverclockCalculator(@Nonnull GTRecipe recipe) {
-                return super.createOverclockCalculator(recipe).setEUt(getProcessingVoltage())
+            protected OverclockCalculator createOverclockCalculator(@NotNull GTRecipe recipe) {
+                return super.createOverclockCalculator(recipe).setEUt(getSafeProcessingVoltage())
                     .setDurationDecreasePerOC(getOverclockTimeFactor());
             }
 
@@ -196,6 +202,7 @@ public class MTEExoticModule extends MTEBaseModule {
         logic.setAvailableVoltage(Long.MAX_VALUE);
         logic.setAvailableAmperage(Integer.MAX_VALUE);
         logic.setAmperageOC(false);
+        logic.setUnlimitedTierSkips();
         logic.setSpeedBonus(getSpeedBonus());
         logic.setEuModifier(getEnergyDiscount());
     }
@@ -206,7 +213,7 @@ public class MTEExoticModule extends MTEBaseModule {
     }
 
     private GTRecipe generateQuarkGluonRecipe() {
-        actualParallel = getMaxParallel();
+        actualParallel = getActualParallel();
         numberOfFluids = GodforgeMath.getRandomIntInRange(0, NUMBER_OF_INPUTS);
         numberOfItems = NUMBER_OF_INPUTS - numberOfFluids;
         randomizedFluidInput = getRandomFluidInputs(exoticModulePlasmaFluidMap, numberOfFluids);
@@ -220,7 +227,7 @@ public class MTEExoticModule extends MTEBaseModule {
 
         if (numberOfItems != 0) {
             for (ItemStack itemStack : randomizedItemInput) {
-                itemStack.stackSize = 9 * GodforgeMath.getRandomIntInRange(1, 7);
+                itemStack.stackSize = GodforgeMath.getRandomIntInRange(1, 7);
             }
         }
 
@@ -231,22 +238,22 @@ public class MTEExoticModule extends MTEBaseModule {
             null,
             null,
             ArrayUtils
-                .addAll(convertItemToPlasma(randomizedItemInput, 1), convertFluidToPlasma(randomizedFluidInput, 1)),
-            new FluidStack[] { MaterialsUEVplus.QuarkGluonPlasma.getFluid(1000 * actualParallel) },
+                .addAll(convertItemToPlasma(randomizedItemInput, 9), convertFluidToPlasma(randomizedFluidInput, 1)),
+            new FluidStack[] { Materials.QuarkGluonPlasma.getFluid(1000 * actualParallel) },
             10 * SECONDS,
             (int) TierEU.RECIPE_MAX,
             0);
     }
 
     private GTRecipe generateMagmatterRecipe() {
-        actualParallel = getMaxParallel();
+        actualParallel = getActualParallel();
         randomizedItemInput = getRandomItemInputs(exoticModuleMagmatterItemMap, 1);
         numberOfItems = 1;
         numberOfFluids = 2;
         int timeAmount = GodforgeMath.getRandomIntInRange(1, 50);
         int spaceAmount = GodforgeMath.getRandomIntInRange(51, 100);
-        randomizedFluidInput = new FluidStack[] { MaterialsUEVplus.Time.getMolten(timeAmount * 1000L),
-            MaterialsUEVplus.Space.getMolten(spaceAmount * 1000L) };
+        randomizedFluidInput = new FluidStack[] { Materials.Time.getMolten(timeAmount * 1000L),
+            Materials.Space.getMolten(spaceAmount * 1000L) };
 
         return new GTRecipe(
             false,
@@ -256,9 +263,9 @@ public class MTEExoticModule extends MTEBaseModule {
             null,
             ArrayUtils.addAll(
                 convertItemToPlasma(randomizedItemInput, spaceAmount - timeAmount),
-                MaterialsUEVplus.Time.getMolten(timeAmount),
-                MaterialsUEVplus.Space.getMolten(spaceAmount)),
-            new FluidStack[] { MaterialsUEVplus.MagMatter.getMolten(576 * actualParallel) },
+                Materials.Time.getMolten(timeAmount),
+                Materials.Space.getMolten(spaceAmount)),
+            new FluidStack[] { Materials.MagMatter.getMolten(576 * actualParallel) },
             10 * SECONDS,
             (int) TierEU.RECIPE_MAX,
             0);
@@ -336,8 +343,8 @@ public class MTEExoticModule extends MTEBaseModule {
 
         for (ItemStack itemStack : items) {
             String dict = OreDictionary.getOreName(OreDictionary.getOreIDs(itemStack)[0]);
-            // substring 8 because dustTiny is 8 characters long and there is no other possible oreDict
-            String strippedOreDict = dict.substring(8);
+            // substring 4 because dust is 4 characters long and there is no other possible oreDict
+            String strippedOreDict = dict.substring(4);
             plasmas.add(
                 FluidRegistry.getFluidStack(
                     "plasma." + strippedOreDict.toLowerCase(),
@@ -364,11 +371,6 @@ public class MTEExoticModule extends MTEBaseModule {
 
     @Override
     public boolean supportsSingleRecipeLocking() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsBatchMode() {
         return false;
     }
 
@@ -429,9 +431,9 @@ public class MTEExoticModule extends MTEBaseModule {
 
             FluidStack outputFluid;
             if (magmatterMode) {
-                outputFluid = MaterialsUEVplus.MagMatter.getMolten(576L * actualParallel);
+                outputFluid = Materials.MagMatter.getMolten(actualParallel * 4 * INGOTS);
             } else {
-                outputFluid = MaterialsUEVplus.QuarkGluonPlasma.getFluid(1000L * actualParallel);
+                outputFluid = Materials.QuarkGluonPlasma.getFluid(1000L * actualParallel);
             }
 
             plasmaRecipe = new GTRecipe(
@@ -465,6 +467,7 @@ public class MTEExoticModule extends MTEBaseModule {
                 .setTooltipShowUpDelay(TOOLTIP_DELAY));
         super.addUIWidgets(builder, buildContext);
         buildContext.addSyncedWindow(INPUT_LIST_WINDOW_ID, this::createInputListWindow);
+        buildContext.addSyncedWindow(POSSIBLE_INPUTS_WINDOW_ID, this::createPossibleInputsWindow);
         builder.widget(createMagmatterSwitch(builder));
         builder.widget(createExpectedInputsButton());
         builder.widget(
@@ -548,6 +551,10 @@ public class MTEExoticModule extends MTEBaseModule {
                 builder,
                 (widget, val) -> widget.notifyTooltipChange()));
 
+        if (NewHorizonsCoreMod.isModLoaded()) {
+            builder.widget(createPossibleInputsButton());
+        }
+
         return builder.build();
     }
 
@@ -563,6 +570,155 @@ public class MTEExoticModule extends MTEBaseModule {
             .setPos(8, 69);
     }
 
+    protected ModularWindow createPossibleInputsWindow(final EntityPlayer player) {
+        final int WIDTH = 300;
+        final int HEIGHT = 143;
+        ModularWindow.Builder builder = ModularWindow.builder(WIDTH, HEIGHT);
+        builder.setBackground(GTUITextures.BACKGROUND_SINGLEBLOCK_DEFAULT);
+        builder.setGuiTint(getGUIColorization());
+        builder.setDraggable(true);
+        builder.widget(
+            ButtonWidget.closeWindowButton(true)
+                .setPos(284, 4));
+
+        int QGPItemMapSize = exoticModulePlasmaItemMap.size();
+        int QGPFluidMapSize = exoticModulePlasmaFluidMap.size();
+
+        IItemHandlerModifiable QGPItemHandler = new ItemStackHandler(QGPItemMapSize);
+        IFluidTanksHandler QGPFluidHandler = new FluidTanksHandler(QGPFluidMapSize, 128000);
+
+        List<Map.Entry<ItemStack, Integer>> itemEntryList = new ArrayList<>(exoticModulePlasmaItemMap.entrySet());
+        List<Map.Entry<FluidStack, Integer>> fluidEntryList = new ArrayList<>(exoticModulePlasmaFluidMap.entrySet());
+
+        int slotYQGP = 0;
+
+        for (int i = 0; i < QGPItemMapSize + QGPFluidMapSize; i++) {
+
+            int slotXQGP = 6 + i % 16 * 18;
+            slotYQGP = 17 + i / 16 * 18;
+
+            if (i < QGPItemMapSize) {
+                QGPItemHandler.setStackInSlot(
+                    i,
+                    GTUtility.copyAmount(
+                        1,
+                        itemEntryList.get(i)
+                            .getKey()));
+                builder.widget(
+                    new DrawableWidget().setDrawable(GTUITextures.BUTTON_STANDARD_PRESSED)
+                        .setPos(slotXQGP, slotYQGP)
+                        .setSize(18, 18));
+                builder.widget(
+                    new SlotWidget(QGPItemHandler, i).setAccess(false, false)
+                        .setRenderStackSize(false)
+                        .disableInteraction()
+                        .setPos(slotXQGP, slotYQGP)
+                        .setSize(18, 18));
+            } else {
+                QGPFluidHandler.setFluidInTank(
+                    i - QGPItemMapSize,
+                    fluidEntryList.get(i - QGPItemMapSize)
+                        .getKey()
+                        .getFluid(),
+                    1);
+                builder.widget(
+                    new DrawableWidget().setDrawable(ModularUITextures.FLUID_SLOT)
+                        .setSize(18, 18)
+                        .setPos(slotXQGP, slotYQGP))
+                    .widget(
+                        new FluidSlotWidget(QGPFluidHandler, i - QGPItemMapSize).setInteraction(false, false)
+                            .setSize(18, 18)
+                            .setPos(slotXQGP, slotYQGP));
+            }
+        }
+
+        int magMatterItemMapSize = exoticModuleMagmatterItemMap.size();
+
+        IItemHandlerModifiable magMatterItemHandler = new ItemStackHandler(magMatterItemMapSize);
+        IFluidTanksHandler magMatterFluidHandler = new FluidTanksHandler(2, 128000);
+        magMatterFluidHandler.setFluidInTank(
+            0,
+            Materials.Space.getMolten(1)
+                .getFluid(),
+            1);
+        magMatterFluidHandler.setFluidInTank(
+            1,
+            Materials.Time.getMolten(1)
+                .getFluid(),
+            1);
+
+        List<Map.Entry<ItemStack, Integer>> magMatteritemEntryList = new ArrayList<>(
+            exoticModuleMagmatterItemMap.entrySet());
+
+        int slotXMagmatter;
+        int slotYMagmatter;
+
+        for (int i = 0; i < magMatterItemMapSize + 2; i++) {
+            slotXMagmatter = 6 + i % 16 * 18;
+            slotYMagmatter = slotYQGP + 30 + i / 16 * 18;
+
+            if (i < magMatterItemMapSize) {
+                magMatterItemHandler.setStackInSlot(
+                    i,
+                    GTUtility.copyAmount(
+                        1,
+                        magMatteritemEntryList.get(i)
+                            .getKey()));
+                builder.widget(
+                    new DrawableWidget().setDrawable(GTUITextures.BUTTON_STANDARD_PRESSED)
+                        .setPos(slotXMagmatter, slotYMagmatter)
+                        .setSize(18, 18));
+                builder.widget(
+                    new SlotWidget(magMatterItemHandler, i).setAccess(false, false)
+                        .setRenderStackSize(false)
+                        .disableInteraction()
+                        .setPos(slotXMagmatter, slotYMagmatter)
+                        .setSize(18, 18));
+            } else {
+                builder.widget(
+                    new DrawableWidget().setDrawable(ModularUITextures.FLUID_SLOT)
+                        .setSize(18, 18)
+                        .setPos(slotXMagmatter, slotYMagmatter))
+                    .widget(
+                        new FluidSlotWidget(magMatterFluidHandler, i - magMatterItemMapSize)
+                            .setInteraction(false, false)
+                            .setSize(18, 18)
+                            .setPos(slotXMagmatter, slotYMagmatter));
+            }
+        }
+
+        builder.widget(
+            new TextWidget(translateToLocal("gt.blockmachines.multimachine.FOG.possibleinputsqgp"))
+                .setDefaultColor(EnumChatFormatting.BLACK)
+                .setTextAlignment(Alignment.Center)
+                .setSize(300, 9)
+                .setPos(0, 6));
+
+        builder.widget(
+            new TextWidget(translateToLocal("gt.blockmachines.multimachine.FOG.possibleinputsmagmatter"))
+                .setDefaultColor(EnumChatFormatting.BLACK)
+                .setTextAlignment(Alignment.Center)
+                .setSize(300, 9)
+                .setPos(0, slotYQGP + 21));
+
+        return builder.build();
+    }
+
+    private Widget createPossibleInputsButton() {
+        return new ButtonWidget().setOnClick((clickData, widget) -> {
+            if (!widget.isClient()) {
+                widget.getContext()
+                    .openSyncedWindow(POSSIBLE_INPUTS_WINDOW_ID);
+            }
+        })
+            .setPlayClickSound(true)
+            .setBackground(ModularUITextures.ICON_INFO)
+            .addTooltip(translateToLocal("fog.button.possibleexoticinputs.tooltip"))
+            .setTooltipShowUpDelay(TOOLTIP_DELAY)
+            .setSize(16, 16)
+            .setPos(79, 37);
+    }
+
     protected ButtonWidget createMagmatterSwitch(IWidgetBuilder<?> builder) {
         Widget button = new ButtonWidget().setOnClick((clickData, widget) -> {
             if (isMagmatterCapable) {
@@ -575,8 +731,7 @@ public class MTEExoticModule extends MTEBaseModule {
             .setBackground(
                 () -> new IDrawable[] { TecTechUITextures.BUTTON_CELESTIAL_32x32,
                     new ItemDrawable(
-                        isMagmatterCapable && isMagmatterModeOn()
-                            ? GTOreDictUnificator.get(OrePrefixes.dust, MaterialsUEVplus.MagMatter, 1)
+                        isMagmatterModeOn() ? GTOreDictUnificator.get(OrePrefixes.dust, Materials.MagMatter, 1)
                             : CustomItemList.Godforge_FakeItemQGP.get(1))
 
                 })
@@ -624,15 +779,6 @@ public class MTEExoticModule extends MTEBaseModule {
     }
 
     @Override
-    public void setMagmatterCapable(boolean isCapable) {
-        if (!isCapable && isMagmatterCapable) {
-            // only set when it previously was capable
-            setMagmatterMode(false);
-        }
-        super.setMagmatterCapable(isCapable);
-    }
-
-    @Override
     protected boolean filtersFluid() {
         return false;
     }
@@ -641,15 +787,15 @@ public class MTEExoticModule extends MTEBaseModule {
     public MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType("Exotic Matter Producer")
-            .addInfo("This is a module of the Godforge.")
-            .addInfo("Must be part of a Godforge to function.")
-            .addInfo("Used for ultra high temperature matter degeneration.")
+            .addInfo("This is a module of the Godforge")
+            .addInfo("Must be part of a Godforge to function")
+            .addInfo("Used for ultra high temperature matter degeneration")
             .addSeparator(EnumChatFormatting.AQUA, 75)
             .addInfo("The fourth and final module of the Godforge, this module breaks apart the very")
             .addInfo("building blocks of matter, producing exotic mixtures in the process. Quark-Gluon Plasma")
             .addInfo("can be manufactured right away, but production of Magnetic Monopole Matter (Magmatter)")
-            .addInfo("requires a fully upgraded Godforge.")
-            .addInfo("This module is specialized towards acquisition of unique materials.")
+            .addInfo("requires a fully upgraded Godforge")
+            .addInfo("This module is specialized towards acquisition of unique materials")
             .beginStructureBlock(7, 7, 13, false)
             .addStructureInfo(
                 EnumChatFormatting.GOLD + "20"
@@ -674,27 +820,34 @@ public class MTEExoticModule extends MTEBaseModule {
     public String[] getInfoData() {
         ArrayList<String> str = new ArrayList<>();
         str.add(
-            "Progress: " + GREEN
-                + formatNumbers(mProgresstime / 20)
-                + RESET
-                + " s / "
-                + YELLOW
-                + formatNumbers(mMaxProgresstime / 20)
-                + RESET
-                + " s");
+            StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.progress",
+                GREEN + formatNumbers(mProgresstime / 20) + RESET,
+                YELLOW + formatNumbers(mMaxProgresstime / 20) + RESET));
         str.add(
-            "Currently using: " + RED
-                + (getBaseMetaTileEntity().isActive() ? formatNumbers(EUt * actualParallel) : "0")
-                + RESET
-                + " EU/t");
-        str.add(YELLOW + "Max Parallel: " + RESET + formatNumbers(getMaxParallel()));
+            StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.currently_using",
+                RED + (getBaseMetaTileEntity().isActive() ? formatNumbers(EUt * actualParallel) : "0") + RESET));
         str.add(
-            YELLOW + "Current Parallel: "
-                + RESET
-                + (getBaseMetaTileEntity().isActive() ? formatNumbers(getMaxParallel()) : "0"));
-        str.add(YELLOW + "Recipe time multiplier: " + RESET + formatNumbers(getSpeedBonus()));
-        str.add(YELLOW + "Energy multiplier: " + RESET + formatNumbers(getEnergyDiscount()));
-        str.add(YELLOW + "Recipe time divisor per non-perfect OC: " + RESET + formatNumbers(getOverclockTimeFactor()));
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.max_parallel",
+                RESET + formatNumbers(getActualParallel())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.parallel.current",
+                RESET + (getBaseMetaTileEntity().isActive() ? formatNumbers(getActualParallel()) : "0")));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.multiplier.recipe_time",
+                RESET + formatNumbers(getSpeedBonus())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.multiplier.energy",
+                RESET + formatNumbers(getEnergyDiscount())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.divisor.recipe_time.non_perfect_oc",
+                RESET + formatNumbers(getOverclockTimeFactor())));
         return str.toArray(new String[0]);
     }
 

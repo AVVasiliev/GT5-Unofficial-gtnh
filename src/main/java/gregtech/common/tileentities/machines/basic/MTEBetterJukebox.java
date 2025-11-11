@@ -21,12 +21,16 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Vector4i;
 
 import com.google.common.collect.ImmutableList;
+import com.gtnewhorizon.gtnhlib.api.MusicRecordMetadataProvider;
 import com.gtnewhorizons.modularui.api.drawable.FallbackableUITexture;
 import com.gtnewhorizons.modularui.api.drawable.UITexture;
 import com.gtnewhorizons.modularui.api.math.Pos2d;
@@ -191,6 +195,15 @@ public class MTEBetterJukebox extends MTEBasicMachine implements IAddUIWidgets, 
         return new MTEBetterJukebox(this.mName, this.mTier, this.mDescriptionArray, this.mTextures);
     }
 
+    @Nullable
+    @Override
+    public <T> T getCapability(@NotNull Class<T> capability, @NotNull ForgeDirection side) {
+        if (capability == ISoundP2PHandler.class) {
+            return capability.cast(this);
+        }
+        return super.getCapability(capability, side);
+    }
+
     @Override
     public ITexture[] getTexture(IGregTechTileEntity baseMetaTileEntity, ForgeDirection sideDirection,
         ForgeDirection facingDirection, int colorIndex, boolean active, boolean redstoneLevel) {
@@ -230,16 +243,21 @@ public class MTEBetterJukebox extends MTEBasicMachine implements IAddUIWidgets, 
             updateEmitterList();
         }
         if (doesSlotContainValidRecord(playbackSlot)
-            && mInventory[playbackSlot].getItem() instanceof ItemRecord record) {
-            final ResourceLocation resource = record.getRecordResource(record.recordName);
+            && mInventory[getInputSlot() + playbackSlot].getItem() instanceof ItemRecord record) {
+            final ResourceLocation resource, playPath;
+            if (record instanceof MusicRecordMetadataProvider mrmp) {
+                resource = mrmp.getMusicRecordResource(mInventory[getInputSlot() + playbackSlot]);
+                playPath = resource;
+            } else {
+                resource = record.getRecordResource(record.recordName);
+                playPath = new ResourceLocation(resource.getResourceDomain(), "records." + resource.getResourcePath());
+            }
             currentlyPlaying = record;
             // Assume a safe disc duration of 500 seconds if not known in the registry
             discDurationMs = GTMusicSystem.getMusicRecordDurations()
                 .getOrDefault(resource, 500_000);
             discStartMs = System.currentTimeMillis() - discProgressMs;
-            musicSource.setRecord(
-                new ResourceLocation(resource.getResourceDomain(), "records." + resource.getResourcePath()),
-                discProgressMs);
+            musicSource.setRecord(playPath, discProgressMs);
         }
     }
 
@@ -318,10 +336,18 @@ public class MTEBetterJukebox extends MTEBasicMachine implements IAddUIWidgets, 
                 stopCurrentSong(now);
             } else if (canStartPlaying
                 && mInventory[getInputSlot() + playbackSlot].getItem() instanceof ItemRecord record) {
-                    final ResourceLocation resource = record.getRecordResource(record.recordName);
+                    final ResourceLocation resource, playPath;
+                    if (record instanceof MusicRecordMetadataProvider mrmp) {
+                        resource = mrmp.getMusicRecordResource(mInventory[getInputSlot() + playbackSlot]);
+                        playPath = resource;
+                    } else {
+                        resource = record.getRecordResource(record.recordName);
+                        playPath = new ResourceLocation(
+                            resource.getResourceDomain(),
+                            "records." + resource.getResourcePath());
+                    }
                     currentlyPlaying = record;
-                    musicSource.setRecord(
-                        new ResourceLocation(resource.getResourceDomain(), "records." + resource.getResourcePath()));
+                    musicSource.setRecord(playPath);
                     // Assume a safe disc duration of 500 seconds if not known in the registry
                     discDurationMs = GTMusicSystem.getMusicRecordDurations()
                         .getOrDefault(resource, 500_000);
@@ -428,12 +454,23 @@ public class MTEBetterJukebox extends MTEBasicMachine implements IAddUIWidgets, 
 
     @Override
     public String[] getInfoData() {
-        return new String[] { "Jukebox UUID: " + ((jukeboxUuid == UNSET_UUID) ? "unset" : jukeboxUuid),
-            "Loop mode: " + loopMode, "Shuffle mode: " + shuffleMode, "Played the disc for [ms]: " + discProgressMs,
-            "Current disc duration [ms]: " + discDurationMs,
-            "Playback range [blocks]: " + BalanceMath.volumeToAttenuationDistance(playbackVolume),
-            "P2P range [blocks]: " + BalanceMath.volumeToAttenuationDistance(playbackVolume),
-            "Raw playback strength: " + playbackVolume, "Raw p2p strength: " + p2pVolume };
+        return new String[] {
+            StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.juke_box.uuid",
+                (jukeboxUuid == UNSET_UUID) ? StatCollector.translateToLocal("GT5U.infodata.juke_box.uuid.unset")
+                    : jukeboxUuid),
+            StatCollector.translateToLocalFormatted("GT5U.infodata.juke_box.loop_mode", loopMode),
+            StatCollector.translateToLocalFormatted("GT5U.infodata.juke_box.shuffle_mode", shuffleMode),
+            StatCollector.translateToLocalFormatted("GT5U.infodata.juke_box.played", discProgressMs),
+            StatCollector.translateToLocalFormatted("GT5U.infodata.juke_box.current", discDurationMs),
+            StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.juke_box.playback_range",
+                BalanceMath.volumeToAttenuationDistance(playbackVolume)),
+            StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.juke_box.p2p_range",
+                BalanceMath.volumeToAttenuationDistance(playbackVolume)),
+            StatCollector.translateToLocalFormatted("GT5U.infodata.juke_box.raw_playback_strength", playbackVolume),
+            StatCollector.translateToLocalFormatted("GT5U.infodata.juke_box.raw_p2p_strength", p2pVolume) };
     }
 
     @Override

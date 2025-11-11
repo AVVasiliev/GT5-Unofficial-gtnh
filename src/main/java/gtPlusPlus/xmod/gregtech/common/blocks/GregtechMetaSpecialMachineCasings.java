@@ -10,10 +10,10 @@ import net.minecraft.util.IIcon;
 
 import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTLanguageManager;
 import gregtech.common.blocks.MaterialCasings;
 import gtPlusPlus.xmod.gregtech.api.enums.GregtechItemList;
-import gtPlusPlus.xmod.gregtech.api.objects.GTPPCopiedBlockTexture;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 
 public class GregtechMetaSpecialMachineCasings extends GregtechMetaCasingBlocksAbstract {
@@ -34,16 +34,12 @@ public class GregtechMetaSpecialMachineCasings extends GregtechMetaCasingBlocksA
 
     public GregtechMetaSpecialMachineCasings() {
         super(SpecialCasingItemBlock.class, "gtplusplus.blockspecialcasings.2", MaterialCasings.INSTANCE);
-        for (byte i = 0; i < 16; i = (byte) (i + 1)) {
-            // TAE.registerTextures(new GT_CopiedBlockTexture(this, 6, i));
-            // Don't register these Textures, They already exist within vanilla GT. (May not exist in 5.08)
-        }
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".0.name", "Strong Bronze Machine Casing");
         GTLanguageManager
             .addStringLocalization(this.getUnlocalizedName() + ".1.name", "Sturdy Aluminium Machine Casing");
         GTLanguageManager
             .addStringLocalization(this.getUnlocalizedName() + ".2.name", "Vigorous Laurenium Machine Casing");
-        TAE.registerTexture(84, new GTPPCopiedBlockTexture(this, 6, 2));
+        TAE.registerTexture(84, TextureFactory.of(this, 2));
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".3.name", "Rugged Botmium Machine Casing");
 
         GregtechItemList.Casing_Machine_Custom_1.set(new ItemStack(this, 1, 0));

@@ -91,7 +91,6 @@ public class MTEMagicalEnergyAbsorber extends MTEBasicGenerator implements Magic
     private static final int sDragonEggEnergyPerTick = 2048;
     private static final int sCreeperEggEnergyPerTick = 512;
     private final MagicalEnergyBB mMagicalEnergyBB = new MagicalEnergyBB(this, mTier, mTier + 2);
-    private int mEfficiency;
     private int mMaxVisPerDrain;
     private long mNextGenerateTickRate = 1;
     private int mNoGenerationTicks = 0;
@@ -132,15 +131,15 @@ public class MTEMagicalEnergyAbsorber extends MTEBasicGenerator implements Magic
 
     public void onConfigLoad() {
         sharedConfigLoad();
-        mEfficiency = 100 - mTier * 10;
         mMaxVisPerDrain = (int) Math.round(Math.sqrt((double) (V[mTier] * 10000) / (sEnergyFromVis * getEfficiency())));
-        if (Math.pow(mMaxVisPerDrain, 2) * sEnergyFromVis * getEfficiency() < V[mTier]) {
+        if ((long) mMaxVisPerDrain * mMaxVisPerDrain * sEnergyFromVis * getEfficiency() < V[mTier]) {
             mMaxVisPerDrain += 1;
         }
     }
 
     @Override
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ,
+        ItemStack aTool) {
         if (aPlayer.isSneaking()) mMagicalEnergyBB.decreaseTier();
         else mMagicalEnergyBB.increaseTier();
         GTUtility.sendChatToPlayer(
@@ -205,7 +204,7 @@ public class MTEMagicalEnergyAbsorber extends MTEBasicGenerator implements Magic
         description
             .add(UNDERLINE + "Feasts on " + LIGHT_PURPLE + UNDERLINE + "magic" + GRAY + UNDERLINE + " close to it:");
         description.add(
-            LI + (sAllowMultipleEggs ? "A " : "An " + YELLOW + UNDERLINE + "EXCLUSIVE" + RESET)
+            "- " + (sAllowMultipleEggs ? "A " : "An " + YELLOW + UNDERLINE + "EXCLUSIVE" + RESET)
                 + GRAY
                 + " "
                 + LIGHT_PURPLE
@@ -252,7 +251,7 @@ public class MTEMagicalEnergyAbsorber extends MTEBasicGenerator implements Magic
                 .addIcon(MACHINE_CASING_MAGIC_GLOW)
                 .glow()
                 .build(),
-            OVERLAYS_ENERGY_OUT[mTier] };
+            OVERLAYS_ENERGY_OUT[mTier + 1] };
     }
 
     @Override
@@ -294,7 +293,7 @@ public class MTEMagicalEnergyAbsorber extends MTEBasicGenerator implements Magic
                 .addIcon(MACHINE_CASING_MAGIC_ACTIVE_GLOW)
                 .glow()
                 .build(),
-            OVERLAYS_ENERGY_OUT[mTier] };
+            OVERLAYS_ENERGY_OUT[mTier + 1] };
     }
 
     @Override
@@ -433,7 +432,7 @@ public class MTEMagicalEnergyAbsorber extends MTEBasicGenerator implements Magic
 
     @Override
     public int getEfficiency() {
-        return mEfficiency;
+        return 100 - mTier * 10;
     }
 
     @Override
@@ -441,11 +440,6 @@ public class MTEMagicalEnergyAbsorber extends MTEBasicGenerator implements Magic
         ItemStack aStack) {
         // Restrict input to disenchantable items or enchanted books
         return (isDisenchantableItem(aStack) || isEnchantedBook(aStack));
-    }
-
-    @Override
-    public int getCapacity() {
-        return 16000;
     }
 
     private boolean isDisenchantableItem(ItemStack aStack) {
@@ -564,7 +558,7 @@ public class MTEMagicalEnergyAbsorber extends MTEBasicGenerator implements Magic
         }
 
         int drained = mMaxVisPerDrain - toDrain;
-        tEU = (long) Math.min(maxEUOutput(), (Math.pow(drained, 2) * sEnergyFromVis * getEfficiency() / 10000));
+        tEU = Math.min(maxEUOutput(), (long) drained * drained * sEnergyFromVis * getEfficiency() / 10000);
 
         return tEU;
     }

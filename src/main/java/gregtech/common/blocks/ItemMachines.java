@@ -1,6 +1,9 @@
 package gregtech.common.blocks;
 
 import static gregtech.GTMod.GT_FML_LOGGER;
+import static gregtech.api.util.GTUtility.formatStringSafe;
+import static net.minecraft.util.StatCollector.translateToLocal;
+import static net.minecraft.util.StatCollector.translateToLocalFormatted;
 
 import java.util.List;
 
@@ -16,7 +19,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.Fluid;
@@ -35,15 +37,16 @@ import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.CoverableTileEntity;
 import gregtech.api.metatileentity.implementations.MTECable;
-import gregtech.api.metatileentity.implementations.MTEFluid;
+import gregtech.api.metatileentity.implementations.MTEFluidPipe;
 import gregtech.api.metatileentity.implementations.MTEFrame;
-import gregtech.api.metatileentity.implementations.MTEItem;
+import gregtech.api.metatileentity.implementations.MTEItemPipe;
 import gregtech.api.util.GTItsNotMyFaultException;
 import gregtech.api.util.GTLanguageManager;
 import gregtech.api.util.GTUtility;
 import gregtech.common.tileentities.storage.MTEDigitalTankBase;
 import gregtech.common.tileentities.storage.MTESuperChest;
 import gregtech.common.tileentities.storage.MTESuperTank;
+import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.GTPPMTEFluidPipe;
 
 public class ItemMachines extends ItemBlock implements IFluidContainerItem {
 
@@ -89,70 +92,52 @@ public class ItemMachines extends ItemBlock implements IFluidContainerItem {
                     if (tTileEntity.getInputVoltage() > 0L) {
                         final byte inputTier = GTUtility.getTier(tTileEntity.getInputVoltage());
                         aList.add(
-                            GTLanguageManager.addStringLocalization("TileEntity_EUp_IN", "Voltage IN: ")
-                                + EnumChatFormatting.GREEN
-                                + GTUtility.formatNumbers(tTileEntity.getInputVoltage())
-                                + " ("
-                                + GTUtility.getColoredTierNameFromTier(inputTier)
-                                + EnumChatFormatting.GREEN
-                                + ")"
-                                + EnumChatFormatting.GRAY);
+                            translateToLocalFormatted(
+                                "gt.tileentity.eup_in",
+                                GTUtility.formatNumbers(tTileEntity.getInputVoltage()),
+                                GTUtility.getColoredTierNameFromTier(inputTier)));
                     }
                     if (tTileEntity.getOutputVoltage() > 0L) {
                         final byte outputTier = GTUtility.getTier(tTileEntity.getOutputVoltage());
                         aList.add(
-                            GTLanguageManager.addStringLocalization("TileEntity_EUp_OUT", "Voltage OUT: ")
-                                + EnumChatFormatting.GREEN
-                                + GTUtility.formatNumbers(tTileEntity.getOutputVoltage())
-                                + " ("
-                                + GTUtility.getColoredTierNameFromTier(outputTier)
-                                + EnumChatFormatting.GREEN
-                                + ")"
-                                + EnumChatFormatting.GRAY);
+                            translateToLocalFormatted(
+                                "gt.tileentity.eup_out",
+                                GTUtility.formatNumbers(tTileEntity.getOutputVoltage()),
+                                GTUtility.getColoredTierNameFromTier(outputTier)));
                     }
                     if (tTileEntity.getOutputAmperage() > 1L) {
                         aList.add(
-                            GTLanguageManager.addStringLocalization("TileEntity_EUp_AMOUNT", "Amperage: ")
-                                + EnumChatFormatting.YELLOW
-                                + GTUtility.formatNumbers(tTileEntity.getOutputAmperage())
-                                + EnumChatFormatting.GRAY);
+                            translateToLocalFormatted(
+                                "gt.tileentity.eup_amount",
+                                GTUtility.formatNumbers(tTileEntity.getOutputAmperage())));
                     }
                     aList.add(
-                        GTLanguageManager.addStringLocalization("TileEntity_EUp_STORE", "Capacity: ")
-                            + EnumChatFormatting.BLUE
-                            + GTUtility.formatNumbers(tTileEntity.getEUCapacity())
-                            + EnumChatFormatting.GRAY
-                            + " EU");
+                        translateToLocalFormatted(
+                            "gt.tileentity.eup_store",
+                            GTUtility.formatNumbers(tTileEntity.getEUCapacity())));
                 }
             }
             final NBTTagCompound aNBT = aStack.getTagCompound();
             if (aNBT != null) {
                 if (aNBT.getBoolean("mMuffler")) {
-                    aList.add(GTLanguageManager.addStringLocalization("GT_TileEntity_MUFFLER", "has Muffler Upgrade"));
+                    aList.add(translateToLocal("gt.tileentity.has_muffler"));
                 }
                 if (aNBT.getBoolean("mSteamConverter")) {
-                    aList.add(
-                        GTLanguageManager.addStringLocalization("GT_TileEntity_STEAMCONVERTER", "has Steam Upgrade"));
-                }
-                int tAmount = 0;
-                if ((tAmount = aNBT.getByte("mSteamTanks")) > 0) {
-                    aList.add(
-                        tAmount + " "
-                            + GTLanguageManager
-                                .addStringLocalization("GT_TileEntity_STEAMTANKS", "Steam Tank Upgrades"));
+                    aList.add(translateToLocal("gt.tileentity.has_steam_upgrade"));
                 }
 
                 CoverableTileEntity.addInstalledCoversInformation(aNBT, aList);
                 if (aNBT.hasKey("mColor") && aNBT.getByte("mColor") != -1) {
                     aList.add(
-                        GTLanguageManager.addStringLocalization("GT_TileEntity_COLORED", "Colored") + " ("
-                            + Dyes.get(aNBT.getByte("mColor") - 1).formatting
-                            + Dyes.get(aNBT.getByte("mColor") - 1).mName
-                            + EnumChatFormatting.GRAY
-                            + ")");
+                        translateToLocalFormatted(
+                            "gt.tileentity.colored",
+                            Dyes.get(aNBT.getByte("mColor") - 1).formatting,
+                            Dyes.get(aNBT.getByte("mColor") - 1).mName));
                 }
             }
         } catch (Throwable e) {
+            aList.add("§cAn exception was thrown while getting this item's info.§r");
+            aList.add(e.getLocalizedMessage());
             GT_FML_LOGGER.error("addInformation", e);
         }
     }
@@ -174,8 +159,9 @@ public class ItemMachines extends ItemBlock implements IFluidContainerItem {
                     tBuffer.append("%s");
                     tRep[j / 2] = tSplitStrings[j];
                 }
-                final String tTranslated = String
-                    .format(GTLanguageManager.addStringLocalization(tKey, tBuffer.toString()), (Object[]) tRep);
+                final String tTranslated = formatStringSafe(
+                    GTLanguageManager.addStringLocalization(tKey, tBuffer.toString()),
+                    (Object[]) tRep);
                 if (aList != null) aList.add(tTranslated);
             } else {
                 String tTranslated = GTLanguageManager.addStringLocalization(tKey, tDescLine);
@@ -200,12 +186,6 @@ public class ItemMachines extends ItemBlock implements IFluidContainerItem {
     }
 
     @Override
-    public boolean onItemUseFirst(ItemStack stack, EntityPlayer player, World world, int x, int y, int z,
-        int ordinalSide, float hitX, float hitY, float hitZ) {
-        return false;
-    }
-
-    @Override
     public String getUnlocalizedName(ItemStack aStack) {
         final short tDamage = (short) getDamage(aStack);
         if ((tDamage < 0) || (tDamage >= GregTechAPI.METATILEENTITIES.length)) {
@@ -224,14 +204,16 @@ public class ItemMachines extends ItemBlock implements IFluidContainerItem {
         if (aDamage >= 0 && aDamage < GregTechAPI.METATILEENTITIES.length
             && GregTechAPI.METATILEENTITIES[aDamage] != null) {
             Materials aMaterial = null;
-            if (GregTechAPI.METATILEENTITIES[aDamage] instanceof MTEItem) {
-                aMaterial = ((MTEItem) GregTechAPI.METATILEENTITIES[aDamage]).mMaterial;
-            } else if (GregTechAPI.METATILEENTITIES[aDamage] instanceof MTEFluid) {
-                aMaterial = ((MTEFluid) GregTechAPI.METATILEENTITIES[aDamage]).mMaterial;
-            } else if (GregTechAPI.METATILEENTITIES[aDamage] instanceof MTECable) {
-                aMaterial = ((MTECable) GregTechAPI.METATILEENTITIES[aDamage]).mMaterial;
-            } else if (GregTechAPI.METATILEENTITIES[aDamage] instanceof MTEFrame) {
-                aMaterial = ((MTEFrame) GregTechAPI.METATILEENTITIES[aDamage]).mMaterial;
+            if (GregTechAPI.METATILEENTITIES[aDamage] instanceof MTEItemPipe itemPipe) {
+                aMaterial = itemPipe.mMaterial;
+            } else if (GregTechAPI.METATILEENTITIES[aDamage] instanceof GTPPMTEFluidPipe gtppFluidPipe) {
+                aName = gtppFluidPipe.pipeStats.getLocalizedNameForItem(aName);
+            } else if (GregTechAPI.METATILEENTITIES[aDamage] instanceof MTEFluidPipe fluidPipe) {
+                aMaterial = fluidPipe.mMaterial;
+            } else if (GregTechAPI.METATILEENTITIES[aDamage] instanceof MTECable cable) {
+                aMaterial = cable.mMaterial;
+            } else if (GregTechAPI.METATILEENTITIES[aDamage] instanceof MTEFrame frame) {
+                aMaterial = frame.mMaterial;
             }
             if (aMaterial != null) {
                 aName = aMaterial.getLocalizedNameForItem(aName);

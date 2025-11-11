@@ -10,40 +10,33 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
+import net.minecraftforge.common.util.ForgeDirection;
 
 import com.cleanroommc.modularui.api.IGuiHolder;
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.factory.GuiData;
 import com.cleanroommc.modularui.screen.ModularPanel;
+import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.value.sync.SyncHandlers;
-import com.cleanroommc.modularui.widgets.ItemSlot;
 import com.cleanroommc.modularui.widgets.SlotGroupWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
+import com.cleanroommc.modularui.widgets.slot.ItemSlot;
 import com.cleanroommc.modularui.widgets.slot.SlotGroup;
 
 import gtPlusPlus.api.objects.Logger;
+import gtPlusPlus.core.block.ModBlocks;
 import gtPlusPlus.core.inventories.InventoryDecayablesChest;
 import gtPlusPlus.core.item.materials.DustDecayable;
 import gtPlusPlus.core.util.minecraft.ItemUtils;
 
-public class TileEntityDecayablesChest extends TileEntity implements ISidedInventory, IGuiHolder {
+public class TileEntityDecayablesChest extends TileEntity implements ISidedInventory, IGuiHolder<GuiData> {
 
     private final InventoryDecayablesChest inventoryContents;
 
     /** Determines if the check for adjacent chests has taken place. */
-    public boolean adjacentChestChecked;
-    /** Contains the chest tile located adjacent to this one (if any) */
-    public TileEntityDecayablesChest adjacentChestZNeg;
-    /** Contains the chest tile located adjacent to this one (if any) */
-    public TileEntityDecayablesChest adjacentChestXPos;
-    /** Contains the chest tile located adjacent to this one (if any) */
-    public TileEntityDecayablesChest adjacentChestXNeg;
-    /** Contains the chest tile located adjacent to this one (if any) */
-    public TileEntityDecayablesChest adjacentChestZPos;
-    /** The current angle of the lid (between 0 and 1) */
     public float lidAngle;
     /** The angle of the lid last tick */
     public float prevLidAngle;
@@ -54,7 +47,8 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
     private String customName;
 
     private int cachedChestType;
-    private int tickCount = 0;
+    private int tickCount = -1;
+    private int facing;
 
     public TileEntityDecayablesChest() {
         this.inventoryContents = new InventoryDecayablesChest();
@@ -70,7 +64,7 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
         // Try do chesty stuff
         try {
             this.updateEntityChest();
-        } catch (Throwable t) {
+        } catch (Throwable ignored) {
 
         }
 
@@ -94,7 +88,7 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
                 }
                 updateSlots();
             }
-        } catch (final Throwable t) {}
+        } catch (final Throwable ignored) {}
     }
 
     public void tryUpdateDecayable(final DustDecayable b, ItemStack iStack, final World world) {
@@ -121,7 +115,7 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
         Logger.MACHINE_INFO("| " + b.getUnlocalizedName() + " | " + a1 + "/" + a2);
 
         if (!a1 && !a2) {
-            ItemStack replacement = ItemUtils.getSimpleStack(b.getDecayResult());
+            ItemStack replacement = b.getDecayResult();
             replacement.stackSize = 1;
             // iStack = replacement.copy();
             for (int fff = 0; fff < this.inventoryContents.getSizeInventory(); fff++) {
@@ -156,6 +150,7 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
         if (this.hasCustomInventoryName()) {
             nbt.setString("CustomName", this.getCustomName());
         }
+        nbt.setByte("facing", (byte) facing);
     }
 
     @Override
@@ -166,6 +161,7 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
         if (nbt.hasKey("CustomName", 8)) {
             this.setCustomName(nbt.getString("CustomName"));
         }
+        facing = nbt.getByte("facing");
     }
 
     @Override
@@ -202,6 +198,14 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
     public int getInventoryStackLimit() {
         return this.getInventory()
             .getInventoryStackLimit();
+    }
+
+    public int getFacing() {
+        return this.facing;
+    }
+
+    public void setFacing(int facing) {
+        this.facing = facing;
     }
 
     @Override
@@ -287,37 +291,12 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
         return (this.customName != null) && !this.customName.isEmpty();
     }
 
-    /**
-     * Causes the TileEntity to reset all it's cached values for it's container Block, metadata and in the case of
-     * chests, the adjacent chest check
-     */
-    @Override
-    public void updateContainingBlockInfo() {
-        super.updateContainingBlockInfo();
-        this.adjacentChestChecked = false;
-    }
-
-    /**
-     * Performs the check for adjacent chests to determine if this chest is double or not.
-     */
-    public void checkForAdjacentChests() {
-        if (!this.adjacentChestChecked) {
-            this.adjacentChestChecked = true;
-            this.adjacentChestZNeg = null;
-            this.adjacentChestXPos = null;
-            this.adjacentChestXNeg = null;
-            this.adjacentChestZPos = null;
-        }
-    }
-
     public void updateEntityChest() {
         float f;
         this.prevLidAngle = this.lidAngle;
         f = 0.04F;
         double d2;
-        if (this.numPlayersUsing > 0 && this.lidAngle == 0.0F
-            && this.adjacentChestZNeg == null
-            && this.adjacentChestXNeg == null) {
+        if (this.numPlayersUsing > 0 && this.lidAngle == 0.0F) {
             double d1 = (double) this.xCoord + 0.5D;
             d2 = (double) this.zCoord + 0.5D;
             this.worldObj.playSoundEffect(
@@ -327,6 +306,16 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
                 "random.chestopen",
                 0.5F,
                 this.worldObj.rand.nextFloat() * 0.1F + 0.9F);
+        }
+
+        if (!worldObj.isRemote && tickCount < 0) {
+            worldObj.addBlockEvent(
+                xCoord,
+                yCoord,
+                zCoord,
+                ModBlocks.blockDecayablesChest,
+                3,
+                ((numPlayersUsing << 3) & 0xF8) | (facing & 0x7));
         }
 
         if (this.numPlayersUsing == 0 && this.lidAngle > 0.0F || this.numPlayersUsing > 0 && this.lidAngle < 1.0F) {
@@ -342,7 +331,7 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
                 this.lidAngle = 1.0F;
             }
             float f2 = 0.5F;
-            if (this.lidAngle < f2 && f1 >= f2 && this.adjacentChestZNeg == null && this.adjacentChestXNeg == null) {
+            if (this.lidAngle < f2 && f1 >= f2) {
                 d2 = (double) this.xCoord + 0.5D;
                 double d0 = (double) this.zCoord + 0.5D;
                 this.worldObj.playSoundEffect(
@@ -364,13 +353,19 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
      * Called when a client event is received with the event number and argument, see World.sendClientEvent
      */
     @Override
-    public boolean receiveClientEvent(int p_145842_1_, int p_145842_2_) {
-        if (p_145842_1_ == 1) {
-            this.numPlayersUsing = p_145842_2_;
+    public boolean receiveClientEvent(int id, int type) {
+        if (id == 1) {
+            this.numPlayersUsing = type;
             return true;
+        } else if (id == 2) {
+            facing = (byte) type;
+        } else if (id == 3) {
+            facing = (byte) (type & 0x7);
+            numPlayersUsing = (type & 0xF8) >> 3;
         } else {
-            return super.receiveClientEvent(p_145842_1_, p_145842_2_);
+            return super.receiveClientEvent(id, type);
         }
+        return true;
     }
 
     /**
@@ -381,7 +376,6 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
         super.invalidate();
         cachedChestType = 1;
         this.updateContainingBlockInfo();
-        this.checkForAdjacentChests();
     }
 
     private int updateSlots() {
@@ -395,7 +389,7 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
     }
 
     @Override
-    public ModularPanel buildUI(GuiData data, PanelSyncManager syncManager) {
+    public ModularPanel buildUI(GuiData data, PanelSyncManager syncManager, UISettings uiSettings) {
         final SlotGroup SLOT_GROUP = new SlotGroup("decayables", 5);
         syncManager.registerSlotGroup(SLOT_GROUP);
         syncManager.addOpenListener(player -> {
@@ -412,7 +406,7 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
         final ModularPanel panel = ModularPanel.defaultPanel("decayablesChest");
         panel.bindPlayerInventory();
         panel.child(
-            new TextWidget(IKey.lang("tile.blockDecayablesChest.name")).top(5)
+            new TextWidget<>(IKey.lang("tile.blockDecayablesChest.name")).top(7)
                 .left(5));
         panel.child(
             SlotGroupWidget.builder()
@@ -425,8 +419,17 @@ public class TileEntityDecayablesChest extends TileEntity implements ISidedInven
                 .build()
                 .flex(
                     flex -> flex.anchor(Alignment.TopCenter)
-                        .marginTop(15)
-                        .leftRelAnchor(0.5f, 0.5f)));
+                        .leftRelAnchor(0.5f, 0.5f)
+                        .topRelAnchor(0.125f, 0f)));
+
         return panel;
+    }
+
+    public void rotateAround(ForgeDirection axis) {
+        setFacing(
+            (byte) ForgeDirection.getOrientation(facing)
+                .getRotation(axis)
+                .ordinal());
+        worldObj.addBlockEvent(this.xCoord, this.yCoord, this.zCoord, ModBlocks.blockDecayablesChest, 2, getFacing());
     }
 }

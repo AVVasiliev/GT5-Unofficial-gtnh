@@ -68,7 +68,7 @@ public class MTESupercriticalFluidTurbine extends MTELargeTurbineBase {
         }
         if (totalFlow <= 0) return 0;
         tEU = totalFlow;
-        addOutput(GTModHandler.getSteam(totalFlow));
+        addOutput(FluidRegistry.getFluidStack("ic2superheatedsteam", totalFlow));
         if (totalFlow == realOptFlow) {
             tEU = GTUtility
                 .safeInt((long) (tEU * (looseFit ? turbine.getLooseSteamEfficiency() : turbine.getSteamEfficiency())));
@@ -89,7 +89,8 @@ public class MTESupercriticalFluidTurbine extends MTELargeTurbineBase {
     }
 
     @Override
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ,
+        ItemStack aTool) {
         if (side == getBaseMetaTileEntity().getFrontFacing()) {
             looseFit ^= true;
             GTUtility.sendChatToPlayer(
@@ -143,8 +144,8 @@ public class MTESupercriticalFluidTurbine extends MTELargeTurbineBase {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType("Supercritical Steam Turbine")
             .addInfo("Needs a Turbine, place inside controller")
-            .addInfo("Use Supercritical Steam to generate power.")
-            .addInfo("Outputs 1L of Steam per 1L of SC Steam as well as producing power")
+            .addInfo("Use Supercritical Steam to generate power")
+            .addInfo("Outputs 1L of SH Steam per 1L of SC Steam as well as producing power")
             .addInfo("Power output depends on turbine and fitting")
             .addInfo("Use screwdriver to adjust fitting of turbine")
             .beginStructureBlock(3, 3, 4, true)

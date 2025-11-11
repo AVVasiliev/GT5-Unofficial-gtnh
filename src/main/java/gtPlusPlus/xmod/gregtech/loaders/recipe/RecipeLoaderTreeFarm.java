@@ -6,9 +6,9 @@ import net.minecraft.item.ItemStack;
 
 import gregtech.api.enums.Mods;
 import gregtech.api.util.GTModHandler;
-import gtPlusPlus.core.item.chemistry.AgriculturalChem;
 import gtPlusPlus.xmod.bop.blocks.BOPBlockRegistrator;
 import gtPlusPlus.xmod.forestry.ForestryTreeHandler;
+import gtPlusPlus.xmod.gregtech.api.enums.GregtechItemList;
 import gtPlusPlus.xmod.gregtech.common.tileentities.machines.multi.production.MTETreeFarm;
 
 public class RecipeLoaderTreeFarm {
@@ -34,6 +34,7 @@ public class RecipeLoaderTreeFarm {
         if (Mods.BiomesOPlenty.isModLoaded()) generateBOPTrees();
         if (Mods.PamsHarvestCraft.isModLoaded()) generatePamsTrees();
         if (Mods.PamsHarvestTheNether.isModLoaded()) generatePamsNetherTrees();
+        if (Mods.EtFuturumRequiem.isModLoaded()) generateEtFuturumRequiemTrees();
 
         if (Mods.Forestry.isModLoaded()) {
             ForestryTreeHandler.generateForestryTrees();
@@ -82,13 +83,13 @@ public class RecipeLoaderTreeFarm {
         MTETreeFarm.registerTreeProducts( // Brown Mushroom
             new ItemStack(Blocks.brown_mushroom, 1, 0),
             new ItemStack(Blocks.brown_mushroom_block, 1, 0),
-            null,
+            GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "brown_mushroom", 1, 0),
             null);
 
         MTETreeFarm.registerTreeProducts( // Red Mushroom
             new ItemStack(Blocks.red_mushroom, 1, 0),
             new ItemStack(Blocks.red_mushroom_block, 1, 0),
-            null,
+            GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "red_mushroom", 1, 0),
             null);
     }
 
@@ -119,7 +120,7 @@ public class RecipeLoaderTreeFarm {
             new ItemStack(BOPBlockRegistrator.sapling_Pine, 1, 0),
             new ItemStack(BOPBlockRegistrator.log_Pine, 1, 0),
             new ItemStack(BOPBlockRegistrator.leaves_Pine, 1, 0),
-            new ItemStack(AgriculturalChem.mAgrichemItem1, 1, 24));
+            GregtechItemList.Pinecone.get(1));
     }
 
     private static void generateTwilightForestTrees() {
@@ -196,7 +197,7 @@ public class RecipeLoaderTreeFarm {
 
     private static void generateGalaxySpaceTrees() {
         MTETreeFarm.registerTreeProducts( // Barnarda C
-            GTModHandler.getModItem(Mods.GalaxySpace.ID, "barnardaCsapling", 1, 1),
+            GTModHandler.getModItem(Mods.GalaxySpace.ID, "barnardaCsapling", 1, 0),
             GTModHandler.getModItem(Mods.GalaxySpace.ID, "barnardaClog", 1, 0),
             GTModHandler.getModItem(Mods.GalaxySpace.ID, "barnardaCleaves", 1, 0),
             null);
@@ -629,4 +630,17 @@ public class RecipeLoaderTreeFarm {
             null);
     }
 
+    private static void generateEtFuturumRequiemTrees() {
+        MTETreeFarm.registerTreeProducts( // Cherry
+            GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "sapling", 1, 1),
+            GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "cherry_log", 1, 0),
+            GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "leaves", 1, 1),
+            GTModHandler.getModItem(Mods.PamsHarvestCraft.ID, "cherryItem", 1, 0));
+
+        MTETreeFarm.registerTreeProducts( // Chorus
+            GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "chorus_flower", 1, 0),
+            GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "chorus_plant", 1, 0),
+            null,
+            GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "chorus_fruit", 1, 0));
+    }
 }

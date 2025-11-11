@@ -42,7 +42,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemShears;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
-import net.minecraftforge.fluids.FluidStack;
 
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
@@ -111,7 +110,7 @@ public class MTETreeFarm extends GTPPMultiBlockBase<MTETreeFarm> implements ISur
 
     @Override
     public String getMachineType() {
-        return "Tree Farm";
+        return "Tree Farm, TGS";
     }
 
     @Override
@@ -138,7 +137,7 @@ public class MTETreeFarm extends GTPPMultiBlockBase<MTETreeFarm> implements ISur
             .addCasingInfoMin(mCasingName, 8, false)
             .addInputBus("Any casing", 1)
             .addStructureInfo(
-                EnumChatFormatting.YELLOW + "Stocking Input Busses and Crafting Input Busses/Buffers are not allowed!")
+                EnumChatFormatting.YELLOW + "Stocking Input Buses and Crafting Input Buses/Buffers are not allowed!")
             .addOutputBus("Any casing", 1)
             .addEnergyHatch("Any casing", 1)
             .addMaintenanceHatch("Any casing", 1)
@@ -185,11 +184,6 @@ public class MTETreeFarm extends GTPPMultiBlockBase<MTETreeFarm> implements ISur
     }
 
     @Override
-    public int getMaxParallelRecipes() {
-        return 1;
-    }
-
-    @Override
     public boolean supportsBatchMode() {
         // Batch mode would not do anything, processing time is fixed at 100 ticks.
         return false;
@@ -201,18 +195,8 @@ public class MTETreeFarm extends GTPPMultiBlockBase<MTETreeFarm> implements ISur
     }
 
     @Override
-    public int getMaxEfficiency(final ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
     public int getPollutionPerSecond(final ItemStack aStack) {
         return PollutionConfig.pollutionPerSecondMultiTreeFarm;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(final ItemStack aStack) {
-        return false;
     }
 
     @Override
@@ -250,7 +234,7 @@ public class MTETreeFarm extends GTPPMultiBlockBase<MTETreeFarm> implements ISur
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return survivialBuildPiece(mName, stackSize, 1, 1, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(mName, stackSize, 1, 1, 0, elementBudget, env, false, true);
     }
 
     /* Processing logic. */
@@ -325,10 +309,10 @@ public class MTETreeFarm extends GTPPMultiBlockBase<MTETreeFarm> implements ISur
             @Nonnull
             public CheckRecipeResult process() {
                 if (inputItems == null) {
-                    inputItems = new ItemStack[0];
+                    inputItems = GTValues.emptyItemStackArray;
                 }
                 if (inputFluids == null) {
-                    inputFluids = new FluidStack[0];
+                    inputFluids = GTValues.emptyFluidStackArray;
                 }
 
                 ItemStack sapling = findSapling();
@@ -411,8 +395,9 @@ public class MTETreeFarm extends GTPPMultiBlockBase<MTETreeFarm> implements ISur
             if (shouldDamage) {
                 if (!canDamage || GTModHandler.isElectricItem(stack)
                     && !GTModHandler.canUseElectricItem(stack, TOOL_CHARGE_PER_OPERATION)) {
-                    depleteInput(stack);
-                    addOutput(stack);
+                    if (addOutputAtomic(stack)) {
+                        depleteInput(stack);
+                    }
                 }
             }
             if (canDamage) {
@@ -513,8 +498,11 @@ public class MTETreeFarm extends GTPPMultiBlockBase<MTETreeFarm> implements ISur
             // We first try to swap it with a sapling from an input bus to not interrupt existing setups.
             if (!legacyToolSwap()) {
                 // Swap failed, output whatever is blocking the slot.
-                addOutput(controllerSlot);
-                mInventory[1] = null;
+                if (addOutputAtomic(controllerSlot)) {
+                    mInventory[1] = null;
+                } else {
+                    return null;
+                }
             }
         }
 
@@ -685,6 +673,10 @@ public class MTETreeFarm extends GTPPMultiBlockBase<MTETreeFarm> implements ISur
      */
     public static void registerTreeProducts(ItemStack saplingIn, ItemStack log, ItemStack saplingOut, ItemStack leaves,
         ItemStack fruit) {
+        if (saplingIn == null) {
+            Logger.ERROR("Null sapling passed for registerTreeProducts()");
+            return;
+        }
         String key = Item.itemRegistry.getNameForObject(saplingIn.getItem()) + ":" + saplingIn.getItemDamage();
         EnumMap<Mode, ItemStack> map = new EnumMap<>(Mode.class);
         if (log != null) map.put(Mode.LOG, log);

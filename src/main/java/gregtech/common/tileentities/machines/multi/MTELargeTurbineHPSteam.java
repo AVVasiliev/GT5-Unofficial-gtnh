@@ -11,12 +11,12 @@ import java.util.ArrayList;
 
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
 import gregtech.GTMod;
 import gregtech.api.GregTechAPI;
+import gregtech.api.enums.Materials;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
@@ -29,7 +29,6 @@ import gregtech.api.util.TurbineStatCalculator;
 public class MTELargeTurbineHPSteam extends MTELargeTurbine {
 
     public boolean achievement = false;
-    private boolean looseFit = false;
 
     public MTELargeTurbineHPSteam(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
@@ -144,7 +143,7 @@ public class MTELargeTurbineHPSteam extends MTELargeTurbine {
         }
         if (totalFlow <= 0) return 0;
         tEU = totalFlow;
-        addOutput(GTModHandler.getSteam(totalFlow));
+        addOutput(Materials.Steam.getGas(totalFlow));
         if (totalFlow == (GTUtility.safeInt((long) realOptFlow))) {
             tEU = GTUtility
                 .safeInt((long) (tEU * (looseFit ? turbine.getLooseSteamEfficiency() : turbine.getSteamEfficiency())));
@@ -194,17 +193,5 @@ public class MTELargeTurbineHPSteam extends MTELargeTurbine {
     @Override
     public int getDamageToComponent(ItemStack aStack) {
         return (looseFit && XSTR_INSTANCE.nextInt(4) == 0) ? 0 : 1;
-    }
-
-    @Override
-    public void saveNBTData(NBTTagCompound aNBT) {
-        super.saveNBTData(aNBT);
-        aNBT.setBoolean("turbineFitting", looseFit);
-    }
-
-    @Override
-    public void loadNBTData(NBTTagCompound aNBT) {
-        super.loadNBTData(aNBT);
-        looseFit = aNBT.getBoolean("turbineFitting");
     }
 }

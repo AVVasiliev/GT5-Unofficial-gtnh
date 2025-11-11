@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.UUID;
 
 import net.minecraft.block.Block;
-import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.inventory.IInventory;
@@ -20,21 +19,21 @@ import gregtech.GTMod;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.GTValues;
 import gregtech.api.interfaces.IDescribable;
+import gregtech.api.interfaces.tileentity.IBasicEnergyContainer;
 import gregtech.api.interfaces.tileentity.IGregTechDeviceInformation;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
-import gregtech.api.net.GTPacketBlockEvent;
-import gregtech.api.util.CoverBehavior;
+import gregtech.api.interfaces.tileentity.IHasInventory;
+import gregtech.api.interfaces.tileentity.IRedstoneTileEntity;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTUtility;
-import gregtech.api.util.ISerializableObject;
-import gregtech.common.covers.CoverInfo;
+import gregtech.common.data.GTBlockEventTracker;
 import gregtech.common.pollution.Pollution;
-import gtPlusPlus.api.interfaces.ILazyCoverable;
 import gtPlusPlus.api.objects.Logger;
 import gtPlusPlus.api.objects.minecraft.BTF_Inventory;
 import ic2.api.Direction;
 
-public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregTechDeviceInformation, IDescribable {
+public class TileEntityBase extends TileEntity
+    implements IRedstoneTileEntity, IHasInventory, IBasicEnergyContainer, IGregTechDeviceInformation, IDescribable {
 
     private String customName;
     public String mOwnerName = "null";
@@ -133,11 +132,6 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     }
 
     public boolean processRecipe() {
-        return true;
-    }
-
-    @Override
-    public boolean canUpdate() {
         return true;
     }
 
@@ -262,11 +256,8 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
      */
     @Override
     public int[] getAccessibleSlotsFromSide(int ordinalSide) {
-        final ForgeDirection side = ForgeDirection.getOrientation(ordinalSide);
-        CoverInfo coverInfo = getCoverInfoAtSide(side);
-        if (canAccessData() && (coverInfo.letsItemsOut(-1) || coverInfo.letsItemsIn(-1)))
-            return mInventory.getAccessibleSlotsFromSide(ordinalSide);
-        return new int[0];
+        if (canAccessData()) return mInventory.getAccessibleSlotsFromSide(ordinalSide);
+        return GTValues.emptyIntArray;
     }
 
     /**
@@ -274,9 +265,7 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
      */
     @Override
     public boolean canInsertItem(int aIndex, ItemStack aStack, int ordinalSide) {
-        final ForgeDirection side = ForgeDirection.getOrientation(ordinalSide);
         return canAccessData() && (mRunningThroughTick || !mInputDisabled)
-            && getCoverInfoAtSide(side).letsItemsIn(aIndex)
             && mInventory.canInsertItem(aIndex, aStack, ordinalSide);
     }
 
@@ -285,9 +274,7 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
      */
     @Override
     public boolean canExtractItem(int aIndex, ItemStack aStack, int ordinalSide) {
-        final ForgeDirection side = ForgeDirection.getOrientation(ordinalSide);
         return canAccessData() && (mRunningThroughTick || !mOutputDisabled)
-            && getCoverInfoAtSide(side).letsItemsOut(aIndex)
             && mInventory.canExtractItem(aIndex, aStack, ordinalSide);
     }
 
@@ -296,9 +283,6 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
         return this.canAccessData() && this.mInventory.isValidSlot(aIndex);
     }
 
-    private final CoverBehavior[] mCoverBehaviors = new CoverBehavior[] { GregTechAPI.sNoBehavior,
-        GregTechAPI.sNoBehavior, GregTechAPI.sNoBehavior, GregTechAPI.sNoBehavior, GregTechAPI.sNoBehavior,
-        GregTechAPI.sNoBehavior };
     protected TileEntityBase mMetaTileEntity;
     protected long mStoredEnergy = 0;
     protected int mAverageEUInputIndex = 0, mAverageEUOutputIndex = 0;
@@ -306,9 +290,7 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     protected int[] mAverageEUInput = new int[11], mAverageEUOutput = new int[11];
     private final boolean[] mActiveEUInputs = new boolean[] { false, false, false, false, false, false };
     private final boolean[] mActiveEUOutputs = new boolean[] { false, false, false, false, false, false };
-    private final byte[] mSidedRedstone = new byte[] { 15, 15, 15, 15, 15, 15 };
-    private final int[] mCoverSides = new int[] { 0, 0, 0, 0, 0, 0 };
-    private final int[] mCoverData = new int[] { 0, 0, 0, 0, 0, 0 };
+    private final byte[] mSidedRedstone = new byte[] { 0, 0, 0, 0, 0, 0 };
     private final int[] mTimeStatistics = new int[GregTechAPI.TICKS_FOR_LAG_AVERAGING];
     private boolean mHasEnoughEnergy = true;
     protected boolean mRunningThroughTick = false;
@@ -319,7 +301,6 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     private final boolean mActive = false;
     private boolean mRedstone = false;
     private final boolean mWorkUpdate = false;
-    private final boolean mSteamConverter = false;
     private boolean mInventoryChanged = false;
     private final boolean mWorks = true;
     private final boolean mNeedsUpdate = true;
@@ -366,17 +347,6 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     @Override
     public void issueBlockUpdate() {
         super.markDirty();
-    }
-
-    @Override
-    public void issueCoverUpdate(ForgeDirection side) {
-        this.issueClientUpdate();
-    }
-
-    @Override
-    public void receiveCoverData(ForgeDirection coverSide, int coverID, int coverData) {
-        if (coverSide != ForgeDirection.UNKNOWN && (mCoverSides[coverSide.ordinal()] == coverID))
-            setCoverDataAtSide(coverSide, coverData);
     }
 
     @Override
@@ -438,11 +408,6 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
 
     private boolean isEnergyInputSide(ForgeDirection side) {
         if (side != ForgeDirection.UNKNOWN) {
-            if (!this.getCoverInfoAtSide(side)
-                .letsEnergyIn()) {
-                return false;
-            }
-
             if (this.isInvalid() || this.mReleaseEnergy) {
                 return false;
             }
@@ -457,11 +422,6 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
 
     private boolean isEnergyOutputSide(ForgeDirection side) {
         if (side != ForgeDirection.UNKNOWN) {
-            if (!this.getCoverInfoAtSide(side)
-                .letsEnergyOut()) {
-                return false;
-            }
-
             if (this.isInvalid() || this.mReleaseEnergy) {
                 return this.mReleaseEnergy;
             }
@@ -567,17 +527,17 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     }
 
     @Override
-    public final byte getMetaIDOffset(int aX, int aY, int aZ) {
+    public final int getMetaIDOffset(int aX, int aY, int aZ) {
         return this.getMetaID(this.xCoord + aX, this.yCoord + aY, this.zCoord + aZ);
     }
 
     @Override
-    public final byte getMetaIDAtSide(ForgeDirection side) {
+    public final int getMetaIDAtSide(ForgeDirection side) {
         return this.getMetaIDAtSideAndDistance(side, 1);
     }
 
     @Override
-    public final byte getMetaIDAtSideAndDistance(ForgeDirection side, int aDistance) {
+    public final int getMetaIDAtSideAndDistance(ForgeDirection side, int aDistance) {
         return this.getMetaID(
             this.getOffsetX(side, aDistance),
             this.getOffsetY(side, aDistance),
@@ -750,10 +710,10 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     }
 
     @Override
-    public final byte getMetaID(int aX, int aY, int aZ) {
+    public final int getMetaID(int aX, int aY, int aZ) {
         return this.ignoreUnloadedChunks && this.crossedChunkBorder(aX, aZ) && !this.worldObj.blockExists(aX, aY, aZ)
             ? 0
-            : (byte) this.worldObj.getBlockMetadata(aX, aY, aZ);
+            : this.worldObj.getBlockMetadata(aX, aY, aZ);
     }
 
     @Override
@@ -854,11 +814,7 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
 
     @Override
     public final void sendBlockEvent(byte aID, byte aValue) {
-        GTValues.NW.sendPacketToAllPlayersInRange(
-            this.worldObj,
-            new GTPacketBlockEvent(this.xCoord, (short) this.yCoord, this.zCoord, aID, aValue),
-            this.xCoord,
-            this.zCoord);
+        GTBlockEventTracker.enqueue(worldObj, xCoord, yCoord, zCoord, aID, aValue);
     }
 
     private boolean crossedChunkBorder(int aX, int aZ) {
@@ -874,16 +830,6 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     }
 
     @Override
-    public byte getInternalInputRedstoneSignal(ForgeDirection side) {
-        return (byte) (getCoverBehaviorAtSide(side).getRedstoneInput(
-            side,
-            getInputRedstoneSignal(side),
-            getCoverIDAtSide(side),
-            getCoverDataAtSide(side),
-            this) & 15);
-    }
-
-    @Override
     public byte getInputRedstoneSignal(ForgeDirection side) {
         return (byte) (worldObj
             .getIndirectPowerLevelTo(getOffsetX(side, 1), getOffsetY(side, 1), getOffsetZ(side, 1), side.ordinal())
@@ -892,10 +838,7 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
 
     @Override
     public byte getOutputRedstoneSignal(ForgeDirection side) {
-        return getCoverBehaviorAtSide(side)
-            .manipulatesSidedRedstoneOutput(side, getCoverIDAtSide(side), getCoverDataAtSide(side), this)
-                ? mSidedRedstone[side.ordinal()]
-                : getGeneralRS(side);
+        return getGeneralRS(side);
     }
 
     public boolean allowGeneralRedstoneOutput() {
@@ -905,13 +848,6 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     @Override
     public byte getGeneralRS(ForgeDirection side) {
         return allowGeneralRedstoneOutput() ? mSidedRedstone[side.ordinal()] : 0;
-    }
-
-    @Override
-    public void setInternalOutputRedstoneSignal(ForgeDirection side, byte aStrength) {
-        if (!getCoverBehaviorAtSide(side)
-            .manipulatesSidedRedstoneOutput(side, getCoverIDAtSide(side), getCoverDataAtSide(side), this))
-            setOutputRedstoneSignal(side, aStrength);
     }
 
     @Override
@@ -931,79 +867,6 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     @Override
     public void setGenericRedstoneOutput(boolean aOnOff) {
         mRedstone = aOnOff;
-    }
-
-    @Override
-    public CoverBehavior getCoverBehaviorAtSide(ForgeDirection side) {
-        return side != ForgeDirection.UNKNOWN ? mCoverBehaviors[side.ordinal()] : GregTechAPI.sNoBehavior;
-    }
-
-    @Override
-    public void setCoverIDAtSide(ForgeDirection side, int aID) {
-        if (setCoverIDAtSideNoUpdate(side, aID)) {
-            issueCoverUpdate(side);
-            issueBlockUpdate();
-        }
-    }
-
-    @Override
-    public boolean setCoverIDAtSideNoUpdate(ForgeDirection side, int aID) {
-        if (side != ForgeDirection.UNKNOWN) {
-            final int ordinalSide = side.ordinal();
-            mCoverSides[ordinalSide] = aID;
-            mCoverData[ordinalSide] = 0;
-            mCoverBehaviors[ordinalSide] = (CoverBehavior) GregTechAPI.getCoverBehaviorNew(aID);
-            return true;
-        }
-        return false;
-    }
-
-    @Override
-    public void setCoverIdAndDataAtSide(ForgeDirection side, int aId, ISerializableObject aData) {
-        setCoverIDAtSide(side, aId);
-        setCoverDataAtSide(side, aData);
-    }
-
-    @Override
-    public void setCoverItemAtSide(ForgeDirection side, ItemStack aCover) {
-        GregTechAPI.getCoverBehaviorNew(aCover)
-            .placeCover(side, aCover, this);
-    }
-
-    @Override
-    public int getCoverIDAtSide(ForgeDirection side) {
-        if (side != ForgeDirection.UNKNOWN) return mCoverSides[side.ordinal()];
-        return 0;
-    }
-
-    @Override
-    public ItemStack getCoverItemAtSide(ForgeDirection side) {
-        return GTUtility.intToStack(getCoverIDAtSide(side));
-    }
-
-    @Override
-    public boolean canPlaceCoverIDAtSide(ForgeDirection side, int aID) {
-        return getCoverIDAtSide(side) == 0;
-    }
-
-    @Override
-    public boolean canPlaceCoverItemAtSide(ForgeDirection side, ItemStack aCover) {
-        return getCoverIDAtSide(side) == 0;
-    }
-
-    @Override
-    public void setCoverDataAtSide(ForgeDirection side, int aData) {
-        if (side != ForgeDirection.UNKNOWN) mCoverData[side.ordinal()] = aData;
-    }
-
-    @Override
-    public int getCoverDataAtSide(ForgeDirection side) {
-        if (side != ForgeDirection.UNKNOWN) return mCoverData[side.ordinal()];
-        return 0;
-    }
-
-    public byte getLightValue() {
-        return mLightValue;
     }
 
     @Override
@@ -1027,40 +890,6 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
             if (i != mAverageEUOutputIndex) rEU += mAverageEUOutput[i];
         }
         return rEU / (mAverageEUOutput.length - 1);
-    }
-
-    public boolean hasSidedRedstoneOutputBehavior() {
-        return false;
-    }
-
-    @Override
-    public boolean dropCover(ForgeDirection side, ForgeDirection droppedSide, boolean aForced) {
-        if (getCoverBehaviorAtSide(side)
-            .onCoverRemoval(side, getCoverIDAtSide(side), mCoverData[side.ordinal()], this, aForced) || aForced) {
-            ItemStack tStack = getCoverBehaviorAtSide(side)
-                .getDrop(side, getCoverIDAtSide(side), getCoverDataAtSide(side), this);
-            if (tStack != null) {
-                tStack.setTagCompound(null);
-                EntityItem tEntity = new EntityItem(
-                    worldObj,
-                    getOffsetX(droppedSide, 1) + 0.5,
-                    getOffsetY(droppedSide, 1) + 0.5,
-                    getOffsetZ(droppedSide, 1) + 0.5,
-                    tStack);
-                tEntity.motionX = 0;
-                tEntity.motionY = 0;
-                tEntity.motionZ = 0;
-                worldObj.spawnEntityInWorld(tEntity);
-            }
-            setCoverIDAtSide(side, 0);
-            if (mMetaTileEntity.hasSidedRedstoneOutputBehavior()) {
-                setOutputRedstoneSignal(side, (byte) 0);
-            } else {
-                setOutputRedstoneSignal(side, (byte) 15);
-            }
-            return true;
-        }
-        return false;
     }
 
     public String getOwnerName() {
@@ -1090,6 +919,21 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     public void setStrongOutputRedstoneSignal(ForgeDirection side, byte aStrength) {
         mStrongRedstone |= (1 << side.ordinal());
         setOutputRedstoneSignal(side, aStrength);
+    }
+
+    @Override
+    public void setRedstoneOutputStrength(ForgeDirection side, boolean isStrong) {
+        if (isStrong) {
+            mStrongRedstone |= (byte) side.flag;
+        } else {
+            mStrongRedstone &= ~(byte) side.flag;
+        }
+        setOutputRedstoneSignal(side, mSidedRedstone[side.ordinal()]);
+    }
+
+    @Override
+    public boolean getRedstoneOutputStrength(ForgeDirection side) {
+        return (mStrongRedstone & side.flag) != 0;
     }
 
     @Override
@@ -1298,7 +1142,7 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
             this.doExplosion(
                 this.oOutput * (long) (this.getUniversalEnergyStored() >= this.getUniversalEnergyCapacity() ? 4
                     : (this.getUniversalEnergyStored() >= this.getUniversalEnergyCapacity() / 2L ? 2 : 1)));
-            GTMod arg9999 = GTMod.instance;
+            GTMod arg9999 = GTMod.GT;
             GTMod.achievements.issueAchievement(
                 this.getWorldObj()
                     .getPlayerEntityByName(this.mOwnerName),
@@ -1325,17 +1169,12 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
 
     @Override
     public String[] getDescription() {
-        return this.canAccessData() ? this.mMetaTileEntity.getDescription() : new String[0];
+        return this.canAccessData() ? this.mMetaTileEntity.getDescription() : GTValues.emptyStringArray;
     }
 
     @Override
     public boolean isGivingInformation() {
         return true;
-    }
-
-    @Override
-    public String[] getInfoData() {
-        return null;
     }
 
     public long getEUVar() {
@@ -1423,5 +1262,46 @@ public class TileEntityBase extends TileEntity implements ILazyCoverable, IGregT
     public boolean outputsEnergyTo(byte arg0, boolean arg1) {
         // TODO Auto-generated method stub
         return false;
+    }
+
+    @Override
+    public byte getColorization() {
+        return 0;
+    }
+
+    @Override
+    public byte setColorization(byte arg0) {
+        return 0;
+    }
+
+    @Override
+    public byte getStrongestRedstone() {
+        return 0;
+    }
+
+    @Override
+    public boolean getRedstone() {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
+    @Override
+    public boolean getRedstone(ForgeDirection side) {
+        return false;
+    }
+
+    @Override
+    public boolean isUniversalEnergyStored(long arg0) {
+        return false;
+    }
+
+    @Override
+    public long getUniversalEnergyStored() {
+        return 0;
+    }
+
+    @Override
+    public long getUniversalEnergyCapacity() {
+        return 0;
     }
 }

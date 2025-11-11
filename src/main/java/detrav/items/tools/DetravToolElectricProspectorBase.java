@@ -19,6 +19,7 @@ import net.minecraftforge.event.world.BlockEvent;
 import detrav.enums.Textures01;
 import detrav.items.behaviours.BehaviourDetravToolElectricProspector;
 import gregtech.api.damagesources.GTDamageSources;
+import gregtech.api.enums.GTValues;
 import gregtech.api.enums.SoundResource;
 import gregtech.api.interfaces.IIconContainer;
 import gregtech.api.interfaces.IToolStats;
@@ -93,7 +94,7 @@ public class DetravToolElectricProspectorBase implements IToolStats {
 
     @Override
     public int[] getEnchantmentLevels(ItemStack itemStack) {
-        return new int[0];
+        return GTValues.emptyIntArray;
     }
 
     public String getMiningSound() {
@@ -138,14 +139,14 @@ public class DetravToolElectricProspectorBase implements IToolStats {
         return false;
     }
 
-    public boolean isMinableBlock(Block aBlock, byte aMetaData) {
+    public boolean isMinableBlock(Block aBlock, int aMetaData) {
 
         return false;
     }
 
     @Override
     public int convertBlockDrops(List<ItemStack> list, ItemStack itemStack, EntityPlayer entityPlayer, Block block,
-        int i, int i1, int i2, byte b, int i3, boolean b1, BlockEvent.HarvestDropsEvent harvestDropsEvent) {
+        int i, int i1, int i2, int b, int i3, boolean b1, BlockEvent.HarvestDropsEvent harvestDropsEvent) {
         return 0;
     }
 
@@ -193,8 +194,9 @@ public class DetravToolElectricProspectorBase implements IToolStats {
                 + EnumChatFormatting.WHITE);
     }
 
-    public float getMiningSpeed(Block aBlock, byte aMetaData, float aDefault, EntityPlayer aPlayer, World aWorld,
-        int aX, int aY, int aZ) {
+    @Override
+    public float getMiningSpeed(Block aBlock, int aMetaData, float aDefault, EntityPlayer aPlayer, World aWorld, int aX,
+        int aY, int aZ) {
         return aDefault;
     }
 }

@@ -1,4 +1,4 @@
-// copied from gregtech.common.tileentities.machines.multi.GT_MetaTileEntity_LargeTurbine
+// copied from gregtech.common.tileentities.machines.multi.MTELargeTurbine
 // The origin one in gt made the abstract method private so i can't imp it.
 package goodgenerator.blocks.tileEntity.base;
 
@@ -6,16 +6,17 @@ import static com.gtnewhorizon.structurelib.structure.StructureUtility.lazy;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
 import static gregtech.api.enums.HatchElement.*;
+import static gregtech.api.enums.Textures.BlockIcons.*;
 import static gregtech.api.util.GTStructureUtility.*;
 import static gregtech.api.util.GTUtility.validMTEList;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -25,24 +26,27 @@ import org.jetbrains.annotations.NotNull;
 
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
-import com.gtnewhorizon.structurelib.structure.IStructureElementCheckOnly;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 
+import gregtech.api.interfaces.IHatchElement;
+import gregtech.api.interfaces.IIconContainer;
+import gregtech.api.interfaces.INEIPreviewModifier;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.items.MetaGeneratedTool;
 import gregtech.api.metatileentity.implementations.MTEEnhancedMultiBlockBase;
 import gregtech.api.metatileentity.implementations.MTEHatchDynamo;
-import gregtech.api.metatileentity.implementations.MTEHatchMuffler;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
+import gregtech.api.render.RenderOverlay;
 import gregtech.api.util.GTUtility;
+import gregtech.api.util.GTUtilityClient;
 import gregtech.api.util.TurbineStatCalculator;
 import gregtech.api.util.shutdown.ShutDownReasonRegistry;
 import gregtech.common.items.MetaGeneratedTool01;
 
 public abstract class MTELargeTurbineBase extends MTEEnhancedMultiBlockBase<MTELargeTurbineBase>
-    implements ISurvivalConstructable {
+    implements ISurvivalConstructable, INEIPreviewModifier {
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final ClassValue<IStructureDefinition<MTELargeTurbineBase>> STRUCTURE_DEFINITION = new ClassValue<>() {
@@ -53,26 +57,20 @@ public abstract class MTELargeTurbineBase extends MTEEnhancedMultiBlockBase<MTEL
                 .addShape(
                     STRUCTURE_PIECE_MAIN,
                     transpose(
-                        new String[][] { { "     ", "xxxxx", "xxxxx", "xxxxx", "xxxxx", },
-                            { " --- ", "xcccx", "xchcx", "xchcx", "xcccx", },
-                            { " --- ", "xc~cx", "xh-hx", "xh-hx", "xcdcx", },
-                            { " --- ", "xcccx", "xchcx", "xchcx", "xcccx", },
-                            { "     ", "xxxxx", "xxxxx", "xxxxx", "xxxxx", }, }))
+                        new String[][] { { "     ", "     ", "     ", "     ", "     ", },
+                            { " --- ", " ccc ", " hhh ", " hhh ", " hhh ", },
+                            { " --- ", " c~c ", " h-h ", " h-h ", " hdh ", },
+                            { " --- ", " ccc ", " hhh ", " hhh ", " hhh ", },
+                            { "     ", "     ", "     ", "     ", "     ", }, }))
                 .addElement('c', lazy(t -> ofBlock(t.getCasingBlock(), t.getCasingMeta())))
                 .addElement('d', lazy(t -> Dynamo.newAny(t.getCasingTextureIndex(), 1)))
                 .addElement(
                     'h',
                     lazy(
-                        t -> buildHatchAdder(MTELargeTurbineBase.class)
-                            .atLeast(Maintenance, InputHatch, OutputHatch, OutputBus, InputBus, Muffler)
+                        t -> buildHatchAdder(MTELargeTurbineBase.class).atLeast(t.getHatchElements())
                             .casingIndex(t.getCasingTextureIndex())
                             .dot(2)
                             .buildAndChain(t.getCasingBlock(), t.getCasingMeta())))
-                .addElement('x', (IStructureElementCheckOnly<MTELargeTurbineBase>) (aContext, aWorld, aX, aY, aZ) -> {
-                    TileEntity tTile = aWorld.getTileEntity(aX, aY, aZ);
-                    return !(tTile instanceof IGregTechTileEntity)
-                        || !(((IGregTechTileEntity) tTile).getMetaTileEntity() instanceof MTELargeTurbineBase);
-                })
                 .build();
         }
     };
@@ -85,6 +83,13 @@ public abstract class MTELargeTurbineBase extends MTEEnhancedMultiBlockBase<MTEL
     protected boolean looseFit = false;
     protected int overflowMultiplier = 0;
     protected long maxPower = 0;
+
+    // client side stuff
+    protected final List<RenderOverlay.OverlayTicket> overlayTickets = new ArrayList<>();
+    protected boolean mHasTurbine;
+    // mMachine got overwritten by StructureLib extended facing query response
+    // so we use a separate field for this
+    protected boolean mFormed;
 
     public MTELargeTurbineBase(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
@@ -100,8 +105,20 @@ public abstract class MTELargeTurbineBase extends MTEEnhancedMultiBlockBase<MTEL
     }
 
     @Override
+    public boolean supportsPowerPanel() {
+        return false;
+    }
+
+    @Override
     public IStructureDefinition<MTELargeTurbineBase> getStructureDefinition() {
         return STRUCTURE_DEFINITION.get(getClass());
+    }
+
+    @SuppressWarnings("unchecked")
+    protected IHatchElement<? super MTELargeTurbineBase>[] getHatchElements() {
+        if (getPollutionPerTick(null) == 0)
+            return new IHatchElement[] { Maintenance, InputHatch, OutputHatch, OutputBus, InputBus };
+        return new IHatchElement[] { Maintenance, InputHatch, OutputHatch, OutputBus, InputBus, Muffler };
     }
 
     @Override
@@ -120,6 +137,67 @@ public abstract class MTELargeTurbineBase extends MTEEnhancedMultiBlockBase<MTEL
     public abstract int getCasingMeta();
 
     public abstract int getCasingTextureIndex();
+
+    @Override
+    public void onFirstTick(IGregTechTileEntity aBaseMetaTileEntity) {
+        super.onFirstTick(aBaseMetaTileEntity);
+        setTurbineOverlay();
+    }
+
+    protected void setTurbineOverlay() {
+        IGregTechTileEntity tile = getBaseMetaTileEntity();
+        if (tile.isServerSide()) return;
+
+        IIconContainer[] tTextures;
+        if (tile.isActive()) tTextures = getTurbineTextureActive();
+        else if (hasTurbine()) tTextures = getTurbineTextureFull();
+        else tTextures = getTurbineTextureEmpty();
+
+        GTUtilityClient.setTurbineOverlay(
+            tile.getWorld(),
+            tile.getXCoord(),
+            tile.getYCoord(),
+            tile.getZCoord(),
+            getExtendedFacing(),
+            tTextures,
+            overlayTickets);
+    }
+
+    @Override
+    public void onTextureUpdate() {
+        setTurbineOverlay();
+    }
+
+    public IIconContainer[] getTurbineTextureActive() {
+        return TURBINE_NEW_ACTIVE;
+    }
+
+    public IIconContainer[] getTurbineTextureFull() {
+        return TURBINE_NEW;
+    }
+
+    public IIconContainer[] getTurbineTextureEmpty() {
+        return TURBINE_NEW_EMPTY;
+    }
+
+    @Override
+    public void onValueUpdate(byte aValue) {
+        mHasTurbine = (aValue & 0x1) != 0;
+        mFormed = (aValue & 0x2) != 0;
+        setTurbineOverlay();
+        super.onValueUpdate(aValue);
+    }
+
+    @Override
+    public void onRemoval() {
+        super.onRemoval();
+        if (getBaseMetaTileEntity().isClientSide()) GTUtilityClient.clearTurbineOverlay(overlayTickets);
+    }
+
+    @Override
+    public byte getUpdateData() {
+        return (byte) ((hasTurbine() ? 1 : 0) | (mMachine ? 2 : 0));
+    }
 
     @Override
     public boolean addToMachineList(IGregTechTileEntity tTileEntity, int aBaseCasingIndex) {
@@ -163,7 +241,7 @@ public abstract class MTELargeTurbineBase extends MTEEnhancedMultiBlockBase<MTEL
                 || this.getBaseMetaTileEntity()
                     .hasInventoryBeenModified()) {
                 counter = 0;
-                baseEff = (int) turbine.getEfficiency();
+                baseEff = (int) turbine.getBaseEfficiency();
                 optFlow = (int) turbine.getOptimalFlow();
 
                 overflowMultiplier = turbine.getOverflowEfficiency();
@@ -239,11 +317,6 @@ public abstract class MTELargeTurbineBase extends MTEEnhancedMultiBlockBase<MTEL
 
     @Override
     public String[] getInfoData() {
-        int mPollutionReduction = 0;
-        for (MTEHatchMuffler tHatch : validMTEList(mMufflerHatches)) {
-            mPollutionReduction = Math.max(tHatch.calculatePollutionReduction(100), mPollutionReduction);
-        }
-
         String tRunning = mMaxProgresstime > 0
             ? EnumChatFormatting.GREEN + StatCollector.translateToLocal("GT5U.turbine.running.true")
                 + EnumChatFormatting.RESET
@@ -311,18 +384,20 @@ public abstract class MTELargeTurbineBase extends MTEEnhancedMultiBlockBase<MTEL
                 "GT5U.turbine.dmg") + ": " + EnumChatFormatting.RED + tDura + EnumChatFormatting.RESET + "%", /* 7 */
             StatCollector.translateToLocal("GT5U.multiblock.pollution") + ": "
                 + EnumChatFormatting.GREEN
-                + mPollutionReduction
+                + getAveragePollutionPercentage()
                 + EnumChatFormatting.RESET
                 + " %" /* 8 */
         };
     }
 
     public boolean hasTurbine() {
-        return this.getMaxEfficiency(mInventory[1]) > 0;
+        return getBaseMetaTileEntity() != null && getBaseMetaTileEntity().isClientSide() ? mHasTurbine
+            : this.getMaxEfficiency(mInventory[1]) > 0;
     }
 
     @Override
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ,
+        ItemStack aTool) {
         if (side == getBaseMetaTileEntity().getFrontFacing()) {
             looseFit ^= true;
             GTUtility.sendChatToPlayer(
@@ -333,11 +408,6 @@ public abstract class MTELargeTurbineBase extends MTEEnhancedMultiBlockBase<MTEL
     }
 
     @Override
-    public boolean isGivingInformation() {
-        return true;
-    }
-
-    @Override
     public void construct(ItemStack stackSize, boolean hintsOnly) {
         buildPiece(STRUCTURE_PIECE_MAIN, stackSize, hintsOnly, 2, 2, 1);
     }
@@ -345,6 +415,11 @@ public abstract class MTELargeTurbineBase extends MTEEnhancedMultiBlockBase<MTEL
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 2, 2, 1, elementBudget, env, false, true);
+        return survivalBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 2, 2, 1, elementBudget, env, false, true);
+    }
+
+    @Override
+    public void onPreviewStructureComplete(@NotNull ItemStack trigger) {
+        mFormed = true;
     }
 }

@@ -126,16 +126,23 @@ public class MTELinkedInputBus extends MTEHatchInputBus implements IRecipeProces
                     .build()
                     .setPos(7, 24))
             .widget(
-                new TextWidget(new Text("Private")).setPos(110, 3)
+                new TextWidget(new Text(StatCollector.translateToLocal("ggfab.gui.linked_input_bus.private")))
+                    .setPos(110, 3)
                     .setSize(43, 20))
             .widget(
-                new TextWidget(new Text("Channel")).setPos(5, 3)
+                new TextWidget(new Text(StatCollector.translateToLocal("ggfab.gui.linked_input_bus.channel")))
+                    .setPos(5, 3)
                     .setSize(43, 20));
     }
 
     @Override
     public int getCircuitSlotX() {
         return 152;
+    }
+
+    @Override
+    public int getCircuitSlotY() {
+        return 62;
     }
 
     @Override
@@ -336,14 +343,10 @@ public class MTELinkedInputBus extends MTEHatchInputBus implements IRecipeProces
     }
 
     @Override
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
-        if (!getBaseMetaTileEntity().getCoverBehaviorAtSideNew(side)
-            .isGUIClickable(
-                side,
-                getBaseMetaTileEntity().getCoverIDAtSide(side),
-                getBaseMetaTileEntity().getComplexCoverDataAtSide(side),
-                getBaseMetaTileEntity()))
-            return;
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ,
+        ItemStack aTool) {
+        if (!getBaseMetaTileEntity().getCoverAtSide(side)
+            .isGUIClickable()) return;
         if (aPlayer.isSneaking()) {
             if (this.mRealInventory == null) {
                 aPlayer.addChatMessage(new ChatComponentTranslation("ggfab.info.linked_input_bus.no_channel"));
@@ -369,6 +372,16 @@ public class MTELinkedInputBus extends MTEHatchInputBus implements IRecipeProces
                 aPlayer,
                 StatCollector.translateToLocal("GT5U.hatch.disableFilter." + this.disableFilter));
         }
+    }
+
+    @Override
+    public int getGUIHeight() {
+        return 166;
+    }
+
+    @Override
+    public int getGUIWidth() {
+        return 176;
     }
 
     @Override
@@ -405,7 +418,8 @@ public class MTELinkedInputBus extends MTEHatchInputBus implements IRecipeProces
         if (GTUtility.isStackInvalid(circuit)) circuit = null;
         if ("".equals(channel)) {
             return false;
-        } else if (circuit != null && getConfigurationCircuits().stream()
+        } else if (circuit != null && GTUtility.getAllIntegratedCircuits()
+            .stream()
             .noneMatch(circuit::isItemEqual)) {
                 return false;
             }
@@ -432,7 +446,8 @@ public class MTELinkedInputBus extends MTEHatchInputBus implements IRecipeProces
         ItemStack stick = aPlayer.inventory.getCurrentItem();
         if (!ItemList.Tool_DataStick.isStackEqual(stick, false, true))
             return super.onRightclick(aBaseMetaTileEntity, aPlayer, side, aX, aY, aZ);
-        if (!stick.hasTagCompound() || !COPIED_DATA_IDENTIFIER.equals(stick.stackTagCompound.getString("ggfab.type"))) {
+        if (!stick.hasTagCompound() || (!COPIED_DATA_IDENTIFIER.equals(stick.stackTagCompound.getString("ggfab.type"))
+            && !COPIED_DATA_IDENTIFIER.equals(stick.stackTagCompound.getString("type")))) {
             aPlayer.addChatMessage(new ChatComponentTranslation("ggfab.info.linked_input_bus.no_data"));
             return true;
         }
@@ -442,7 +457,8 @@ public class MTELinkedInputBus extends MTEHatchInputBus implements IRecipeProces
         if ("".equals(channel)) {
             aPlayer.addChatMessage(new ChatComponentTranslation("ggfab.info.linked_input_bus.no_data"));
             return true;
-        } else if (circuit != null && getConfigurationCircuits().stream()
+        } else if (circuit != null && GTUtility.getAllIntegratedCircuits()
+            .stream()
             .noneMatch(circuit::isItemEqual)) {
                 aPlayer.addChatMessage(new ChatComponentTranslation("ggfab.info.linked_input_bus.invalid_circuit"));
                 return true;

@@ -1,19 +1,23 @@
 package gregtech.api.objects;
 
+import static gregtech.api.util.GTRecipeBuilder.WILDCARD;
+
+import java.util.Objects;
+
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
-import gregtech.api.enums.GTValues;
+import com.gtnewhorizon.gtnhlib.hash.Fnv1a32;
+
 import gregtech.api.util.GTUtility;
-import gregtech.api.util.item.ItemHolder;
 import it.unimi.dsi.fastutil.Hash;
 
 /**
  * An optimization of {@link ItemStack} to have a better {@code hashcode} and {@code equals} in order to improve
  * {@code HashMap} and {@code Set} performance
  */
-public class GTItemStack extends ItemHolder {
+public class GTItemStack {
 
     /**
      * A better {@link Hash.Strategy} for {@link ItemStack}. Implementation originally from {@code GT_ItemStack2}.
@@ -34,12 +38,32 @@ public class GTItemStack extends ItemHolder {
         }
     };
 
+    public static final Hash.Strategy<ItemStack> ITEMSTACK_HASH_STRATEGY_NBT_SENSITIVE = new Hash.Strategy<>() {
+
+        @Override
+        public int hashCode(ItemStack o) {
+            int hash = Fnv1a32.initialState();
+
+            if (o != null) {
+                hash = Fnv1a32.hashStep(hash, Objects.hashCode(o.getItem()));
+                hash = Fnv1a32.hashStep(hash, Items.feather.getDamage(o));
+                hash = Fnv1a32.hashStep(hash, Objects.hashCode(o.getTagCompound()));
+            }
+
+            return hash;
+        }
+
+        @Override
+        public boolean equals(ItemStack a, ItemStack b) {
+            return GTUtility.areStacksEqual(a, b, false);
+        }
+    };
+
     public final Item mItem;
     public final byte mStackSize;
     public final short mMetaData;
 
     public GTItemStack(Item aItem, long aStackSize, long aMetaData) {
-        super(new ItemStack(aItem, 1, (int) aMetaData));
         mItem = aItem;
         mStackSize = (byte) aStackSize;
         mMetaData = (short) aMetaData;
@@ -53,7 +77,7 @@ public class GTItemStack extends ItemHolder {
         this(
             aStack == null ? null : aStack.getItem(),
             aStack == null ? 0 : aStack.stackSize,
-            aStack == null ? 0 : wildcard ? GTValues.W : Items.feather.getDamage(aStack));
+            aStack == null ? 0 : wildcard ? WILDCARD : Items.feather.getDamage(aStack));
     }
 
     public GTItemStack(int aHashCode) {
@@ -102,6 +126,6 @@ public class GTItemStack extends ItemHolder {
      * @return a copy of the stack with stack size 1 and no NBT
      */
     public static ItemStack internalCopyStack(ItemStack aStack, boolean wildcard) {
-        return new ItemStack(aStack.getItem(), 1, wildcard ? GTValues.W : Items.feather.getDamage(aStack));
+        return new ItemStack(aStack.getItem(), 1, wildcard ? WILDCARD : Items.feather.getDamage(aStack));
     }
 }

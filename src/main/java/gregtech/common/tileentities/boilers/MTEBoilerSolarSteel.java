@@ -6,6 +6,8 @@ import gregtech.api.enums.Textures.BlockIcons;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.modularui2.GTGuiTheme;
+import gregtech.api.modularui2.GTGuiThemes;
 import gregtech.api.render.TextureFactory;
 import gregtech.common.config.MachineStats;
 
@@ -13,11 +15,6 @@ public class MTEBoilerSolarSteel extends MTEBoilerSolar {
 
     public MTEBoilerSolarSteel(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
-        initBoilerStats();
-    }
-
-    public MTEBoilerSolarSteel(String aName, int aTier, String aDescription, ITexture[][][] aTextures) {
-        super(aName, aTier, aDescription, aTextures);
         initBoilerStats();
     }
 
@@ -39,7 +36,7 @@ public class MTEBoilerSolarSteel extends MTEBoilerSolar {
         ITexture[][][] rTextures = new ITexture[4][17][];
         for (int color = -1; color < 16; color++) {
             int i = color + 1;
-            short[] colorModulation = Dyes.getModulation(color, Dyes._NULL.mRGBa);
+            short[] colorModulation = Dyes.getModulation(color);
             rTextures[0][i] = new ITexture[] {
                 TextureFactory.of(BlockIcons.MACHINE_STEELBRICKS_BOTTOM, colorModulation) };
             rTextures[1][i] = new ITexture[] { TextureFactory.of(BlockIcons.MACHINE_STEELBRICKS_TOP, colorModulation),
@@ -60,6 +57,11 @@ public class MTEBoilerSolarSteel extends MTEBoilerSolar {
     @Override
     public SteamVariant getSteamVariant() {
         return SteamVariant.STEEL;
+    }
+
+    @Override
+    protected GTGuiTheme getGuiTheme() {
+        return GTGuiThemes.STEEL;
     }
 
     @Override

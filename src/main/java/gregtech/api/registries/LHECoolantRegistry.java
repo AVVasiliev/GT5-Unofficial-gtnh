@@ -14,11 +14,9 @@ public class LHECoolantRegistry {
     private static final Map<String, LHECoolantInfo> lheCoolants = new HashMap<>();
 
     /**
-     * Registers a coolant for use in Large Heat Exchangers and Whakawhiti Weras.
-     * See the constants in {@link #registerBaseCoolants()} as a reference for what the multipliers should be.
-     * The multipliers are used in
-     * {@link MTEHeatExchanger#checkProcessing()}
-     * and {@link MTEHeatExchanger#onRunningTick()}.
+     * Registers a coolant for use in Large Heat Exchangers and Whakawhiti Weras. See the constants in
+     * {@link #registerBaseCoolants()} as a reference for what the multipliers should be. The multipliers are used in
+     * {@link MTEHeatExchanger#checkProcessing()} and {@link MTEHeatExchanger#onRunningTick()}.
      *
      * @param coldFluidName        The fluid name of the resulting cold coolant
      * @param hotFluidName         The fluid name of the input hot coolant
@@ -30,7 +28,6 @@ public class LHECoolantRegistry {
         double superheatedThreshold) {
         var coolant = new LHECoolantInfo(coldFluidName, hotFluidName, steamMultiplier, superheatedThreshold);
 
-        lheCoolants.put(coldFluidName, coolant);
         lheCoolants.put(hotFluidName, coolant);
     }
 
@@ -44,7 +41,7 @@ public class LHECoolantRegistry {
 
     public static void registerBaseCoolants() {
         // I have no idea where these constants originally came from, but I've preserved the comments from
-        // GT_MetaTileEntity_HeatExchanger
+        // MTEHeatExchanger
 
         registerCoolant(
             "ic2pahoehoelava",

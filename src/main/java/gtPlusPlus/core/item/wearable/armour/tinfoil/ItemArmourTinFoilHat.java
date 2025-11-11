@@ -2,6 +2,7 @@ package gtPlusPlus.core.item.wearable.armour.tinfoil;
 
 import static gregtech.api.enums.Mods.GTPlusPlus;
 
+import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.client.renderer.texture.IIconRegister;
@@ -24,10 +25,12 @@ import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.IIcon;
+import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import gregtech.api.util.GTUtility;
 import gtPlusPlus.core.item.wearable.armour.ArmourLoader;
 import gtPlusPlus.core.item.wearable.armour.base.BaseArmourHelm;
 
@@ -82,10 +85,7 @@ public class ItemArmourTinFoilHat extends BaseArmourHelm {
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public void addInformation(ItemStack p_77624_1_, EntityPlayer p_77624_2_, List aList, boolean p_77624_4_) {
-        aList.add("DoomSquirter's protection against cosmic radiation!");
-        aList.add("General paranoia makes the wearer unable to collect xp");
-        aList.add("Movement speed is also reduced, to keep you safe");
-        aList.add("This hat may also have other strange powers");
+        Collections.addAll(aList, GTUtility.breakLines(StatCollector.translateToLocal("GTPP.tooltip.tin_foil_hat")));
     }
 
     @Override
@@ -118,39 +118,37 @@ public class ItemArmourTinFoilHat extends BaseArmourHelm {
     @Override
     public void onArmorTick(World world, EntityPlayer player, ItemStack itemStack) {
         if (itemStack != null && player != null && world != null && !world.isRemote) {
-            if (player instanceof EntityPlayer) {
-                // Apply Slow
-                if (!player.isPotionActive(Potion.moveSlowdown.id)) {
-                    player.addPotionEffect(new PotionEffect(Potion.moveSlowdown.id, 2, 1, true));
-                }
-                // Move Xp orbs away
-                final AxisAlignedBB box = player.getBoundingBox();
-                if (box != null) {
-                    List<Entity> list = world.getEntitiesWithinAABBExcludingEntity(
-                        player,
-                        box.expand(5, 5, 5),
-                        e -> e instanceof EntityXPOrb || e instanceof EntityBoat
-                            || e instanceof EntitySnowball
-                            || e instanceof EntityFireball
-                            || e instanceof EntityEgg
-                            || e instanceof EntityExpBottle
-                            || e instanceof EntityEnderEye
-                            || e instanceof EntityEnderPearl);
-                    for (Entity e : list) {
-                        final float dist = e.getDistanceToEntity(player);
-                        if (dist == 0) continue;
-                        double distX = player.posX - e.posX;
-                        double distZ = player.posZ - e.posZ;
-                        double distY = e.posY + 1.5D - player.posY;
-                        double dir = Math.atan2(distZ, distX);
-                        double speed = 1F / dist * 0.5;
-                        speed = -speed;
-                        if (distY < 0) {
-                            e.motionY += speed;
-                        }
-                        e.motionX = Math.cos(dir) * speed;
-                        e.motionZ = Math.sin(dir) * speed;
+            // Apply Slow
+            if (!player.isPotionActive(Potion.moveSlowdown.id)) {
+                player.addPotionEffect(new PotionEffect(Potion.moveSlowdown.id, 2, 1, true));
+            }
+            // Move Xp orbs away
+            final AxisAlignedBB box = player.getBoundingBox();
+            if (box != null) {
+                List<Entity> list = world.getEntitiesWithinAABBExcludingEntity(
+                    player,
+                    box.expand(5, 5, 5),
+                    e -> e instanceof EntityXPOrb || e instanceof EntityBoat
+                        || e instanceof EntitySnowball
+                        || e instanceof EntityFireball
+                        || e instanceof EntityEgg
+                        || e instanceof EntityExpBottle
+                        || e instanceof EntityEnderEye
+                        || e instanceof EntityEnderPearl);
+                for (Entity e : list) {
+                    final float dist = e.getDistanceToEntity(player);
+                    if (dist == 0) continue;
+                    double distX = player.posX - e.posX;
+                    double distZ = player.posZ - e.posZ;
+                    double distY = e.posY + 1.5D - player.posY;
+                    double dir = Math.atan2(distZ, distX);
+                    double speed = 1F / dist * 0.5;
+                    speed = -speed;
+                    if (distY < 0) {
+                        e.motionY += speed;
                     }
+                    e.motionX = Math.cos(dir) * speed;
+                    e.motionZ = Math.sin(dir) * speed;
                 }
             }
         }

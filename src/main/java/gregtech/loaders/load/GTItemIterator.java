@@ -169,12 +169,15 @@ public class GTItemIterator implements Runnable {
                         tBlock.setHarvestLevel("scoop", 0);
                         ToolScoop.sBeeHiveMaterial = tBlock.getMaterial();
                     }
-                    if (OrePrefixes.stone.mDefaultStackSize < tItem.getItemStackLimit(new ItemStack(tItem, 1, 0))) {
+                    if (OrePrefixes.stone.getDefaultStackSize() < tItem.getItemStackLimit(new ItemStack(tItem, 1, 0))) {
                         if ((tBlock.isReplaceableOreGen(GTValues.DW, 0, 0, 0, Blocks.stone))
                             || (tBlock.isReplaceableOreGen(GTValues.DW, 0, 0, 0, Blocks.netherrack))
                             || (tBlock.isReplaceableOreGen(GTValues.DW, 0, 0, 0, Blocks.end_stone))) {
-                            tItem.setMaxStackSize(OrePrefixes.stone.mDefaultStackSize);
+                            tItem.setMaxStackSize(OrePrefixes.stone.getDefaultStackSize());
                         }
+                    }
+                    if (tName.equals("tile.tankBlock") && tBlock instanceof buildcraft.factory.BlockTank) {
+                        GTOreDictUnificator.registerOre(OreDictNames.craftingTank, new ItemStack(tItem, 1, 0));
                     }
                 }
                 if (((tItem instanceof ItemFood)) && (tItem != ItemList.IC2_Food_Can_Filled.getItem())
@@ -268,10 +271,6 @@ public class GTItemIterator implements Runnable {
                     // buildcraft
                     case "tile.pumpBlock" -> GTOreDictUnificator
                         .registerOre(OreDictNames.craftingPump, new ItemStack(tItem, 1, 0));
-
-                    // buildcraft
-                    case "tile.tankBlock" -> GTOreDictUnificator
-                        .registerOre(OreDictNames.craftingTank, new ItemStack(tItem, 1, 0));
 
                 }
             }

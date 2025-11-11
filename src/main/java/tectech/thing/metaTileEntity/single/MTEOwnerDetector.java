@@ -17,19 +17,18 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTETieredMachineBlock;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTUtility;
 import gregtech.mixin.interfaces.accessors.EntityPlayerMPAccessor;
 import tectech.TecTech;
 import tectech.util.CommonValues;
-import tectech.util.TTUtility;
 
 /**
  * Created by Tec on 23.03.2017.
  */
 public class MTEOwnerDetector extends MTETieredMachineBlock {
 
-    private static GTRenderedTexture OWNER_ONLINE, OWNER_OFFLINE;
+    private static ITexture OWNER_ONLINE, OWNER_OFFLINE;
     private String uuid;
     private boolean interdimensional = true;
 
@@ -44,12 +43,10 @@ public class MTEOwnerDetector extends MTETieredMachineBlock {
                 translateToLocal("gt.blockmachines.machine.tt.ownerdetector.desc.0"),
                 EnumChatFormatting.BLUE + translateToLocal("gt.blockmachines.machine.tt.ownerdetector.desc.1"),
                 EnumChatFormatting.BLUE + translateToLocal("gt.blockmachines.machine.tt.ownerdetector.desc.2") });
-        TTUtility.setTier(aTier, this);
     }
 
     public MTEOwnerDetector(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
         super(aName, aTier, 0, aDescription, aTextures);
-        TTUtility.setTier(aTier, this);
     }
 
     @Override
@@ -61,14 +58,14 @@ public class MTEOwnerDetector extends MTETieredMachineBlock {
     @SideOnly(Side.CLIENT)
     public void registerIcons(IIconRegister aBlockIconRegister) {
         super.registerIcons(aBlockIconRegister);
-        OWNER_ONLINE = new GTRenderedTexture(new Textures.BlockIcons.CustomIcon("iconsets/OWNER_ONLINE"));
-        OWNER_OFFLINE = new GTRenderedTexture(new Textures.BlockIcons.CustomIcon("iconsets/OWNER_OFFLINE"));
+        OWNER_ONLINE = TextureFactory.of(new Textures.BlockIcons.CustomIcon("iconsets/OWNER_ONLINE"));
+        OWNER_OFFLINE = TextureFactory.of(new Textures.BlockIcons.CustomIcon("iconsets/OWNER_OFFLINE"));
     }
 
     @Override
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection facing,
         int colorIndex, boolean aActive, boolean aRedstone) {
-        return new ITexture[] { tectech.thing.metaTileEntity.Textures.MACHINE_CASINGS_TT[mTier][colorIndex + 1],
+        return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[mTier][colorIndex + 1],
             aActive ? OWNER_ONLINE : OWNER_OFFLINE };
     }
 
@@ -102,11 +99,6 @@ public class MTEOwnerDetector extends MTETieredMachineBlock {
     }
 
     @Override
-    public boolean isSimpleMachine() {
-        return true;
-    }
-
-    @Override
     public void onFirstTick(IGregTechTileEntity aBaseMetaTileEntity) {
         if (aBaseMetaTileEntity.isServerSide()) {
             if (uuid == null || uuid.isEmpty()) {
@@ -133,7 +125,8 @@ public class MTEOwnerDetector extends MTETieredMachineBlock {
     }
 
     @Override
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ,
+        ItemStack aTool) {
         final String clientLocale;
         if (aPlayer instanceof EntityPlayerMPAccessor) {
             clientLocale = ((EntityPlayerMPAccessor) aPlayer).gt5u$getTranslator();
@@ -153,32 +146,7 @@ public class MTEOwnerDetector extends MTETieredMachineBlock {
     }
 
     @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
-        return true;
-    }
-
-    @Override
     public boolean isElectric() {
-        return false;
-    }
-
-    @Override
-    public boolean isEnetOutput() {
-        return false;
-    }
-
-    @Override
-    public boolean isEnetInput() {
-        return false;
-    }
-
-    @Override
-    public boolean isInputFacing(ForgeDirection side) {
-        return false;
-    }
-
-    @Override
-    public boolean isOutputFacing(ForgeDirection side) {
         return false;
     }
 
@@ -198,16 +166,6 @@ public class MTEOwnerDetector extends MTETieredMachineBlock {
     }
 
     @Override
-    public long maxEUOutput() {
-        return 0;
-    }
-
-    @Override
-    public long maxEUStore() {
-        return 0;
-    }
-
-    @Override
     public long getMinimumStoredEU() {
         return 0;
     }
@@ -220,11 +178,6 @@ public class MTEOwnerDetector extends MTETieredMachineBlock {
     @Override
     public int maxProgresstime() {
         return 1;
-    }
-
-    @Override
-    public boolean hasSidedRedstoneOutputBehavior() {
-        return true;
     }
 
     @Override

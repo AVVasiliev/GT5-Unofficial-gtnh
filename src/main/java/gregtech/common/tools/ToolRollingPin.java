@@ -20,18 +20,8 @@ public class ToolRollingPin extends GTTool {
     }
 
     @Override
-    public int getToolDamagePerDropConversion() {
-        return 100;
-    }
-
-    @Override
     public int getToolDamagePerContainerCraft() {
         return 100;
-    }
-
-    @Override
-    public int getToolDamagePerEntityAttack() {
-        return 200;
     }
 
     @Override
@@ -40,17 +30,14 @@ public class ToolRollingPin extends GTTool {
     }
 
     @Override
-    public boolean isMinableBlock(Block aBlock, byte aMetaData) {
+    public boolean isMinableBlock(Block aBlock, int aMetaData) {
         return false;
     }
 
     @Override
     public short[] getRGBa(boolean aIsToolHead, ItemStack aStack) {
-        return aIsToolHead ? MetaGeneratedTool.getPrimaryMaterial(aStack).mRGBa : Dyes._NULL.mRGBa;
+        return aIsToolHead ? MetaGeneratedTool.getPrimaryMaterial(aStack).mRGBa : Dyes._NULL.getRGBA();
     }
-
-    @Override
-    public void onStatsAddedToTool(MetaGeneratedTool aItem, int aID) {}
 
     @Override
     public IIconContainer getIcon(boolean aIsToolHead, ItemStack aStack) {

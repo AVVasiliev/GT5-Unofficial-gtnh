@@ -1,5 +1,7 @@
 package gregtech.common.items;
 
+import static gregtech.api.util.GTRecipeBuilder.INGOTS;
+
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -48,7 +50,7 @@ public class MetaGeneratedItem98 extends MetaGeneratedItem {
      * leave a comment mentioning the old ID, so that we don't re-use it for a new fluid.
      */
     public enum FluidCell {
-        // Next unused ID: 32
+        // Next unused ID: 40
 
         // GregTech
         DRILLING_FLUID(5, "liquid_drillingfluid", CellType.REGULAR),
@@ -62,16 +64,21 @@ public class MetaGeneratedItem98 extends MetaGeneratedItem {
         // New Horizons Core Mod
         UNKNOWN_NUTRIENT_AGAR(7, "unknownnutrientagar", CellType.REGULAR),
         SEAWEED_BROTH(8, "seaweedbroth", CellType.REGULAR),
+        GELATIN_MIXTURE(32, "gelatinmixture", CellType.REGULAR),
+        MEAT_EXTRACT(33, "meatextract", CellType.REGULAR),
         SUPER_HEAVY_RADOX(28, "superheavyradox", CellType.REGULAR),
         HEAVY_RADOX(29, "heavyradox", CellType.REGULAR),
         CRACKED_RADOX(30, "crackedradox", CellType.REGULAR),
         LIGHT_RADOX(31, "lightradox", CellType.REGULAR),
         SUPER_LIGHT_RADOX(9, "superlightradox", CellType.REGULAR),
+        RADOX_GAS(34, "radoxgas", CellType.REGULAR),
         SODIUM_POTASSIUM(18, "sodiumpotassium", CellType.REGULAR),
         ENRICHED_BACTERIAL_SLUDGE(19, "enrichedbacterialsludge", CellType.REGULAR),
         FERMENTED_BACTERIAL_SLUDGE(20, "fermentedbacterialsludge", CellType.REGULAR),
         POLLUTION(21, "pollution", CellType.REGULAR),
         XENOXENE(27, "xenoxene", CellType.REGULAR),
+        DILUTED_XENOXENE(35, "dilutedxenoxene", CellType.REGULAR),
+        RAW_RADOX(36, "rawradox", CellType.REGULAR),
 
         // BartWorks
         ENZYME_SOLUTION(10, "enzymessollution", CellType.REGULAR),
@@ -79,6 +86,9 @@ public class MetaGeneratedItem98 extends MetaGeneratedItem {
         PENICILLIN(12, "penicillin", CellType.REGULAR),
         FLUORESCENT_DNA(13, "fluorecentddna", CellType.REGULAR),
         POLYMERASE(17, "polymerase", CellType.REGULAR),
+        FULVIC_ACID(37, "fulvic acid", CellType.REGULAR),
+        HEATED_FULVIC_ACID(38, "heated fulvic acid", CellType.REGULAR),
+        KEROGEN(39, "kerogen", CellType.REGULAR),
 
         // Good Generator
         COMBUSTION_PROMOTER(14, "combustionpromotor", CellType.REGULAR),
@@ -170,8 +180,8 @@ public class MetaGeneratedItem98 extends MetaGeneratedItem {
     private enum CellType {
 
         REGULAR(1_000, OrePrefixes.cell),
-        SMALL(144, OrePrefixes.cell),
-        MOLTEN(144, OrePrefixes.cellMolten),
+        SMALL(1 * INGOTS, OrePrefixes.cell),
+        MOLTEN(1 * INGOTS, OrePrefixes.cellMolten),
         PLASMA(1_000, OrePrefixes.cellPlasma);
 
         private final int capacity;
@@ -224,7 +234,7 @@ public class MetaGeneratedItem98 extends MetaGeneratedItem {
 
         // We'll just steal the icons from Water. They are all the same anyway (except _NULL is broken for cells).
         for (CellType cellType : CellType.values()) {
-            IIconContainer iconContainer = Materials.Water.mIconSet.mTextures[cellType.prefix.mTextureIndex];
+            IIconContainer iconContainer = Materials.Water.mIconSet.mTextures[cellType.prefix.getTextureIndex()];
             INSTANCE.iconContainerMap.put(cellType, iconContainer);
         }
     }
@@ -281,8 +291,8 @@ public class MetaGeneratedItem98 extends MetaGeneratedItem {
 
         GTLanguageManager.addStringLocalization(
             getUnlocalizedName(aCell.mStack) + ".name",
-            cellType.prefix.mLocalizedMaterialPre + fluid.getLocalizedName(fluidStack)
-                + cellType.prefix.mLocalizedMaterialPost);
+            cellType.prefix.getMaterialPrefix() + fluid.getLocalizedName(fluidStack)
+                + cellType.prefix.getMaterialPostfix());
 
         int color = fluid.getColor();
         short[] rgba = GTUtil.getRGBaArray(color);

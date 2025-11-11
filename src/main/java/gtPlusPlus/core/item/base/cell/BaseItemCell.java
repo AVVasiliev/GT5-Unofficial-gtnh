@@ -9,13 +9,12 @@ import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidContainerRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
+import gregtech.api.enums.ItemList;
 import gtPlusPlus.core.config.Configuration;
 import gtPlusPlus.core.item.base.BaseItemComponent;
 import gtPlusPlus.core.material.Material;
 import gtPlusPlus.core.util.Utils;
 import gtPlusPlus.core.util.minecraft.FluidUtils;
-import gtPlusPlus.core.util.minecraft.ItemUtils;
-import ic2.core.Ic2Items;
 
 public class BaseItemCell extends BaseItemComponent {
 
@@ -31,7 +30,7 @@ public class BaseItemCell extends BaseItemComponent {
         this.fluidColour = RGBa;
         FluidStack aFluid = FluidUtils.getFluidStack(unlocalName.toLowerCase(), 1000);
         if (aFluid != null) {
-            FluidContainerRegistry.registerFluidContainer(aFluid, ItemUtils.getSimpleStack(this), Ic2Items.cell.copy());
+            FluidContainerRegistry.registerFluidContainer(aFluid, new ItemStack(this), ItemList.Cell_Empty.get(1));
         }
     }
 
@@ -40,8 +39,8 @@ public class BaseItemCell extends BaseItemComponent {
         this.fluidColour = RGBa;
         FluidContainerRegistry.registerFluidContainer(
             FluidUtils.getFluidStack(cellFluid, 1000),
-            ItemUtils.getSimpleStack(this),
-            Ic2Items.cell.copy());
+            new ItemStack(this),
+            ItemList.Cell_Empty.get(1));
     }
 
     @Override
@@ -54,7 +53,7 @@ public class BaseItemCell extends BaseItemComponent {
             this.base = i.registerIcon(GTPlusPlus.ID + ":" + "item" + this.Cell.getComponent());
             this.overlay = i.registerIcon(GTPlusPlus.ID + ":" + "item" + this.Cell.getComponent() + "_Overlay");
         }
-        // this.overlay = cellMaterial.getFluid(1000).getFluid().get
+        // this.overlay = cellMaterial.getFluid(1_000).getFluid().get
     }
 
     private final short[] fluidColour;

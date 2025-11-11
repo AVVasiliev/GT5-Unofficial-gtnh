@@ -1,126 +1,200 @@
 package tectech.thing.cover;
 
-import java.util.Objects;
 import java.util.UUID;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTBase;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagInt;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidHandler;
 
-import com.gtnewhorizons.modularui.api.math.Alignment;
-import com.gtnewhorizons.modularui.api.math.Color;
+import org.jetbrains.annotations.NotNull;
+
+import com.google.common.io.ByteArrayDataInput;
 import com.gtnewhorizons.modularui.api.screen.ModularWindow;
-import com.gtnewhorizons.modularui.common.widget.TextWidget;
-import com.gtnewhorizons.modularui.common.widget.textfield.TextFieldWidget;
 
 import eu.usrv.yamcore.auxiliary.PlayerChatHelper;
+import gregtech.api.covers.CoverContext;
 import gregtech.api.gui.modularui.CoverUIBuildContext;
-import gregtech.api.gui.modularui.GTUITextures;
+import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.ICoverable;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
-import gregtech.api.util.CoverBehavior;
-import gregtech.api.util.GTUtility;
-import gregtech.api.util.ISerializableObject;
-import gregtech.common.gui.modularui.widget.CoverDataControllerWidget;
-import gregtech.common.gui.modularui.widget.CoverDataFollowerToggleButtonWidget;
+import gregtech.common.covers.Cover;
+import gregtech.common.gui.modularui.cover.base.CoverBaseGui;
+import gregtech.common.gui.mui1.cover.EnderFluidLinkUIFactory;
+import gtPlusPlus.core.tileentities.base.TileEntityBase;
+import io.netty.buffer.ByteBuf;
 import tectech.mechanics.enderStorage.EnderLinkTag;
 import tectech.mechanics.enderStorage.EnderWorldSavedData;
+import tectech.thing.gui.CoverEnderFluidLinkGui;
 
-public class CoverEnderFluidLink extends CoverBehavior {
+public class CoverEnderFluidLink extends Cover {
 
     private static final int L_PER_TICK = 8000;
-    private static final int IMPORT_EXPORT_MASK = 0b0001;
-    private static final int PUBLIC_PRIVATE_MASK = 0b0010;
+    private boolean export;
+    private boolean privateChannel;
+    // TODO: REMOVE AFTER 2.9
+    public static final int IMPORT_EXPORT_MASK = 0b0001;
+    public static final int PUBLIC_PRIVATE_MASK = 0b0010;
 
-    public CoverEnderFluidLink() {}
+    public CoverEnderFluidLink(@NotNull CoverContext context, ITexture coverFGTexture) {
+        super(context, coverFGTexture);
+    }
 
-    private void transferFluid(IFluidHandler source, ForgeDirection side, IFluidHandler target, ForgeDirection tSide,
-        int amount) {
-        FluidStack fluidStack = source.drain(side, amount, false);
+    private void transferFluid(IFluidHandler source, ForgeDirection coverSide, IFluidHandler target,
+        ForgeDirection tSide) {
+        int drainAmount = CoverEnderFluidLink.L_PER_TICK * getTickRate();
+        FluidStack fluidStack = source.drain(coverSide, drainAmount, false);
 
         if (fluidStack != null) {
             int fluidTransferred = target.fill(tSide, fluidStack, true);
-            source.drain(side, fluidTransferred, true);
+            source.drain(coverSide, fluidTransferred, true);
         }
     }
 
-    private static boolean testBit(int aCoverVariable, int bitMask) {
-        return (aCoverVariable & bitMask) != 0;
+    public static boolean testBit(int coverData, int bitMask) {
+        return (coverData & bitMask) != 0;
     }
 
-    private static int toggleBit(int aCoverVariable, int bitMask) {
-        return (aCoverVariable ^ bitMask);
+    public static int toggleBit(int coverData, int bitMask) {
+        return (coverData ^ bitMask);
     }
 
     @Override
-    public int doCoverThings(ForgeDirection side, byte aInputRedstone, int aCoverID, int aCoverVariable,
-        ICoverable aTileEntity, long aTimer) {
-        if ((aTileEntity instanceof IFluidHandler teTank)) {
-            EnderLinkTag tag = EnderWorldSavedData.getEnderLinkTag((IFluidHandler) aTileEntity);
-
-            if (tag != null) {
-                IFluidHandler enderTank = EnderWorldSavedData.getEnderFluidContainer(tag);
-
-                if (testBit(aCoverVariable, IMPORT_EXPORT_MASK)) {
-                    transferFluid(enderTank, ForgeDirection.UNKNOWN, teTank, side, L_PER_TICK);
-                } else {
-                    transferFluid(teTank, side, enderTank, ForgeDirection.UNKNOWN, L_PER_TICK);
-                }
-            }
+    public void doCoverThings(byte aInputRedstone, long aTimer) {
+        ICoverable coverable = coveredTile.get();
+        if (coverable == null) {
+            return;
         }
-        return aCoverVariable;
-    }
-
-    @Override
-    public void onBaseTEDestroyed(ForgeDirection side, int aCoverID, int aCoverVariable, ICoverable aTileEntity) {
-        if (aTileEntity instanceof IFluidHandler fluidHandlerSelf) {
-            EnderWorldSavedData.unbindTank(fluidHandlerSelf);
+        if (!(coverable instanceof IFluidHandler teTank)) {
+            return;
         }
-    }
 
-    @Override
-    public boolean onCoverRemoval(ForgeDirection side, int aCoverID, int aCoverVariable, ICoverable aTileEntity,
-        boolean aForced) {
-        if (aTileEntity instanceof IFluidHandler fluidHandlerSelf) {
-            EnderWorldSavedData.unbindTank(fluidHandlerSelf);
+        EnderLinkTag tag = EnderWorldSavedData.getEnderLinkTag(teTank);
+        if (tag == null) {
+            return;
         }
-        return true;
-    }
 
-    @Override
-    public String getDescription(ForgeDirection side, int aCoverID, int aCoverVariable, ICoverable aTileEntity) {
-        return "";
-    }
+        boolean isPrivate = tag.getUUID() != null;
 
-    @Override
-    public boolean letsFluidIn(ForgeDirection side, int aCoverID, int aCoverVariable, Fluid aFluid,
-        ICoverable aTileEntity) {
-        return true;
-    }
+        if (privateChannel != isPrivate) {
+            tag = new EnderLinkTag(tag.getFrequency(), privateChannel ? getOwner(coverable) : null);
+            EnderWorldSavedData.bindEnderLinkTag(teTank, tag);
+        }
 
-    @Override
-    public boolean letsFluidOut(ForgeDirection side, int aCoverID, int aCoverVariable, Fluid aFluid,
-        ICoverable aTileEntity) {
-        return true;
-    }
+        IFluidHandler enderTank = EnderWorldSavedData.getEnderFluidContainer(tag);
 
-    @Override
-    public int onCoverScrewdriverclick(ForgeDirection side, int aCoverID, int aCoverVariable, ICoverable aTileEntity,
-        EntityPlayer aPlayer, float aX, float aY, float aZ) {
-        int newCoverVariable = toggleBit(aCoverVariable, IMPORT_EXPORT_MASK);
-
-        if (testBit(aCoverVariable, IMPORT_EXPORT_MASK)) {
-            PlayerChatHelper.SendInfo(aPlayer, "Ender Suction Engaged!"); // TODO Translation support
+        if (export) {
+            transferFluid(teTank, coverSide, enderTank, ForgeDirection.UNKNOWN);
         } else {
-            PlayerChatHelper.SendInfo(aPlayer, "Ender Filling Engaged!");
+            transferFluid(enderTank, ForgeDirection.UNKNOWN, teTank, coverSide);
         }
-        return newCoverVariable;
+    }
+
+    public static UUID getOwner(Object te) {
+        if (te instanceof IGregTechTileEntity igte) {
+            return igte.getOwnerUuid();
+        } else if (te instanceof TileEntityBase teb) {
+            return teb.getOwnerUUID();
+        } else {
+            return null;
+        }
     }
 
     @Override
-    public int getTickRate(ForgeDirection side, int aCoverID, int aCoverVariable, ICoverable aTileEntity) {
+    public void onBaseTEDestroyed() {
+        if (coveredTile.get() instanceof IFluidHandler fluidHandlerSelf) {
+            EnderWorldSavedData.unbindTank(fluidHandlerSelf);
+        }
+    }
+
+    @Override
+    public void onCoverRemoval() {
+        if (coveredTile.get() instanceof IFluidHandler fluidHandlerSelf) {
+            EnderWorldSavedData.unbindTank(fluidHandlerSelf);
+        }
+    }
+
+    @Override
+    public boolean letsFluidIn(Fluid aFluid) {
+        return true;
+    }
+
+    @Override
+    public boolean letsFluidOut(Fluid aFluid) {
+        return true;
+    }
+
+    @Override
+    public void onCoverScrewdriverClick(EntityPlayer aPlayer, float aX, float aY, float aZ) {
+        export = !export;
+
+        if (export) {
+            PlayerChatHelper.SendInfo(aPlayer, "Ender Filling Engaged!");
+        } else {
+            PlayerChatHelper.SendInfo(aPlayer, "Ender Suction Engaged!"); // TODO Translation support
+        }
+    }
+
+    public boolean isExport() {
+        return export;
+    }
+
+    public void setExport(boolean export) {
+        this.export = export;
+    }
+
+    public boolean isPrivateChannel() {
+        return privateChannel;
+    }
+
+    public void setPrivateChannel(boolean privateChannel) {
+        this.privateChannel = privateChannel;
+    }
+
+    @Override
+    protected void readDataFromNbt(NBTBase nbt) {
+        if (nbt instanceof NBTTagInt nbtInt) {
+            readLegacyDataFromNbt(nbtInt);
+            return;
+        }
+        NBTTagCompound tag = (NBTTagCompound) nbt;
+        this.export = tag.getBoolean("export");
+        this.privateChannel = tag.getBoolean("privateChannel");
+    }
+
+    private void readLegacyDataFromNbt(NBTTagInt nbtInt) {
+        int data = nbtInt.func_150287_d();
+        this.export = !testBit(data, IMPORT_EXPORT_MASK);
+        this.privateChannel = testBit(data, PUBLIC_PRIVATE_MASK);
+    }
+
+    @Override
+    protected void readDataFromPacket(ByteArrayDataInput byteData) {
+        this.export = byteData.readBoolean();
+        this.privateChannel = byteData.readBoolean();
+    }
+
+    @Override
+    protected @NotNull NBTBase saveDataToNbt() {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setBoolean("export", this.export);
+        tag.setBoolean("privateChannel", this.privateChannel);
+
+        return tag;
+    }
+
+    @Override
+    protected void writeDataToByteBuf(ByteBuf byteBuf) {
+        byteBuf.writeBoolean(this.export);
+        byteBuf.writeBoolean(this.privateChannel);
+    }
+
+    @Override
+    public int getMinimumTickRate() {
         // Runs each tick
         return 1;
     }
@@ -133,6 +207,11 @@ public class CoverEnderFluidLink extends CoverBehavior {
     }
 
     @Override
+    protected @NotNull CoverBaseGui<?> getCoverGui() {
+        return new CoverEnderFluidLinkGui(this);
+    }
+
+    @Override
     public ModularWindow createWindow(CoverUIBuildContext buildContext) {
         // Only open gui if we're placed on a fluid tank
         if (buildContext.getTile() instanceof IFluidHandler) {
@@ -141,146 +220,4 @@ public class CoverEnderFluidLink extends CoverBehavior {
         return null;
     }
 
-    private class EnderFluidLinkUIFactory extends UIFactory {
-
-        private static final int START_X = 10;
-        private static final int START_Y = 25;
-        private static final int SPACE_X = 18;
-        private static final int SPACE_Y = 18;
-        private static final int PUBLIC_BUTTON_ID = 0;
-        private static final int PRIVATE_BUTTON_ID = 1;
-        private static final int IMPORT_BUTTON_ID = 2;
-        private static final int EXPORT_BUTTON_ID = 3;
-
-        public EnderFluidLinkUIFactory(CoverUIBuildContext buildContext) {
-            super(buildContext);
-        }
-
-        @SuppressWarnings("PointlessArithmeticExpression")
-        @Override
-        protected void addUIWidgets(ModularWindow.Builder builder) {
-            TextFieldWidget frequencyField = new TextFieldWidget();
-            builder.widget(frequencyField.setGetter(() -> {
-                ICoverable te = getUIBuildContext().getTile();
-                if (!frequencyField.isClient() && te instanceof IFluidHandler) {
-                    EnderLinkTag tag = EnderWorldSavedData.getEnderLinkTag((IFluidHandler) te);
-
-                    return tag == null ? "" : tag.getFrequency();
-                }
-                return "";
-            })
-                .setSetter(val -> {
-                    if (!frequencyField.isClient() && getUIBuildContext().getTile() instanceof IFluidHandler tank) {
-                        UUID uuid = null;
-
-                        if (testBit(convert(getCoverData()), PUBLIC_PRIVATE_MASK)) {
-                            uuid = getUUID();
-                            if (!(tank instanceof IGregTechTileEntity gte)) return;
-                            if (!uuid.equals(gte.getOwnerUuid())) return;
-                        }
-
-                        EnderWorldSavedData.bindEnderLinkTag(tank, new EnderLinkTag(val, uuid));
-                    }
-                })
-                .setTextColor(Color.WHITE.dark(1))
-                .setTextAlignment(Alignment.CenterLeft)
-                .setFocusOnGuiOpen(true)
-                .setBackground(GTUITextures.BACKGROUND_TEXT_FIELD.withOffset(-1, -1, 2, 2))
-                .setPos(START_X + SPACE_X * 0, START_Y + SPACE_Y * 0)
-                .setSize(SPACE_X * 5 - 8, 12))
-                .widget(
-                    new CoverDataControllerWidget.CoverDataIndexedControllerWidget_ToggleButtons<>(
-                        this::getCoverData,
-                        this::setCoverData,
-                        CoverEnderFluidLink.this,
-                        (id, coverData) -> !getClickable(id, convert(coverData)),
-                        (id, coverData) -> new ISerializableObject.LegacyCoverData(
-                            getNewCoverVariable(id, convert(coverData))))
-                                .addToggleButton(
-                                    PUBLIC_BUTTON_ID,
-                                    CoverDataFollowerToggleButtonWidget.ofDisableable(),
-                                    widget -> widget.setStaticTexture(GTUITextures.OVERLAY_BUTTON_WHITELIST)
-                                        .addTooltip(GTUtility.trans("326", "Public"))
-                                        .setPos(START_X + SPACE_X * 0, START_Y + SPACE_Y * 2))
-                                .addToggleButton(
-                                    PRIVATE_BUTTON_ID,
-                                    CoverDataFollowerToggleButtonWidget.ofDisableable(),
-                                    widget -> widget.setStaticTexture(GTUITextures.OVERLAY_BUTTON_BLACKLIST)
-                                        .addTooltip(GTUtility.trans("327", "Private"))
-                                        .setPos(START_X + SPACE_X * 1, START_Y + SPACE_Y * 2))
-                                .addToggleButton(
-                                    IMPORT_BUTTON_ID,
-                                    CoverDataFollowerToggleButtonWidget.ofDisableable(),
-                                    widget -> widget.setStaticTexture(GTUITextures.OVERLAY_BUTTON_IMPORT)
-                                        .addTooltip(GTUtility.trans("007", "Import"))
-                                        .setPos(START_X + SPACE_X * 0, START_Y + SPACE_Y * 3))
-                                .addToggleButton(
-                                    EXPORT_BUTTON_ID,
-                                    CoverDataFollowerToggleButtonWidget.ofDisableable(),
-                                    widget -> widget.setStaticTexture(GTUITextures.OVERLAY_BUTTON_EXPORT)
-                                        .addTooltip(GTUtility.trans("006", "Export"))
-                                        .setPos(START_X + SPACE_X * 1, START_Y + SPACE_Y * 3)))
-                .widget(
-                    new TextWidget(GTUtility.trans("328", "Channel")).setDefaultColor(COLOR_TEXT_GRAY.get())
-                        .setPos(START_X + SPACE_X * 5, 4 + START_Y + SPACE_Y * 0))
-                .widget(
-                    new TextWidget(GTUtility.trans("329", "Public/Private")).setDefaultColor(COLOR_TEXT_GRAY.get())
-                        .setPos(START_X + SPACE_X * 2, 4 + START_Y + SPACE_Y * 2))
-                .widget(
-                    new TextWidget(GTUtility.trans("229", "Import/Export")).setDefaultColor(COLOR_TEXT_GRAY.get())
-                        .setPos(START_X + SPACE_X * 2, 4 + START_Y + SPACE_Y * 3));
-        }
-
-        private int getNewCoverVariable(int id, int coverVariable) {
-            switch (id) {
-                case PUBLIC_BUTTON_ID: {
-                    if (getUIBuildContext().getTile() instanceof IGregTechTileEntity gte) {
-                        EnderLinkTag tag = EnderWorldSavedData.getEnderLinkTag(gte);
-
-                        if (tag != null) {
-                            EnderWorldSavedData.bindEnderLinkTag(gte, new EnderLinkTag(tag.getFrequency(), null));
-                        }
-                    }
-
-                    return toggleBit(coverVariable, PUBLIC_PRIVATE_MASK);
-                }
-                case PRIVATE_BUTTON_ID: {
-                    if (getUIBuildContext().getTile() instanceof IGregTechTileEntity gte) {
-                        EnderLinkTag tag = EnderWorldSavedData.getEnderLinkTag(gte);
-
-                        UUID player = getUUID();
-
-                        if ((gte.getOwnerUuid() == null || Objects.equals(player, gte.getOwnerUuid())) && tag != null) {
-                            EnderWorldSavedData.bindEnderLinkTag(gte, new EnderLinkTag(tag.getFrequency(), player));
-                        }
-                    }
-
-                    return toggleBit(coverVariable, PUBLIC_PRIVATE_MASK);
-                }
-                case IMPORT_BUTTON_ID:
-                case EXPORT_BUTTON_ID:
-                    return toggleBit(coverVariable, IMPORT_EXPORT_MASK);
-            }
-            return coverVariable;
-        }
-
-        private boolean getClickable(int id, int coverVariable) {
-            switch (id) {
-                case PUBLIC_BUTTON_ID:
-                    return testBit(coverVariable, PUBLIC_PRIVATE_MASK);
-                case PRIVATE_BUTTON_ID:
-                    return !testBit(coverVariable, PUBLIC_PRIVATE_MASK);
-                case IMPORT_BUTTON_ID:
-                    return testBit(coverVariable, IMPORT_EXPORT_MASK);
-                case EXPORT_BUTTON_ID:
-                    return !testBit(coverVariable, IMPORT_EXPORT_MASK);
-            }
-            return false;
-        }
-
-        private UUID getUUID() {
-            return getUIBuildContext().getPlayer()
-                .getUniqueID();
-        }
-    }
 }

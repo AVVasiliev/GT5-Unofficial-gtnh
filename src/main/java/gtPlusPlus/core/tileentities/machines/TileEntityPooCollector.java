@@ -11,27 +11,16 @@ import net.minecraft.entity.passive.EntityMooshroom;
 import net.minecraft.entity.passive.EntitySheep;
 import net.minecraft.entity.passive.IAnimals;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.Fluid;
 
-import gtPlusPlus.core.item.chemistry.AgriculturalChem;
+import gtPlusPlus.core.fluids.GTPPFluids;
 import gtPlusPlus.core.util.math.MathUtils;
-import gtPlusPlus.core.util.minecraft.ItemUtils;
+import gtPlusPlus.xmod.gregtech.api.enums.GregtechItemList;
 
 public class TileEntityPooCollector extends TileEntityBaseFluidCollector {
 
     public TileEntityPooCollector() {
         super(9, 8000);
-    }
-
-    @Override
-    public boolean canFill(ForgeDirection from, Fluid fluid) {
-        return false;
-    }
-
-    @Override
-    public boolean canDrain(ForgeDirection from, Fluid fluid) {
-        return true;
     }
 
     @Override
@@ -43,17 +32,16 @@ public class TileEntityPooCollector extends TileEntityBaseFluidCollector {
         if (aChance > 0) {
             ItemStack aPoop;
             if (aChance <= 100) {
-                aPoop = ItemUtils.getItemStackOfAmountFromOreDict("dustManureByproducts", 1);
+                aPoop = GregtechItemList.ManureByproductsDust.get(1);
             } else if (aChance <= 500) {
-                aPoop = ItemUtils.getItemStackOfAmountFromOreDict("dustSmallManureByproducts", 1);
+                aPoop = GregtechItemList.SmallManureByproductsDust.get(1);
             } else if (aChance <= 1250) {
-                aPoop = ItemUtils.getItemStackOfAmountFromOreDict("dustTinyManureByproducts", 1);
+                aPoop = GregtechItemList.TinyManureByproductsDust.get(1);
             } else {
                 return false;
             }
-            if (!ItemUtils.checkForInvalidItems(aPoop)) {
-                return false;
-            }
+
+            if (aPoop == null) return false;
 
             // Add poop to world
             // Logger.INFO("Adding animal waste for "+aPooMaker.getCommandSenderName());
@@ -110,7 +98,7 @@ public class TileEntityPooCollector extends TileEntityBaseFluidCollector {
 
     @Override
     public Fluid fluidToProvide() {
-        return AgriculturalChem.PoopJuice;
+        return GTPPFluids.PoopJuice;
     }
 
     @Override
@@ -118,11 +106,11 @@ public class TileEntityPooCollector extends TileEntityBaseFluidCollector {
         int a = MathUtils.randInt(0, 100);
         ItemStack aItem = null;
         if (a <= 30) {
-            aItem = ItemUtils.getSimpleStack(AgriculturalChem.dustDirt);
+            aItem = GregtechItemList.DriedEarthDust.get(1);
         } else if (a <= 40) {
-            aItem = ItemUtils.getItemStackOfAmountFromOreDict("dustSmallManureByproducts", 1);
+            aItem = GregtechItemList.SmallManureByproductsDust.get(1);
         } else if (a <= 55) {
-            aItem = ItemUtils.getItemStackOfAmountFromOreDict("dustTinyManureByproducts", 1);
+            aItem = GregtechItemList.TinyManureByproductsDust.get(1);
         }
         return aItem;
     }

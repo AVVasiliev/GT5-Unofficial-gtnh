@@ -12,11 +12,10 @@ import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.fluids.FluidStack;
 
+import gregtech.api.util.GTUtility;
 import gtPlusPlus.api.objects.Logger;
 import gtPlusPlus.core.container.ContainerVolumetricFlaskSetter;
 import gtPlusPlus.core.inventories.InventoryVolumetricFlaskSetter;
-import gtPlusPlus.core.util.math.MathUtils;
-import gtPlusPlus.core.util.minecraft.PlayerUtils;
 import gtPlusPlus.xmod.gregtech.common.helpers.VolumetricFlaskHelper;
 
 public class TileEntityVolumetricFlaskSetter extends TileEntity implements ISidedInventory {
@@ -42,7 +41,7 @@ public class TileEntityVolumetricFlaskSetter extends TileEntity implements ISide
 
     public void setCustomValue(int aVal) {
         log("Old Value: " + this.aCustomValue);
-        this.aCustomValue = (short) MathUtils.balance(aVal, 0, Short.MAX_VALUE);
+        this.aCustomValue = aVal;
         log("New Value: " + this.aCustomValue);
         markDirty();
     }
@@ -85,6 +84,8 @@ public class TileEntityVolumetricFlaskSetter extends TileEntity implements ISide
             return 2;
         } else if (VolumetricFlaskHelper.isGiganticVolumetricFlask(aStack)) {
             return 3;
+        } else if (VolumetricFlaskHelper.isKleinBottle(aStack)) {
+            return 4;
         }
         return 0;
     }
@@ -201,6 +202,8 @@ public class TileEntityVolumetricFlaskSetter extends TileEntity implements ISide
                         aOutput = VolumetricFlaskHelper.getLargeVolumetricFlask(1);
                     } else if (aTypeInSlot == 3) {
                         aOutput = VolumetricFlaskHelper.getGiganticVolumetricFlask(1);
+                    } else if (aTypeInSlot == 4) {
+                        aOutput = VolumetricFlaskHelper.getKleinBottle(1);
                     } else {
                         aOutput = null;
                     }
@@ -396,7 +399,7 @@ public class TileEntityVolumetricFlaskSetter extends TileEntity implements ISide
     public boolean onScrewdriverRightClick(byte side, EntityPlayer player, int x, int y, int z) {
 
         if (player.isSneaking()) {
-            PlayerUtils.messagePlayer(player, "Value: " + this.getCustomValue());
+            GTUtility.sendChatToPlayer(player, "Value: " + this.getCustomValue());
         }
 
         try {
@@ -405,7 +408,7 @@ public class TileEntityVolumetricFlaskSetter extends TileEntity implements ISide
             } else {
                 aCurrentMode++;
             }
-            PlayerUtils.messagePlayer(player, "Slot " + aCurrentMode + " is now default.");
+            GTUtility.sendChatToPlayer(player, "Slot " + aCurrentMode + " is now default.");
             return true;
         } catch (Throwable t) {
             return false;

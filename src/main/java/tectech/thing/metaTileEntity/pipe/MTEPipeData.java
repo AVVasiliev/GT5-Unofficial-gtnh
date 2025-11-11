@@ -4,27 +4,23 @@ import static gregtech.api.enums.Dyes.MACHINE_METAL;
 import static net.minecraft.util.StatCollector.translateToLocal;
 
 import net.minecraft.client.renderer.texture.IIconRegister;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import gregtech.GTMod;
 import gregtech.api.enums.Dyes;
+import gregtech.api.enums.HarvestTool;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
-import gregtech.api.metatileentity.BaseMetaPipeEntity;
 import gregtech.api.metatileentity.MetaPipeEntity;
-import gregtech.api.objects.GTRenderedTexture;
-import gregtech.common.GTClient;
+import gregtech.api.render.TextureFactory;
 import tectech.TecTech;
 import tectech.loader.NetworkDispatcher;
 import tectech.mechanics.pipe.IActivePipe;
@@ -68,10 +64,8 @@ public class MTEPipeData extends MetaPipeEntity implements IConnectsToDataPipe, 
     @Override
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, int aConnections,
         int colorIndex, boolean aConnected, boolean aRedstone) {
-        return new ITexture[] { new GTRenderedTexture(EMpipe),
-            new GTRenderedTexture(
-                getActive() ? EMbarActive : EMbar,
-                Dyes.getModulation(colorIndex, MACHINE_METAL.getRGBA())) };
+        return new ITexture[] { TextureFactory.of(EMpipe), TextureFactory
+            .of(getActive() ? EMbarActive : EMbar, Dyes.getModulation(colorIndex, MACHINE_METAL.getRGBA())) };
     }
 
     @Override
@@ -103,7 +97,7 @@ public class MTEPipeData extends MetaPipeEntity implements IConnectsToDataPipe, 
 
     @Override
     public byte getTileEntityBaseType() {
-        return 4;
+        return HarvestTool.WrenchPipeLevel0.toTileEntityBaseType();
     }
 
     @Override
@@ -189,7 +183,8 @@ public class MTEPipeData extends MetaPipeEntity implements IConnectsToDataPipe, 
         for (ForgeDirection side : ForgeDirection.VALID_DIRECTIONS) {
             IGregTechTileEntity gregTechTileEntity = aBaseMetaTileEntity.getIGregTechTileEntityAtSide(side);
 
-            if (gregTechTileEntity != null && gregTechTileEntity.getMetaTileEntity() instanceof MTEPipeData neighbor) {
+            if (gregTechTileEntity != null && gregTechTileEntity.getMetaTileEntity() instanceof MTEPipeData neighbor
+                && neighbor.isConnectedAtSide(side.getOpposite())) {
                 neighbor.mConnections &= ~side.getOpposite().flag;
                 neighbor.connectionCount--;
             }
@@ -218,40 +213,10 @@ public class MTEPipeData extends MetaPipeEntity implements IConnectsToDataPipe, 
                         256);
                 }
             }
-        } else if (aBaseMetaTileEntity.isClientSide() && GTClient.changeDetected == 4) {
-            aBaseMetaTileEntity.issueTextureUpdate();
-        }
-    }
-
-    @Override
-    public boolean onWrenchRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer, float aX,
-        float aY, float aZ, ItemStack aTool) {
-        IGregTechTileEntity aBaseMetaTileEntity = this.getBaseMetaTileEntity();
-
-        if (this.isConnectedAtSide(wrenchingSide)) {
-            this.mConnections &= ~wrenchingSide.flag;
-            this.connectionCount--;
-
-            IGregTechTileEntity gregTechTileEntity = aBaseMetaTileEntity.getIGregTechTileEntityAtSide(wrenchingSide);
-
-            if (gregTechTileEntity != null && gregTechTileEntity.getMetaTileEntity() instanceof MTEPipeData neighbor) {
-                neighbor.mConnections &= ~wrenchingSide.getOpposite().flag;
-                neighbor.connectionCount--;
+        } else if (aBaseMetaTileEntity.isClientSide() && GTMod.clientProxy()
+            .changeDetected() == 4) {
+                aBaseMetaTileEntity.issueTextureUpdate();
             }
-
-        } else {
-            this.mConnections |= wrenchingSide.flag;
-            this.connectionCount++;
-
-            IGregTechTileEntity gregTechTileEntity = aBaseMetaTileEntity.getIGregTechTileEntityAtSide(wrenchingSide);
-
-            if (gregTechTileEntity != null && gregTechTileEntity.getMetaTileEntity() instanceof MTEPipeData neighbor) {
-                neighbor.mConnections |= wrenchingSide.getOpposite().flag;
-                neighbor.connectionCount--;
-            }
-        }
-
-        return super.onWrenchRightClick(side, wrenchingSide, aPlayer, aX, aY, aZ, aTool);
     }
 
     @Override
@@ -290,75 +255,7 @@ public class MTEPipeData extends MetaPipeEntity implements IConnectsToDataPipe, 
     }
 
     @Override
-    public AxisAlignedBB getCollisionBoundingBoxFromPool(World aWorld, int aX, int aY, int aZ) {
-        if (GTMod.instance.isClientSide() && (GTClient.hideValue & 0x2) != 0)
-            return AxisAlignedBB.getBoundingBox(aX, aY, aZ, aX + 1, aY + 1, aZ + 1);
-        else return getActualCollisionBoundingBoxFromPool(aWorld, aX, aY, aZ);
-    }
-
-    public AxisAlignedBB getActualCollisionBoundingBoxFromPool(World aWorld, int aX, int aY, int aZ) {
-        float tSpace = (1f - 0.375f) / 2;
-        float tSide0 = tSpace;
-        float tSide1 = 1f - tSpace;
-        float tSide2 = tSpace;
-        float tSide3 = 1f - tSpace;
-        float tSide4 = tSpace;
-        float tSide5 = 1f - tSpace;
-
-        if (getBaseMetaTileEntity().getCoverIDAtSide(ForgeDirection.DOWN) != 0) {
-            tSide0 = tSide2 = tSide4 = 0;
-            tSide3 = tSide5 = 1;
-        }
-        if (getBaseMetaTileEntity().getCoverIDAtSide(ForgeDirection.UP) != 0) {
-            tSide2 = tSide4 = 0;
-            tSide1 = tSide3 = tSide5 = 1;
-        }
-        if (getBaseMetaTileEntity().getCoverIDAtSide(ForgeDirection.NORTH) != 0) {
-            tSide0 = tSide2 = tSide4 = 0;
-            tSide1 = tSide5 = 1;
-        }
-        if (getBaseMetaTileEntity().getCoverIDAtSide(ForgeDirection.SOUTH) != 0) {
-            tSide0 = tSide4 = 0;
-            tSide1 = tSide3 = tSide5 = 1;
-        }
-        if (getBaseMetaTileEntity().getCoverIDAtSide(ForgeDirection.WEST) != 0) {
-            tSide0 = tSide2 = tSide4 = 0;
-            tSide1 = tSide3 = 1;
-        }
-        if (getBaseMetaTileEntity().getCoverIDAtSide(ForgeDirection.EAST) != 0) {
-            tSide0 = tSide2 = 0;
-            tSide1 = tSide3 = tSide5 = 1;
-        }
-
-        byte tConn = ((BaseMetaPipeEntity) getBaseMetaTileEntity()).mConnections;
-        if ((tConn & 1 << ForgeDirection.DOWN.ordinal()) != 0) {
-            tSide0 = 0f;
-        }
-        if ((tConn & 1 << ForgeDirection.UP.ordinal()) != 0) {
-            tSide1 = 1f;
-        }
-        if ((tConn & 1 << ForgeDirection.NORTH.ordinal()) != 0) {
-            tSide2 = 0f;
-        }
-        if ((tConn & 1 << ForgeDirection.SOUTH.ordinal()) != 0) {
-            tSide3 = 1f;
-        }
-        if ((tConn & 1 << ForgeDirection.WEST.ordinal()) != 0) {
-            tSide4 = 0f;
-        }
-        if ((tConn & 1 << ForgeDirection.EAST.ordinal()) != 0) {
-            tSide5 = 1f;
-        }
-
-        return AxisAlignedBB
-            .getBoundingBox(aX + tSide4, aY + tSide0, aZ + tSide2, aX + tSide5, aY + tSide1, aZ + tSide3);
-    }
-
-    @Override
-    public float getThickNess() {
-        if (GTMod.instance.isClientSide() && GTClient.hideValue == 1) {
-            return 0.0625F;
-        }
+    public float getCollisionThickness() {
         return 0.375f;
     }
 

@@ -30,19 +30,22 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidContainerRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import bartworks.system.material.Werkstoff;
 import bartworks.system.material.WerkstoffLoader;
 import bartworks.system.material.werkstoff_loaders.IWerkstoffRunnable;
-import bartworks.util.Pair;
 import gregtech.api.enums.Element;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.ItemList;
+import gregtech.api.enums.MaterialBuilder;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.TextureSet;
 import gregtech.api.enums.TierEU;
 import gregtech.api.interfaces.ISubTagContainer;
 import gregtech.api.recipe.RecipeCategories;
 import gregtech.api.recipe.RecipeMaps;
+import gregtech.api.util.GTLog;
 import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTRecipe;
@@ -61,153 +64,166 @@ public class CellLoader implements IWerkstoffRunnable {
             || werkstoff.getStats()
                 .isCentrifuge())
             && !werkstoff.hasItemType(dust)) {
-            List<FluidStack> flOutputs = new ArrayList<>();
-            List<ItemStack> stOutputs = new ArrayList<>();
-            HashMap<ISubTagContainer, Pair<Integer, Integer>> tracker = new HashMap<>();
-            int cells = 0;
-            for (Pair<ISubTagContainer, Integer> container : werkstoff.getContents()
+
+            if (werkstoff.getContents()
                 .getValue()
-                .toArray(new Pair[0])) {
-                if (container.getKey() instanceof Materials) {
-                    if ((((Materials) container.getKey()).hasCorrespondingGas()
-                        || ((Materials) container.getKey()).hasCorrespondingFluid()
-                        || ((Materials) container.getKey()).mIconSet == TextureSet.SET_FLUID)
-                        && ((Materials) container.getKey()).getDust(0) == null) {
-                        FluidStack tmpFl = ((Materials) container.getKey()).getGas(1000L * container.getValue());
-                        if (tmpFl == null || tmpFl.getFluid() == null) {
-                            tmpFl = ((Materials) container.getKey()).getFluid(1000L * container.getValue());
-                        }
-                        flOutputs.add(tmpFl);
-                        if (flOutputs.size() > 1) {
+                .size() > 0) {
+
+                List<FluidStack> flOutputs = new ArrayList<>();
+                List<ItemStack> stOutputs = new ArrayList<>();
+                HashMap<ISubTagContainer, Pair<Integer, Integer>> tracker = new HashMap<>();
+                int cells = 0;
+                for (Pair<ISubTagContainer, Integer> container : werkstoff.getContents()
+                    .getValue()
+                    .toArray(new Pair[0])) {
+                    if (container.getKey() instanceof Materials) {
+                        if ((((Materials) container.getKey()).hasCorrespondingGas()
+                            || ((Materials) container.getKey()).hasCorrespondingFluid()
+                            || ((Materials) container.getKey()).mIconSet == TextureSet.SET_FLUID)
+                            && ((Materials) container.getKey()).getDust(0) == null) {
+                            FluidStack tmpFl = ((Materials) container.getKey()).getGas(1000L * container.getValue());
+                            if (tmpFl == null || tmpFl.getFluid() == null) {
+                                tmpFl = ((Materials) container.getKey()).getFluid(1000L * container.getValue());
+                            }
+                            flOutputs.add(tmpFl);
+                            if (flOutputs.size() > 1) {
+                                if (!tracker.containsKey(container.getKey())) {
+                                    stOutputs.add(((Materials) container.getKey()).getCells(container.getValue()));
+                                    tracker
+                                        .put(container.getKey(), Pair.of(container.getValue(), stOutputs.size() - 1));
+                                } else {
+                                    stOutputs.add(
+                                        ((Materials) container.getKey()).getCells(
+                                            tracker.get(container.getKey())
+                                                .getKey() + container.getValue()));
+                                    stOutputs.remove(
+                                        tracker.get(container.getKey())
+                                            .getValue() + 1);
+                                }
+                                cells += container.getValue();
+                            }
+                        } else {
+                            if (((Materials) container.getKey()).getDust(container.getValue()) == null) continue;
                             if (!tracker.containsKey(container.getKey())) {
-                                stOutputs.add(((Materials) container.getKey()).getCells(container.getValue()));
-                                tracker.put(container.getKey(), new Pair<>(container.getValue(), stOutputs.size() - 1));
+                                stOutputs.add(((Materials) container.getKey()).getDust(container.getValue()));
+                                tracker.put(container.getKey(), Pair.of(container.getValue(), stOutputs.size() - 1));
                             } else {
                                 stOutputs.add(
-                                    ((Materials) container.getKey()).getCells(
+                                    ((Materials) container.getKey()).getDust(
                                         tracker.get(container.getKey())
                                             .getKey() + container.getValue()));
                                 stOutputs.remove(
                                     tracker.get(container.getKey())
                                         .getValue() + 1);
                             }
-                            cells += container.getValue();
                         }
-                    } else {
-                        if (((Materials) container.getKey()).getDust(container.getValue()) == null) continue;
-                        if (!tracker.containsKey(container.getKey())) {
-                            stOutputs.add(((Materials) container.getKey()).getDust(container.getValue()));
-                            tracker.put(container.getKey(), new Pair<>(container.getValue(), stOutputs.size() - 1));
+                    } else if (container.getKey() instanceof Werkstoff) {
+                        if (((Werkstoff) container.getKey()).getStats()
+                            .isGas() || ((Werkstoff) container.getKey()).hasItemType(cell)) {
+                            FluidStack tmpFl = ((Werkstoff) container.getKey())
+                                .getFluidOrGas(1000 * container.getValue());
+                            if (tmpFl == null || tmpFl.getFluid() == null) {
+                                tmpFl = ((Werkstoff) container.getKey()).getFluidOrGas(1000 * container.getValue());
+                            }
+                            flOutputs.add(tmpFl);
+                            if (flOutputs.size() > 1) {
+                                if (!tracker.containsKey(container.getKey())) {
+                                    stOutputs.add(((Werkstoff) container.getKey()).get(cell, container.getValue()));
+                                    tracker
+                                        .put(container.getKey(), Pair.of(container.getValue(), stOutputs.size() - 1));
+                                } else {
+                                    stOutputs.add(
+                                        ((Werkstoff) container.getKey()).get(
+                                            cell,
+                                            tracker.get(container.getKey())
+                                                .getKey() + container.getValue()));
+                                    stOutputs.remove(
+                                        tracker.get(container.getKey())
+                                            .getValue() + 1);
+                                }
+                                cells += container.getValue();
+                            }
                         } else {
-                            stOutputs.add(
-                                ((Materials) container.getKey()).getDust(
-                                    tracker.get(container.getKey())
-                                        .getKey() + container.getValue()));
-                            stOutputs.remove(
-                                tracker.get(container.getKey())
-                                    .getValue() + 1);
-                        }
-                    }
-                } else if (container.getKey() instanceof Werkstoff) {
-                    if (((Werkstoff) container.getKey()).getStats()
-                        .isGas() || ((Werkstoff) container.getKey()).hasItemType(cell)) {
-                        FluidStack tmpFl = ((Werkstoff) container.getKey()).getFluidOrGas(1000 * container.getValue());
-                        if (tmpFl == null || tmpFl.getFluid() == null) {
-                            tmpFl = ((Werkstoff) container.getKey()).getFluidOrGas(1000 * container.getValue());
-                        }
-                        flOutputs.add(tmpFl);
-                        if (flOutputs.size() > 1) {
+                            if (!((Werkstoff) container.getKey()).hasItemType(dust)) continue;
                             if (!tracker.containsKey(container.getKey())) {
-                                stOutputs.add(((Werkstoff) container.getKey()).get(cell, container.getValue()));
-                                tracker.put(container.getKey(), new Pair<>(container.getValue(), stOutputs.size() - 1));
+                                stOutputs.add(((Werkstoff) container.getKey()).get(dust, container.getValue()));
+                                tracker.put(container.getKey(), Pair.of(container.getValue(), stOutputs.size() - 1));
                             } else {
                                 stOutputs.add(
                                     ((Werkstoff) container.getKey()).get(
-                                        cell,
+                                        dust,
                                         tracker.get(container.getKey())
                                             .getKey() + container.getValue()));
                                 stOutputs.remove(
                                     tracker.get(container.getKey())
                                         .getValue() + 1);
                             }
-                            cells += container.getValue();
-                        }
-                    } else {
-                        if (!((Werkstoff) container.getKey()).hasItemType(dust)) continue;
-                        if (!tracker.containsKey(container.getKey())) {
-                            stOutputs.add(((Werkstoff) container.getKey()).get(dust, container.getValue()));
-                            tracker.put(container.getKey(), new Pair<>(container.getValue(), stOutputs.size() - 1));
-                        } else {
-                            stOutputs.add(
-                                ((Werkstoff) container.getKey()).get(
-                                    dust,
-                                    tracker.get(container.getKey())
-                                        .getKey() + container.getValue()));
-                            stOutputs.remove(
-                                tracker.get(container.getKey())
-                                    .getValue() + 1);
                         }
                     }
                 }
+                ItemStack input = werkstoff.get(cell);
+                input.stackSize = 1;
+
+                int cellEmpty = cells - 1;
+
+                stOutputs.add(Materials.Empty.getCells(-cellEmpty));
+                if (werkstoff.getStats()
+                    .isElektrolysis())
+                    RecipeMaps.electrolyzerRecipes.add(
+                        new GTRecipe(
+                            true,
+                            new ItemStack[] { input, cellEmpty > 0 ? Materials.Empty.getCells(cellEmpty) : null },
+                            stOutputs.toArray(new ItemStack[0]),
+                            null,
+                            null,
+                            new FluidStack[] { null },
+                            new FluidStack[] { !flOutputs.isEmpty() ? flOutputs.get(0) : null },
+                            (int) Math.max(
+                                1L,
+                                Math.abs(
+                                    werkstoff.getStats()
+                                        .getProtons()
+                                        * werkstoff.getContents()
+                                            .getValue()
+                                            .size())),
+                            Math.min(
+                                4,
+                                werkstoff.getContents()
+                                    .getValue()
+                                    .size())
+                                * 30,
+                            0));
+                if (werkstoff.getStats()
+                    .isCentrifuge())
+                    RecipeMaps.centrifugeRecipes.add(
+                        new GTRecipe(
+                            true,
+                            new ItemStack[] { input, cellEmpty > 0 ? Materials.Empty.getCells(cellEmpty) : null },
+                            stOutputs.toArray(new ItemStack[0]),
+                            null,
+                            null,
+                            new FluidStack[] { null },
+                            new FluidStack[] { !flOutputs.isEmpty() ? flOutputs.get(0) : null },
+                            (int) Math.max(
+                                1L,
+                                Math.abs(
+                                    werkstoff.getStats()
+                                        .getMass()
+                                        * werkstoff.getContents()
+                                            .getValue()
+                                            .size())),
+                            Math.min(
+                                4,
+                                werkstoff.getContents()
+                                    .getValue()
+                                    .size())
+                                * 5,
+                            0));
+            } else {
+                GTLog.err.println(
+                    "Autogenerated recipe(s) using Werkstoff material '" + werkstoff.getDefaultName()
+                        + "' (fluid) removed due to no contents in material definition.");
             }
-            ItemStack input = werkstoff.get(cell);
-            input.stackSize = 1;
-
-            int cellEmpty = cells - 1;
-
-            stOutputs.add(Materials.Empty.getCells(-cellEmpty));
-            if (werkstoff.getStats()
-                .isElektrolysis())
-                RecipeMaps.electrolyzerRecipes.add(
-                    new GTRecipe(
-                        true,
-                        new ItemStack[] { input, cellEmpty > 0 ? Materials.Empty.getCells(cellEmpty) : null },
-                        stOutputs.toArray(new ItemStack[0]),
-                        null,
-                        null,
-                        new FluidStack[] { null },
-                        new FluidStack[] { !flOutputs.isEmpty() ? flOutputs.get(0) : null },
-                        (int) Math.max(
-                            1L,
-                            Math.abs(
-                                werkstoff.getStats()
-                                    .getProtons()
-                                    * werkstoff.getContents()
-                                        .getValue()
-                                        .size())),
-                        Math.min(
-                            4,
-                            werkstoff.getContents()
-                                .getValue()
-                                .size())
-                            * 30,
-                        0));
-            if (werkstoff.getStats()
-                .isCentrifuge())
-                RecipeMaps.centrifugeRecipes.add(
-                    new GTRecipe(
-                        true,
-                        new ItemStack[] { input, cellEmpty > 0 ? Materials.Empty.getCells(cellEmpty) : null },
-                        stOutputs.toArray(new ItemStack[0]),
-                        null,
-                        null,
-                        new FluidStack[] { null },
-                        new FluidStack[] { !flOutputs.isEmpty() ? flOutputs.get(0) : null },
-                        (int) Math.max(
-                            1L,
-                            Math.abs(
-                                werkstoff.getStats()
-                                    .getMass()
-                                    * werkstoff.getContents()
-                                        .getValue()
-                                        .size())),
-                        Math.min(
-                            4,
-                            werkstoff.getContents()
-                                .getValue()
-                                .size())
-                            * 5,
-                        0));
         }
 
         // Tank "Recipe"
@@ -237,7 +253,7 @@ public class CellLoader implements IWerkstoffRunnable {
 
             GTValues.RA.stdBuilder()
                 .itemInputs(werkstoff.get(dust))
-                .fluidOutputs(werkstoff.getFluidOrGas(1000))
+                .fluidOutputs(werkstoff.getFluidOrGas(1_000))
                 .duration(
                     werkstoff.getStats()
                         .getMass())
@@ -250,7 +266,7 @@ public class CellLoader implements IWerkstoffRunnable {
             GTValues.RA.stdBuilder()
                 .itemInputs(GTUtility.getIntegratedCircuit(1))
                 .itemOutputs(werkstoff.get(dust))
-                .fluidInputs(werkstoff.getFluidOrGas(1000))
+                .fluidInputs(werkstoff.getFluidOrGas(1_000))
                 .duration(
                     (int) werkstoff.getStats()
                         .getMass())
@@ -268,15 +284,11 @@ public class CellLoader implements IWerkstoffRunnable {
                 if (e.toString()
                     .equals(werkstoff.getToolTip())) {
                     werkstoffBridgeMaterial = werkstoff.getBridgeMaterial() != null ? werkstoff.getBridgeMaterial()
-                        : new Materials(
-                            -1,
-                            werkstoff.getTexSet(),
-                            0,
-                            0,
-                            0,
-                            false,
-                            werkstoff.getDefaultName(),
-                            werkstoff.getDefaultName());
+                        : new MaterialBuilder().setName(werkstoff.getDefaultName())
+                            .setDefaultLocalName(werkstoff.getDefaultName())
+                            .setUnifiable(false)
+                            .setIconSet(werkstoff.getTexSet())
+                            .constructMaterial();
                     werkstoffBridgeMaterial.mElement = e;
                     e.mLinkedMaterials.add(werkstoffBridgeMaterial);
                     ElementSet = true;
@@ -297,7 +309,6 @@ public class CellLoader implements IWerkstoffRunnable {
                 .special(ItemList.Tool_DataOrb.get(1L))
                 .duration(werkstoffBridgeMaterial.getMass() * 8192)
                 .eut(TierEU.RECIPE_LV)
-                .noOptimize()
                 .ignoreCollision()
                 .fake()
                 .addTo(scannerFakeRecipes);

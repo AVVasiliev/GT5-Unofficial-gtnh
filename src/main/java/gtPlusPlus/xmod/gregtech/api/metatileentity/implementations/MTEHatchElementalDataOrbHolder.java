@@ -1,5 +1,7 @@
 package gtPlusPlus.xmod.gregtech.api.metatileentity.implementations;
 
+import static gregtech.common.modularui2.util.CommonGuiComponents.gridTemplate4by4;
+
 import java.util.ArrayList;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -7,22 +9,29 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import com.cleanroommc.modularui.factory.PosGuiData;
+import com.cleanroommc.modularui.screen.ModularPanel;
+import com.cleanroommc.modularui.screen.UISettings;
+import com.cleanroommc.modularui.value.sync.PanelSyncManager;
+import com.cleanroommc.modularui.widgets.slot.ItemSlot;
+import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 import com.gtnewhorizons.modularui.api.screen.ModularWindow;
 import com.gtnewhorizons.modularui.api.screen.UIBuildContext;
 import com.gtnewhorizons.modularui.common.widget.SlotGroup;
 
 import gregtech.api.enums.ItemList;
-import gregtech.api.gui.modularui.GTUIInfos;
 import gregtech.api.gui.modularui.GTUITextures;
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatch;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.modularui2.GTGuiTextures;
+import gregtech.api.modularui2.GTGuis;
+import gregtech.api.render.TextureFactory;
+import gregtech.common.items.ItemIntegratedCircuit;
 import gtPlusPlus.api.objects.Logger;
 import gtPlusPlus.core.lib.GTPPCore;
-import gtPlusPlus.core.util.minecraft.ItemUtils;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 
 public class MTEHatchElementalDataOrbHolder extends MTEHatch implements IConfigurationCircuitSupport {
@@ -38,36 +47,22 @@ public class MTEHatchElementalDataOrbHolder extends MTEHatch implements IConfigu
                 "A circuit must be used to select a slot (1-16)", GTPPCore.GT_Tooltip.get() });
     }
 
-    public MTEHatchElementalDataOrbHolder(String aName, int aTier, String aDescription, ITexture[][][] aTextures) {
-        super(aName, aTier, 17, aDescription, aTextures);
-    }
-
     public MTEHatchElementalDataOrbHolder(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
         super(aName, aTier, 17, aDescription, aTextures);
     }
 
     @Override
     public ITexture[] getTexturesActive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture, new GTRenderedTexture(TexturesGtBlock.Overlay_Hatch_Data_Orb) };
+        return new ITexture[] { aBaseTexture, TextureFactory.of(TexturesGtBlock.Overlay_Hatch_Data_Orb) };
     }
 
     @Override
     public ITexture[] getTexturesInactive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture, new GTRenderedTexture(TexturesGtBlock.Overlay_Hatch_Data_Orb) };
-    }
-
-    @Override
-    public boolean isSimpleMachine() {
-        return true;
+        return new ITexture[] { aBaseTexture, TextureFactory.of(TexturesGtBlock.Overlay_Hatch_Data_Orb) };
     }
 
     @Override
     public boolean isFacingValid(ForgeDirection facing) {
-        return true;
-    }
-
-    @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
         return true;
     }
 
@@ -83,7 +78,7 @@ public class MTEHatchElementalDataOrbHolder extends MTEHatch implements IConfigu
 
     @Override
     public boolean onRightclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
-        GTUIInfos.openGTTileEntityUI(aBaseMetaTileEntity, aPlayer);
+        openGui(aPlayer);
         return true;
     }
 
@@ -119,13 +114,11 @@ public class MTEHatchElementalDataOrbHolder extends MTEHatch implements IConfigu
     }
 
     @Override
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {}
-
-    @Override
     public boolean allowPullStack(IGregTechTileEntity aBaseMetaTileEntity, int aIndex, ForgeDirection side,
         ItemStack aStack) {
         Logger.INFO("Checking if we can pull " + aStack.getDisplayName() + " from slot " + aIndex);
-        return aIndex == mInventory.length - 1 && ItemUtils.isControlCircuit(aStack)
+        return aIndex == mInventory.length - 1 && aStack != null
+            && aStack.getItem() instanceof ItemIntegratedCircuit
             && side == getBaseMetaTileEntity().getFrontFacing();
     }
 
@@ -133,7 +126,8 @@ public class MTEHatchElementalDataOrbHolder extends MTEHatch implements IConfigu
     public boolean allowPutStack(IGregTechTileEntity aBaseMetaTileEntity, int aIndex, ForgeDirection side,
         ItemStack aStack) {
         Logger.INFO("Checking if we can put " + aStack.getDisplayName() + " into slot " + aIndex);
-        return aIndex == mInventory.length - 1 && ItemUtils.isControlCircuit(aStack)
+        return aIndex == mInventory.length - 1 && aStack != null
+            && aStack.getItem() instanceof ItemIntegratedCircuit
             && side == getBaseMetaTileEntity().getFrontFacing();
     }
 
@@ -148,7 +142,7 @@ public class MTEHatchElementalDataOrbHolder extends MTEHatch implements IConfigu
 
     public ItemStack getOrbByCircuit() {
         ItemStack aCirc = getBaseMetaTileEntity().getStackInSlot(getCircuitSlot());
-        if (ItemUtils.isControlCircuit(aCirc)) {
+        if (aCirc != null && aCirc.getItem() instanceof ItemIntegratedCircuit) {
             int slot = aCirc.getItemDamage() - 1; // slots are 0 indexed but there's no 0 circuit
             if (slot < getBaseMetaTileEntity().getSizeInventory() - 1) {
                 return getBaseMetaTileEntity().getStackInSlot(slot);
@@ -162,7 +156,8 @@ public class MTEHatchElementalDataOrbHolder extends MTEHatch implements IConfigu
 
     @Override
     public boolean canInsertItem(int aIndex, ItemStack aStack, int ordinalSide) {
-        if (aIndex == mInventory.length - 1 && ItemUtils.isControlCircuit(aStack)
+        if (aIndex == mInventory.length - 1 && aStack != null
+            && aStack.getItem() instanceof ItemIntegratedCircuit
             && ordinalSide == getBaseMetaTileEntity().getFrontFacing()
                 .ordinal()) {
             Logger.INFO("Putting " + aStack.getDisplayName() + " into slot " + aIndex);
@@ -173,7 +168,7 @@ public class MTEHatchElementalDataOrbHolder extends MTEHatch implements IConfigu
 
     @Override
     public boolean canExtractItem(int aIndex, ItemStack aStack, int ordinalSide) {
-        if (aIndex == mInventory.length - 1 && ItemUtils.isControlCircuit(aStack)) {
+        if (aIndex == mInventory.length - 1 && aStack != null && aStack.getItem() instanceof ItemIntegratedCircuit) {
             Logger.INFO("Pulling " + aStack.getDisplayName() + " from slot " + aIndex);
             return true;
         }
@@ -187,7 +182,7 @@ public class MTEHatchElementalDataOrbHolder extends MTEHatch implements IConfigu
 
     @Override
     public int getCircuitSlot() {
-        return getSlots(mTier);
+        return this.getSizeInventory() - 1;
     }
 
     @Override
@@ -198,6 +193,24 @@ public class MTEHatchElementalDataOrbHolder extends MTEHatch implements IConfigu
     @Override
     public int getCircuitSlotY() {
         return 63;
+    }
+
+    @Override
+    protected boolean useMui2() {
+        return true;
+    }
+
+    @Override
+    public ModularPanel buildUI(PosGuiData data, PanelSyncManager syncManager, UISettings uiSettings) {
+        syncManager.registerSlotGroup("item_inv", 4);
+        return GTGuis.mteTemplatePanelBuilder(this, data, syncManager, uiSettings)
+            .build()
+            .child(
+                gridTemplate4by4(
+                    index -> new ItemSlot().slot(
+                        new ModularSlot(inventoryHandler, index).slotGroup("item_inv")
+                            .filter(stack -> ItemList.Tool_DataOrb.isStackEqual(stack, false, true)))
+                        .background(GTGuiTextures.SLOT_ITEM_STANDARD, GTGuiTextures.OVERLAY_SLOT_DATA_ORB)));
     }
 
     @Override

@@ -11,10 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.util.ResourceLocation;
 
-import com.google.common.collect.Maps;
-
-import gregtech.api.GregTechAPI;
-
 /**
  * Enumerates known sounds with id and resource-location
  *
@@ -33,6 +29,19 @@ public enum SoundResource {
     RANDOM_EXPLODE(5, "random.explode"),
     FIRE_IGNITE(6, "fire.ignite"),
 
+    /*
+     * IC2 Sounds still in use
+     * Battery Use
+     * Drill
+     * Chainsaw
+     * Extractor
+     * Machine Overload
+     * Interrupt One
+     * Magnetizer Loop
+     * Induction Loop
+     * Recycler OP
+     * Compressor Loop (Printer only)
+     */
     IC2_TOOLS_WRENCH(100, IndustrialCraft2.ID, "tools.Wrench"),
     IC2_TOOLS_RUBBER_TRAMPOLINE(101, IndustrialCraft2.ID, "tools.RubberTrampoline"),
     IC2_TOOLS_PAINTER(102, IndustrialCraft2.ID, "tools.Painter"),
@@ -52,8 +61,7 @@ public enum SoundResource {
     IC2_MACHINES_MINER_OP(205, IndustrialCraft2.ID, "machines.MinerOp"),
     IC2_MACHINES_PUMP_OP(206, IndustrialCraft2.ID, "machines.PumpOp"),
     IC2_MACHINES_ELECTROFURNACE_LOOP(207, IndustrialCraft2.ID, "machines.ElectroFurnaceLoop"),
-    @Deprecated
-    DEPRECATED_DUPE_OF_IC2_MACHINES_INDUCTION_LOOP(208, IndustrialCraft2.ID, "machines.InductionLoop"),
+    // 208 not used
     IC2_MACHINES_MACHINE_OVERLOAD(209, IndustrialCraft2.ID, "machines.MachineOverload"),
     IC2_MACHINES_INTERRUPT_ONE(210, IndustrialCraft2.ID, "machines.InterruptOne"),
     IC2_MACHINES_KA_CHING(211, IndustrialCraft2.ID, "machines.KaChing"),
@@ -70,7 +78,7 @@ public enum SoundResource {
     GT_MACHINES_PURIFICATION_PH_LOOP(237, GregTech.ID, "machines.PurificationPhLoop"),
     GT_MACHINES_COAGULATION_LOOP(238, GregTech.ID, "machines.PurificationCoagulationLoop"),
     GT_MACHINES_OZONATION_LOOP(239, GregTech.ID, "machines.PurificationOzonationLoop"),
-    GT_MACHINES_PURIFICATION_PLASMA_LOOP(240, "machines.PurificationPlasmaLoop"),
+    GT_MACHINES_PURIFICATION_PLASMA_LOOP(240, GregTech.ID, "machines.PurificationPlasmaLoop"),
 
     GT_MACHINES_MULTI_LATHE_LOOP(241, GregTech.ID, "machines.MultiLatheLoop"),
     GT_MACHINES_MULTI_AUTOCLAVE_LOOP(242, GregTech.ID, "machines.MultiAutoclaveLoop"),
@@ -106,9 +114,84 @@ public enum SoundResource {
     TECTECH_MACHINES_NOISE(269, TecTech.ID, "fx_noise"),
     TECTECH_MACHINES_FX_WHOOUM(270, TecTech.ID, "fx_whooum"),
 
+    GT_MAINTENANCE_TOOLBOX(271, GregTech.ID, "maintenance.MaintenanceToolbox"),
+    GT_MAINTENANCE_DUCT_TAPE(272, GregTech.ID, "maintenance.MaintenanceDuctTape"),
+    GT_MAINTENANCE_AUTO_HATCH(273, GregTech.ID, "maintenance.MaintenanceAutoHatch"),
+    GT_MAINTENANCE_DRONE_DOWNLINK_HATCH(274, GregTech.ID, "maintenance.MaintenanceDroneDownLinkHatch"),
+    GT_MAINTENANCE_CREATIVE_HATCH(275, GregTech.ID, "maintenance.MaintenanceCreativeHatch"),
+
     GUI_BUTTON_DOWN(-1, GregTech.ID, "gui.buttonDown"),
     GUI_BUTTON_UP(-1, GregTech.ID, "gui.buttonUp"),
 
+    /*
+     * New GT CEu / Modern Sounds
+     * * Outside of MTEBasicMachineWithRecipe
+     * ** Tool, not Machine
+     * Arc - Arc Furnace, Plasma Arc Furnace
+     * Assembler - Assembler, Circuit Assembler, Packager*, Unpackager
+     * Bath - Canning Machine, Chemical Bath, Fluid Canner, Ore Washing Plant
+     * Boiler - Fluid Heater, Large Boiler*
+     * Centrifuge - Centrifuge, Thermal Centrifuge
+     * Chemical - Brewery*, Chemical Reactor, Fermenter, Chemical Plant
+     * Click - Random_Click
+     * Compressor - Compressor
+     * Cooling - Autoclave, Fluid Solidifier
+     * Cut - Cutting Machine, Lathe
+     * Electrolyzer - Electrolyzer, Laser Engraver, Scanner*
+     * File - File**
+     * Fire - Rock Breaker*, Coke Oven*, BBF*, Pyrolyse Oven*, Cracker*
+     * Forge Hammer - Forge Hammer, Forming Press, Hard Hammer**
+     * Furnace - Electric Furnace, Steam Boiler*
+     * Hum - Microwave, Electric Oven, Other Electrofurnace SFX usage
+     * Macerator - Macerator
+     * Miner - Miner*
+     * Mixer - Mixer
+     * Mortar - Mortar**
+     * Motor - Bending Machine, Wiremill
+     * Plunger - Plunger**
+     * Portable Scanner - Scanner, Tricorder**
+     * Pump - Pump*
+     * Replicator - Replicator*, Mass Fabricator*
+     * Saw - Saw**
+     * Screwdriver - Screwdriver**
+     * Soft Hammer - Soft Hammer**
+     * Spray Can - Spray Can**
+     * Wirecutter - Wirecutter**
+     * Wrench - Wrench**
+     */
+    GTCEU_LOOP_ARC(300, "gtceu", "gtceu.ArcLoop"),
+    GTCEU_LOOP_ASSEMBLER(301, "gtceu", "gtceu.AssemblerLoop"),
+    GTCEU_LOOP_BATH(302, "gtceu", "gtceu.BathLoop"),
+    GTCEU_LOOP_BOILER(303, "gtceu", "gtceu.BoilerLoop"),
+    GTCEU_LOOP_CENTRIFUGE(304, "gtceu", "gtceu.CentrifugeLoop"),
+    GTCEU_LOOP_CHEMICAL(305, "gtceu", "gtceu.ChemicalLoop"),
+    GTCEU_LOOP_COMPRESSOR(306, "gtceu", "gtceu.CompressorLoop"),
+    GTCEU_LOOP_COOLING(307, "gtceu", "gtceu.CoolingLoop"),
+    GTCEU_LOOP_CUT(308, "gtceu", "gtceu.CutLoop"),
+    GTCEU_LOOP_ELECTROLYZER(309, "gtceu", "gtceu.ElectrolyzerLoop"),
+    GTCEU_LOOP_FIRE(310, "gtceu", "gtceu.FireLoop"),
+    GTCEU_LOOP_FORGE_HAMMER(311, "gtceu", "gtceu.ForgeHammerLoop"),
+    GTCEU_LOOP_FURNACE(312, "gtceu", "gtceu.FurnaceLoop"),
+    GTCEU_LOOP_HUM(313, "gtceu", "gtceu.HumLoop"),
+    GTCEU_LOOP_MACERATOR(314, "gtceu", "gtceu.MaceratorLoop"),
+    GTCEU_LOOP_MINER(315, "gtceu", "gtceu.MinerLoop"),
+    GTCEU_LOOP_MIXER(316, "gtceu", "gtceu.MixerLoop"),
+    GTCEU_LOOP_MOTOR(317, "gtceu", "gtceu.MotorLoop"),
+    GTCEU_LOOP_PUMP(318, "gtceu", "gtceu.PumpLoop"),
+    GTCEU_LOOP_REPLICATOR(319, "gtceu", "gtceu.ReplicatorLoop"),
+
+    GTCEU_OP_CLICK(400, "gtceu", "gtceu.ClickOp"),
+    GTCEU_OP_FILE(401, "gtceu", "gtceu.FileOp"),
+    GTCEU_OP_MORTAR(402, "gtceu", "gtceu.MortarOp"),
+    GTCEU_OP_PLUNGER(403, "gtceu", "gtceu.PlungerOp"),
+    GTCEU_OP_PORTABLE_SCANNER(404, "gtceu", "gtceu.PortableScannerOp"),
+    GTCEU_OP_SAW(405, "gtceu", "gtceu.SawOp"),
+    GTCEU_OP_SCREWDRIVER(406, "gtceu", "gtceu.ScrewdriverOp"),
+    GTCEU_OP_SOFT_HAMMER(407, "gtceu", "gtceu.SoftHammerOp"),
+    GTCEU_OP_SPRAY_CAN(408, "gtceu", "gtceu.SprayCanOp"),
+    GTCEU_OP_WIRECUTTER(409, "gtceu", "gtceu.WirecutterOp"),
+    GTCEU_OP_WRENCH(410, "gtceu", "gtceu.WrenchOp"),
+    RAILCRAFT_STEAM_BURST(411, "railcraft", "machine.steamburst"),
     /*
      * Other Minecraft Sounds that were missing
      */
@@ -402,20 +485,6 @@ public enum SoundResource {
      */
     public static SoundResource get(String resourceStr) {
         return RESOURCE_STR_SOUND_MAP.get(resourceStr);
-    }
-
-    /**
-     * Provides a backward-compatible Sounds {@code Map<Integer, String>} sound list
-     *
-     * @return The map for the deprecated {@link GregTechAPI#sSoundList}
-     * @deprecated This method is planned for removal.
-     *             <p>
-     *             Use this {@link SoundResource} enum instead.
-     *             </p>
-     */
-    @Deprecated
-    public static Map<Integer, String> asSoundList() {
-        return Maps.transformValues(ID_SOUND_MAP, SoundResource::toString);
     }
 
     /**

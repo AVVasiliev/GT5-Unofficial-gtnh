@@ -10,7 +10,6 @@ import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_DTPF_OFF;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_DTPF_ON;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FUSION1_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
-import static gregtech.api.metatileentity.BaseTileEntity.TOOLTIP_DELAY;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 import static gregtech.api.util.GTUtility.formatNumbers;
 import static gregtech.common.misc.WirelessNetworkManager.addEUToGlobalEnergyMap;
@@ -20,18 +19,12 @@ import static gregtech.common.tileentities.machines.multi.MTEPlasmaForge.DIM_BRI
 import static gregtech.common.tileentities.machines.multi.MTEPlasmaForge.DIM_INJECTION_CASING;
 import static gregtech.common.tileentities.machines.multi.MTEPlasmaForge.DIM_TRANS_CASING;
 import static kekztech.util.Util.toStandardForm;
-import static net.minecraft.util.EnumChatFormatting.GOLD;
-import static net.minecraft.util.EnumChatFormatting.GRAY;
-import static net.minecraft.util.StatCollector.translateToLocal;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
 
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
@@ -40,24 +33,13 @@ import net.minecraftforge.common.util.ForgeDirection;
 
 import org.jetbrains.annotations.NotNull;
 
+import com.google.common.collect.ImmutableMap;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
-import com.gtnewhorizons.modularui.api.drawable.IDrawable;
-import com.gtnewhorizons.modularui.api.drawable.UITexture;
-import com.gtnewhorizons.modularui.api.math.Alignment;
-import com.gtnewhorizons.modularui.api.math.Color;
-import com.gtnewhorizons.modularui.api.math.Size;
-import com.gtnewhorizons.modularui.api.screen.ModularWindow;
-import com.gtnewhorizons.modularui.api.screen.UIBuildContext;
-import com.gtnewhorizons.modularui.common.widget.ButtonWidget;
-import com.gtnewhorizons.modularui.common.widget.FakeSyncWidget;
-import com.gtnewhorizons.modularui.common.widget.TextWidget;
-import com.gtnewhorizons.modularui.common.widget.textfield.NumericWidget;
 
 import gregtech.api.GregTechAPI;
-import gregtech.api.gui.modularui.GTUITextures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
@@ -72,6 +54,8 @@ import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTRecipeConstants;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.OverclockCalculator;
+import gregtech.common.gui.modularui.multiblock.MTETranscendentPlasmaMixerGui;
+import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 
 public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETranscendentPlasmaMixer>
     implements ISurvivalConstructable {
@@ -89,7 +73,8 @@ public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETra
         .addShape(STRUCTURE_PIECE_MAIN, structure)
         .addElement(
             'B',
-            buildHatchAdder(MTETranscendentPlasmaMixer.class).atLeast(InputHatch, OutputHatch, InputBus, Maintenance)
+            buildHatchAdder(MTETranscendentPlasmaMixer.class)
+                .atLeast(ImmutableMap.of(InputHatch, 2, OutputHatch, 1, InputBus, 1, Maintenance, 0))
                 .casingIndex(DIM_INJECTION_CASING)
                 .dot(1)
                 .buildAndChain(GregTechAPI.sBlockCasings1, DIM_INJECTION_CASING))
@@ -108,6 +93,11 @@ public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETra
     }
 
     @Override
+    public boolean supportsPowerPanel() {
+        return false;
+    }
+
+    @Override
     public IStructureDefinition<MTETranscendentPlasmaMixer> getStructureDefinition() {
         return STRUCTURE_DEFINITION;
     }
@@ -115,15 +105,25 @@ public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETra
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Transcendent Mixer")
-            .addInfo("Assisting in all your DTPF needs.")
-            .addInfo("This multiblock will run in parallel according to the amount set")
-            .addInfo("in the parallel menu. All inputs will scale, except time.")
-            .addInfo("All EU is deducted from wireless EU networks only.")
+        tt.addMachineType("Transcendent Mixer, TPM")
+            .addInfo("Assisting in all your DTPF needs!")
+            .addInfo("This multiblock will run in parallel according to the amount set in the parallel menu")
+            .addInfo("All inputs will scale, except time...")
+            .addInfo("All EU is deducted from wireless EU networks only")
             .beginStructureBlock(5, 7, 5, false)
-            .addStructureInfo(GOLD + "1+ " + GRAY + "Input Hatch")
-            .addStructureInfo(GOLD + "1+ " + GRAY + "Output Hatch")
-            .addStructureInfo(GOLD + "1+ " + GRAY + "Input Bus")
+            .addController("Front Center")
+            .addCasingInfoExactly("Dimensionally Transcendent Casing", 48, false)
+            .addCasingInfoExactly("Dimensional Bridge", 16, false)
+            .addCasingInfoRangeColored(
+                "Dimensional Injection Casing",
+                EnumChatFormatting.GRAY,
+                0,
+                33,
+                EnumChatFormatting.GOLD,
+                false)
+            .addInputBus("Any Dimensional Injection Casing", 1)
+            .addInputHatch("Any Dimensional Injection Casing", 1)
+            .addOutputHatch("Any Dimensional Injection Casing", 1)
             .toolTipFinisher(AuthorColen);
         return tt;
     }
@@ -155,12 +155,15 @@ public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETra
         return new ITexture[] { casingTexturePages[0][DIM_TRANS_CASING] };
     }
 
-    @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return true;
+    public int getMultiplier() {
+        return multiplier;
     }
 
-    int multiplier = 1;
+    public void setMultiplier(int multiplier) {
+        this.multiplier = multiplier;
+    }
+
+    private int multiplier = 1;
     BigInteger finalConsumption = BigInteger.ZERO;
 
     @Override
@@ -200,7 +203,7 @@ public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETra
                     return CheckRecipeResultRegistry.insufficientStartupPower(finalConsumption);
                 }
                 // Energy consumed all at once from wireless net.
-                setCalculatedEut(0);
+                overwriteCalculatedEut(0);
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }
 
@@ -209,7 +212,12 @@ public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETra
             protected OverclockCalculator createOverclockCalculator(@Nonnull GTRecipe recipe) {
                 return OverclockCalculator.ofNoOverclock(recipe);
             }
-        }.setMaxParallelSupplier(() -> multiplier);
+        }.setMaxParallelSupplier(this::getTrueParallel);
+    }
+
+    @Override
+    public int getMaxParallelRecipes() {
+        return multiplier;
     }
 
     @Override
@@ -218,6 +226,7 @@ public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETra
         logic.setAvailableVoltage(Long.MAX_VALUE);
         logic.setAvailableAmperage(1);
         logic.setAmperageOC(false);
+        logic.setUnlimitedTierSkips();
     }
 
     private static final int HORIZONTAL_OFFSET = 2;
@@ -231,7 +240,7 @@ public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETra
 
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
-        return survivialBuildPiece(
+        return survivalBuildPiece(
             STRUCTURE_PIECE_MAIN,
             stackSize,
             HORIZONTAL_OFFSET,
@@ -262,16 +271,6 @@ public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETra
     }
 
     @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
-        return false;
-    }
-
-    @Override
     public void onPreTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
 
         super.onPreTick(aBaseMetaTileEntity, aTick);
@@ -285,62 +284,8 @@ public class MTETranscendentPlasmaMixer extends MTEEnhancedMultiBlockBase<MTETra
     private static final int PARALLEL_WINDOW_ID = 10;
 
     @Override
-    public void addUIWidgets(ModularWindow.Builder builder, UIBuildContext buildContext) {
-        buildContext.addSyncedWindow(PARALLEL_WINDOW_ID, this::createParallelWindow);
-        builder.widget(new ButtonWidget().setOnClick((clickData, widget) -> {
-            if (!widget.isClient()) {
-                widget.getContext()
-                    .openSyncedWindow(PARALLEL_WINDOW_ID);
-            }
-        })
-            .setPlayClickSound(true)
-            .setBackground(() -> {
-                List<UITexture> ret = new ArrayList<>();
-                ret.add(GTUITextures.BUTTON_STANDARD);
-                ret.add(GTUITextures.OVERLAY_BUTTON_BATCH_MODE_ON);
-                return ret.toArray(new IDrawable[0]);
-            })
-            .addTooltip(translateToLocal("GT5U.tpm.parallelwindow"))
-            .setTooltipShowUpDelay(TOOLTIP_DELAY)
-            .setPos(174, 112)
-            .setSize(16, 16));
-        super.addUIWidgets(builder, buildContext);
-    }
-
-    protected ModularWindow createParallelWindow(final EntityPlayer player) {
-        final int WIDTH = 158;
-        final int HEIGHT = 52;
-        final int PARENT_WIDTH = getGUIWidth();
-        final int PARENT_HEIGHT = getGUIHeight();
-        ModularWindow.Builder builder = ModularWindow.builder(WIDTH, HEIGHT);
-        builder.setBackground(GTUITextures.BACKGROUND_SINGLEBLOCK_DEFAULT);
-        builder.setGuiTint(getGUIColorization());
-        builder.setDraggable(true);
-        builder.setPos(
-            (size, window) -> Alignment.Center.getAlignedPos(size, new Size(PARENT_WIDTH, PARENT_HEIGHT))
-                .add(
-                    Alignment.BottomRight.getAlignedPos(new Size(PARENT_WIDTH, PARENT_HEIGHT), new Size(WIDTH, HEIGHT))
-                        .add(WIDTH - 3, 0)
-                        .subtract(0, 10)));
-        builder.widget(
-            TextWidget.localised("GTPP.CC.parallel")
-                .setPos(3, 4)
-                .setSize(150, 20))
-            .widget(
-                new NumericWidget().setSetter(val -> multiplier = (int) val)
-                    .setGetter(() -> multiplier)
-                    .setBounds(1, Integer.MAX_VALUE)
-                    .setDefaultValue(1)
-                    .setScrollValues(1, 4, 64)
-                    .setTextAlignment(Alignment.Center)
-                    .setTextColor(Color.WHITE.normal)
-                    .setSize(150, 18)
-                    .setPos(4, 25)
-                    .setBackground(GTUITextures.BACKGROUND_TEXT_FIELD)
-                    .attachSyncer(
-                        new FakeSyncWidget.IntegerSyncer(() -> multiplier, (val) -> multiplier = val),
-                        builder));
-        return builder.build();
+    protected @NotNull MTEMultiBlockBaseGui<?> getGui() {
+        return new MTETranscendentPlasmaMixerGui(this);
     }
 
     @Override

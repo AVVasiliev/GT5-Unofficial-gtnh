@@ -11,13 +11,15 @@ public class MTELargeBoilerSteel extends MTELargeBoiler {
 
     public MTELargeBoilerSteel(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
-        pollutionPerSecond = GTMod.gregtechproxy.mPollutionLargeSteelBoilerPerSecond;
+        pollutionPerSecond = GTMod.proxy.mPollutionLargeSteelBoilerPerSecond;
     }
 
     public MTELargeBoilerSteel(String aName) {
         super(aName);
-        pollutionPerSecond = GTMod.gregtechproxy.mPollutionLargeSteelBoilerPerSecond;
+        pollutionPerSecond = GTMod.proxy.mPollutionLargeSteelBoilerPerSecond;
     }
+
+    public static final int EUT_GENERATED = 1000;
 
     @Override
     public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
@@ -76,7 +78,7 @@ public class MTELargeBoilerSteel extends MTELargeBoiler {
 
     @Override
     public int getEUt() {
-        return 1000;
+        return MTELargeBoilerSteel.EUT_GENERATED;
     }
 
     @Override

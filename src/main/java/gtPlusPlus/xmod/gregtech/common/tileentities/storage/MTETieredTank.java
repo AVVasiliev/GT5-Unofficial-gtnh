@@ -8,18 +8,18 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.Textures;
-import gregtech.api.gui.modularui.GTUIInfos;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEBasicTank;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTLanguageManager;
 import gregtech.api.util.GTUtility;
 import gtPlusPlus.api.objects.Logger;
@@ -34,7 +34,7 @@ public class MTETieredTank extends MTEBasicTank {
             aNameRegional,
             aTier,
             3,
-            "Stores " + GTUtility.formatNumbers(((int) (Math.pow(2, aTier) * 32000))) + "L of fluid");
+            "Stores " + GTUtility.formatNumbers(((int) (GTUtility.powInt(2, aTier) * 32000))) + "L of fluid");
     }
 
     public MTETieredTank(final String aName, final int aTier, final String[] aDescription,
@@ -63,9 +63,9 @@ public class MTETieredTank extends MTEBasicTank {
         final ForgeDirection facing, final int aColorIndex, final boolean aActive, final boolean aRedstone) {
         return side == ForgeDirection.UP
             ? new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColorIndex + 1],
-                new GTRenderedTexture(Textures.BlockIcons.OVERLAY_TOP_FLUIDTANK) }
+                TextureFactory.of(Textures.BlockIcons.OVERLAY_TOP_FLUIDTANK) }
             : new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColorIndex + 1],
-                new GTRenderedTexture(Textures.BlockIcons.OVERLAY_SIDE_FLUIDTANK) };
+                TextureFactory.of(Textures.BlockIcons.OVERLAY_SIDE_FLUIDTANK) };
     }
 
     @Override
@@ -94,17 +94,7 @@ public class MTETieredTank extends MTEBasicTank {
     }
 
     @Override
-    public boolean isSimpleMachine() {
-        return true;
-    }
-
-    @Override
     public boolean isFacingValid(final ForgeDirection facing) {
-        return true;
-    }
-
-    @Override
-    public boolean isAccessAllowed(final EntityPlayer aPlayer) {
         return true;
     }
 
@@ -137,11 +127,20 @@ public class MTETieredTank extends MTEBasicTank {
     public String[] getInfoData() {
 
         if (this.mFluid == null) {
-            return new String[] { GTValues.VOLTAGE_NAMES[this.mTier] + " Fluid Tank", "Stored Fluid:", "No Fluid",
-                0 + "L", this.getCapacity() + "L" };
+            return new String[] {
+                StatCollector.translateToLocalFormatted(
+                    "gtpp.infodata.tiered_tank.name",
+                    GTValues.getLocalizedLongVoltageName(this.mTier)),
+                StatCollector.translateToLocal("GT5U.infodata.digital_tank.stored_fluid"),
+                StatCollector.translateToLocal("GT5U.infodata.digital_tank.stored_fluid.empty"), 0 + "L",
+                this.getCapacity() + "L" };
         }
-        return new String[] { GTValues.VOLTAGE_NAMES[this.mTier] + " Fluid Tank", "Stored Fluid:",
-            this.mFluid.getLocalizedName(), this.mFluid.amount + "L", this.getCapacity() + "L" };
+        return new String[] {
+            StatCollector.translateToLocalFormatted(
+                "gtpp.infodata.tiered_tank.name",
+                GTValues.getLocalizedLongVoltageName(this.mTier)),
+            StatCollector.translateToLocal("GT5U.infodata.digital_tank.stored_fluid"), this.mFluid.getLocalizedName(),
+            this.mFluid.amount + "L", this.getCapacity() + "L" };
     }
 
     @Override
@@ -151,28 +150,13 @@ public class MTETieredTank extends MTEBasicTank {
 
     @Override
     public int getCapacity() {
-        return (int) (Math.pow(2, this.mTier) * 32000);
-    }
-
-    @Override
-    public int getTankPressure() {
-        return 100;
+        return (int) (GTUtility.powInt(2, this.mTier) * 32000);
     }
 
     @Override
     public boolean onRightclick(final IGregTechTileEntity aBaseMetaTileEntity, final EntityPlayer aPlayer) {
-        GTUIInfos.openGTTileEntityUI(aBaseMetaTileEntity, aPlayer);
+        openGui(aPlayer);
         return true;
-    }
-
-    @Override
-    public boolean displaysItemStack() {
-        return true;
-    }
-
-    @Override
-    public boolean displaysStackSize() {
-        return false;
     }
 
     @Override

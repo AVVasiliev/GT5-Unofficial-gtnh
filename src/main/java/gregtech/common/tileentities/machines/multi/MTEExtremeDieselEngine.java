@@ -20,7 +20,6 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatchDynamo;
-import gregtech.api.metatileentity.implementations.MTEHatchMuffler;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.recipe.maps.FuelBackend;
@@ -41,7 +40,7 @@ public class MTEExtremeDieselEngine extends MTEDieselEngine {
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Combustion Generator")
+        tt.addMachineType("Combustion Generator, ECE")
             .addInfo("Supply high rating fuel and 8000L of Lubricant per hour to run")
             .addInfo("Supply 40L/s of Liquid Oxygen to boost output (optional)")
             .addInfo("Default: Produces 10900EU/t at 100% fuel efficiency")
@@ -96,11 +95,6 @@ public class MTEExtremeDieselEngine extends MTEDieselEngine {
     }
 
     @Override
-    public Block getCasingBlock() {
-        return GregTechAPI.sBlockCasings4;
-    }
-
-    @Override
     public byte getCasingMeta() {
         return 0;
     }
@@ -112,16 +106,6 @@ public class MTEExtremeDieselEngine extends MTEDieselEngine {
 
     @Override
     public byte getIntakeMeta() {
-        return 4;
-    }
-
-    @Override
-    public Block getGearboxBlock() {
-        return GregTechAPI.sBlockCasings2;
-    }
-
-    @Override
-    public byte getGearboxMeta() {
         return 4;
     }
 
@@ -141,18 +125,8 @@ public class MTEExtremeDieselEngine extends MTEDieselEngine {
     }
 
     @Override
-    protected int getBoostFactor() {
-        return 2;
-    }
-
-    @Override
     protected Materials getBooster() {
         return Materials.LiquidOxygen;
-    }
-
-    @Override
-    protected int getAdditiveFactor() {
-        return 1;
     }
 
     @Override
@@ -161,22 +135,12 @@ public class MTEExtremeDieselEngine extends MTEDieselEngine {
     }
 
     @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return boostEu ? 30000 : 10000;
-    }
-
-    @Override
     public int getPollutionPerSecond(ItemStack aStack) {
-        return GTMod.gregtechproxy.mPollutionExtremeCombustionEnginePerSecond;
+        return GTMod.proxy.mPollutionExtremeCombustionEnginePerSecond;
     }
 
     @Override
     public String[] getInfoData() {
-        int mPollutionReduction = 0;
-        for (MTEHatchMuffler tHatch : validMTEList(mMufflerHatches)) {
-            mPollutionReduction = Math.max(tHatch.calculatePollutionReduction(100), mPollutionReduction);
-        }
-
         long storedEnergy = 0;
         long maxEnergy = 0;
         for (MTEHatchDynamo tHatch : validMTEList(mDynamoHatches)) {
@@ -186,7 +150,9 @@ public class MTEExtremeDieselEngine extends MTEDieselEngine {
                 .getEUCapacity();
         }
 
-        return new String[] { EnumChatFormatting.BLUE + "Extreme Diesel Engine" + EnumChatFormatting.RESET,
+        return new String[] {
+            EnumChatFormatting.BLUE + StatCollector.translateToLocal("GT5U.infodata.extreme_diesel_engine")
+                + EnumChatFormatting.RESET,
             StatCollector.translateToLocal("GT5U.multiblock.energy") + ": "
                 + EnumChatFormatting.GREEN
                 + GTUtility.formatNumbers(storedEnergy)
@@ -228,7 +194,7 @@ public class MTEExtremeDieselEngine extends MTEDieselEngine {
                 + " %",
             StatCollector.translateToLocal("GT5U.multiblock.pollution") + ": "
                 + EnumChatFormatting.GREEN
-                + mPollutionReduction
+                + getAveragePollutionPercentage()
                 + EnumChatFormatting.RESET
                 + " %" };
     }

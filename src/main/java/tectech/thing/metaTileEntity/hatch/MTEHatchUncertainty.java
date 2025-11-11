@@ -15,6 +15,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
@@ -31,7 +32,6 @@ import com.gtnewhorizons.modularui.common.widget.TextWidget;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import gregtech.api.enums.Textures;
-import gregtech.api.gui.modularui.GTUIInfos;
 import gregtech.api.gui.modularui.GTUITextures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -39,12 +39,11 @@ import gregtech.api.interfaces.modularui.IAddGregtechLogo;
 import gregtech.api.interfaces.modularui.IAddUIWidgets;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatch;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.render.TextureFactory;
 import gregtech.mixin.interfaces.accessors.EntityPlayerMPAccessor;
 import tectech.TecTech;
 import tectech.thing.gui.TecTechUITextures;
 import tectech.util.CommonValues;
-import tectech.util.TTUtility;
 
 /**
  * Created by danie_000 on 15.12.2016.
@@ -55,13 +54,12 @@ public class MTEHatchUncertainty extends MTEHatch implements IAddGregtechLogo, I
     private static Textures.BlockIcons.CustomIcon ScreenOFF;
     public short[] matrix = new short[] { 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500,
         500 };
-    public byte selection = -1, mode = 0, status = -128; // all 8 bits set
-
+    public byte selection = -1, mode = 0, status = (byte) 0b11111111; // all 8 bits set
+    private boolean stopChecking = false;
     private String clientLocale = "en_US";
 
     public MTEHatchUncertainty(int aID, String aName, String aNameRegional, int aTier) {
         super(aID, aName, aNameRegional, aTier, 0, "");
-        TTUtility.setTier(aTier, this);
         regenerate();
     }
 
@@ -80,24 +78,27 @@ public class MTEHatchUncertainty extends MTEHatch implements IAddGregtechLogo, I
 
     @Override
     public ITexture[] getTexturesActive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture, new GTRenderedTexture(ScreenON) };
+        return new ITexture[] { aBaseTexture, TextureFactory.of(ScreenON) };
     }
 
     @Override
     public ITexture[] getTexturesInactive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture, new GTRenderedTexture(ScreenOFF) };
+        return new ITexture[] { aBaseTexture, TextureFactory.of(ScreenOFF) };
     }
 
     @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
-        if (aBaseMetaTileEntity.isServerSide() && (aTick & 15) == 0) {
+        // Changed from calling every 15 ticks; based on local testing new shift() implementation fades ~20.97x faster
+        if (aBaseMetaTileEntity.isServerSide() && aTick % 320 == 0) {
             if (mode == 0) {
                 aBaseMetaTileEntity.setActive(false);
-                status = -128;
+                status = (byte) 0b11111111;
             } else {
                 aBaseMetaTileEntity.setActive(true);
-                shift();
-                compute();
+                if (!stopChecking) { // No point in making calculations if the entire matrix has faded to 0
+                    shift();
+                    compute();
+                }
             }
         }
     }
@@ -116,11 +117,6 @@ public class MTEHatchUncertainty extends MTEHatch implements IAddGregtechLogo, I
     public String[] getInfoData() {
         return new String[] {
             translateToLocalFormatted("tt.keyword.Status", clientLocale) + ": " + EnumChatFormatting.GOLD + status };
-    }
-
-    @Override
-    public boolean isSimpleMachine() {
-        return true;
     }
 
     @Override
@@ -166,11 +162,6 @@ public class MTEHatchUncertainty extends MTEHatch implements IAddGregtechLogo, I
     }
 
     @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
-        return true;
-    }
-
-    @Override
     public boolean isValidSlot(int aIndex) {
         return false;
     }
@@ -193,19 +184,21 @@ public class MTEHatchUncertainty extends MTEHatch implements IAddGregtechLogo, I
         if (aPlayer instanceof EntityPlayerMPAccessor) {
             clientLocale = ((EntityPlayerMPAccessor) aPlayer).gt5u$getTranslator();
         }
-        GTUIInfos.openGTTileEntityUI(aBaseMetaTileEntity, aPlayer);
+        openGui(aPlayer);
         return true;
     }
 
     @Override
     public String[] getDescription() {
-        return new String[] { CommonValues.TEC_MARK_EM, translateToLocal("gt.blockmachines.hatch.certain.desc.0"), // Feeling
-                                                                                                                   // certain,
-                                                                                                                   // or
-                                                                                                                   // not?
-            EnumChatFormatting.AQUA.toString() + EnumChatFormatting.BOLD
-                + translateToLocal("gt.blockmachines.hatch.certain.desc.1") // Schrödinger equation in a box
-        };
+        String[] description = new String[4];
+        description[0] = CommonValues.TEC_MARK_EM;
+        description[1] = translateToLocal("gt.blockmachines.hatch.certain.desc.0"); // Feeling certain, or not?
+        description[2] = EnumChatFormatting.AQUA.toString() + EnumChatFormatting.BOLD
+            + translateToLocal("gt.blockmachines.hatch.certain.desc.1"); // Schrödinger equation in a box
+        if (mTier < 6) {
+            description[3] = EnumChatFormatting.DARK_RED + translateToLocal("gt.blockmachines.hatch.certain.desc.2");
+        }
+        return description;
     }
 
     private boolean balanceCheck(int sideLenY, short... masses) {
@@ -310,13 +303,12 @@ public class MTEHatchUncertainty extends MTEHatch implements IAddGregtechLogo, I
     }
 
     private void shift() {
-        int i = TecTech.RANDOM.nextInt(16), j = TecTech.RANDOM.nextInt(128);
-        matrix[i] += ((matrix[i] & 1) == 0 ? 2 : -2) * j >> 5;
-        matrix[i] += j == 0 ? 1 : 0;
-        if (matrix[i] < 0) {
-            matrix[i] = 0;
-        } else if (matrix[i] > 1000) {
-            matrix[i] = 999;
+        stopChecking = true;
+        for (int i = 0; i < 16; i++) {
+            matrix[i] = (short) Math.max(0, matrix[i] - 1);
+            if (matrix[i] != 0 && stopChecking) {
+                stopChecking = false;
+            }
         }
     }
 
@@ -328,6 +320,7 @@ public class MTEHatchUncertainty extends MTEHatch implements IAddGregtechLogo, I
             newMode = 0;
         }
         mode = (byte) newMode;
+        stopChecking = false;
         regenerate();
         compute();
         return status;
@@ -343,7 +336,6 @@ public class MTEHatchUncertainty extends MTEHatch implements IAddGregtechLogo, I
 
     @Override
     public void addUIWidgets(ModularWindow.Builder builder, UIBuildContext buildContext) {
-        final boolean isAdvanced = mTier > 7;
 
         builder.widget(
             new DrawableWidget().setDrawable(TecTechUITextures.BACKGROUND_SCREEN_BLUE)
@@ -382,7 +374,10 @@ public class MTEHatchUncertainty extends MTEHatch implements IAddGregtechLogo, I
             .widget(new FakeSyncWidget.ByteSyncer(() -> status, val -> status = val));
 
         builder.widget(
-            new TextWidget().setStringSupplier(() -> "Status: " + (status == 0 ? "OK" : "NG"))
+            new TextWidget()
+                .setStringSupplier(
+                    () -> (status == 0 ? StatCollector.translateToLocal("tt.gui.text.hatch.uncertainty.status.ok")
+                        : StatCollector.translateToLocal("tt.gui.text.hatch.uncertainty.status.ng")))
                 .setDefaultColor(COLOR_TEXT_WHITE.get())
                 .setPos(46, 7));
 
@@ -431,23 +426,17 @@ public class MTEHatchUncertainty extends MTEHatch implements IAddGregtechLogo, I
 
                 @Override
                 public void draw(float partialTicks) {
-                    if (isAdvanced) {
-                        glEnable(GL_BLEND);
-                        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                        glColor4f(1f, 1f, 1f, (float) matrix[index] / 1000f);
+                    glEnable(GL_BLEND);
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    glColor4f(1f, 1f, 1f, (float) matrix[index] / 1000f);
 
-                        // super.draw but without disabling blend
-                        GlStateManager.pushMatrix();
-                        getDrawable().draw(Pos2d.ZERO, getSize(), partialTicks);
-                        GlStateManager.popMatrix();
+                    // super.draw but without disabling blend
+                    GlStateManager.pushMatrix();
+                    getDrawable().draw(Pos2d.ZERO, getSize(), partialTicks);
+                    GlStateManager.popMatrix();
 
-                        glDisable(GL_BLEND);
-                        glColor4f(1f, 1f, 1f, 1f);
-                    } else {
-                        if (TecTech.RANDOM.nextInt(1000) < matrix[index]) {
-                            super.draw(partialTicks);
-                        }
-                    }
+                    glDisable(GL_BLEND);
+                    glColor4f(1f, 1f, 1f, 1f);
                 }
             }.setDrawable(TecTechUITextures.PICTURE_UNCERTAINTY_INDICATOR)
                 .setPos(47 + (i / 4) * 12, 28 + (i % 4) * 12)

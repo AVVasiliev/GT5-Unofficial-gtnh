@@ -14,8 +14,10 @@ import static gregtech.api.util.GTStructureUtility.ofFrame;
 import static gregtech.api.util.GTUtility.validMTEList;
 import static java.lang.Math.min;
 import static net.minecraft.util.StatCollector.translateToLocal;
+import static net.minecraft.util.StatCollector.translateToLocalFormatted;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -58,6 +60,7 @@ import gregtech.api.metatileentity.implementations.MTEHatchMaintenance;
 import gregtech.api.metatileentity.implementations.MTEHatchOutput;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.SimpleCheckRecipeResult;
+import gregtech.api.util.GTUtility;
 import gregtech.api.util.IGTHatchAdder;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.shutdown.ShutDownReason;
@@ -72,7 +75,6 @@ import tectech.thing.casing.TTCasingsContainer;
 import tectech.thing.metaTileEntity.hatch.MTEHatchCapacitor;
 import tectech.thing.metaTileEntity.hatch.MTEHatchDynamoMulti;
 import tectech.thing.metaTileEntity.hatch.MTEHatchEnergyMulti;
-import tectech.thing.metaTileEntity.hatch.MTEHatchParam;
 import tectech.thing.metaTileEntity.multi.base.INameFunction;
 import tectech.thing.metaTileEntity.multi.base.IStatusFunction;
 import tectech.thing.metaTileEntity.multi.base.LedStatus;
@@ -180,7 +182,6 @@ public class MTETeslaTower extends TTMultiblockBase implements ISurvivalConstruc
                     Dynamo,
                     InputHatch,
                     OutputHatch,
-                    HatchElement.Param,
                     Maintenance)
                 .dot(1)
                 .casingIndex(BlockGTCasingsTT.textureOffset + 16 + 6)
@@ -506,7 +507,7 @@ public class MTETeslaTower extends TTMultiblockBase implements ISurvivalConstruc
             outputVoltageMax = 0;
             return SimpleCheckRecipeResult.ofSuccess("routing");
         } else if (vTier > mTier && getEUVar() > 0) {
-            explodeMultiblock();
+            return SimpleCheckRecipeResult.ofFailure("invalid_primary_winding");
         }
 
         outputVoltageMax = V[vTier + 1];
@@ -549,6 +550,7 @@ public class MTETeslaTower extends TTMultiblockBase implements ISurvivalConstruc
                                                                                             // Windings need to
             // be at least the same tier as
             // the Tesla Capacitor
+            .addTecTechHatchInfo()
             .beginStructureBlock(7, 17, 7, false)
             .addOtherStructurePart(
                 translateToLocal("gt.blockmachines.hatch.capacitor.tier.03.name"),
@@ -773,7 +775,7 @@ public class MTETeslaTower extends TTMultiblockBase implements ISurvivalConstruc
         return getBaseMetaTileEntity().isActive() ? super.getEUVar() : 1;
     }
 
-    private boolean addCapacitorToMachineList(IGregTechTileEntity aTileEntity, int aBaseCasingIndex) {
+    public boolean addCapacitorToMachineList(IGregTechTileEntity aTileEntity, int aBaseCasingIndex) {
         if (aTileEntity == null) {
             return false;
         }
@@ -787,7 +789,7 @@ public class MTETeslaTower extends TTMultiblockBase implements ISurvivalConstruc
         }
         if (aMetaTileEntity instanceof MTEHatchMaintenance) {
             ((MTEHatch) aMetaTileEntity).updateTexture(aBaseCasingIndex);
-            return mMaintenanceHatches.add((MTEHatchMaintenance) aMetaTileEntity);
+            return addMaintenanceToMachineList(aTileEntity, aBaseCasingIndex);
         }
         if (aMetaTileEntity instanceof MTEHatchEnergy) {
             ((MTEHatch) aMetaTileEntity).updateTexture(aBaseCasingIndex);
@@ -804,10 +806,6 @@ public class MTETeslaTower extends TTMultiblockBase implements ISurvivalConstruc
         if (aMetaTileEntity instanceof MTEHatchDynamoMulti) {
             ((MTEHatch) aMetaTileEntity).updateTexture(aBaseCasingIndex);
             return eDynamoMulti.add((MTEHatchDynamoMulti) aMetaTileEntity);
-        }
-        if (aMetaTileEntity instanceof MTEHatchParam) {
-            ((MTEHatch) aMetaTileEntity).updateTexture(aBaseCasingIndex);
-            return eParamHatches.add((MTEHatchParam) aMetaTileEntity);
         }
         if (aMetaTileEntity instanceof MTEHatchInput) {
             ((MTEHatch) aMetaTileEntity).updateTexture(aBaseCasingIndex);
@@ -833,7 +831,7 @@ public class MTETeslaTower extends TTMultiblockBase implements ISurvivalConstruc
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, IItemSource source, EntityPlayerMP actor) {
         if (mMachine) return -1;
-        return survivialBuildPiece("main", stackSize, 3, 16, 0, elementBudget, source, actor, false, true);
+        return survivalBuildPiece("main", stackSize, 3, 16, 0, elementBudget, source, actor, false, true);
     }
 
     @Override
@@ -941,6 +939,24 @@ public class MTETeslaTower extends TTMultiblockBase implements ISurvivalConstruc
             return true;
         }
         return false;
+    }
+
+    @Override
+    public String[] getInfoData() {
+        List<String> data = new ArrayList<>(Arrays.asList(super.getInfoData()));
+
+        data.add(
+            translateToLocalFormatted(
+                "tt.infodata.multi.energy_hatches",
+                EnumChatFormatting.GREEN + GTUtility.formatNumbers(getTeslaStoredEnergy()) + EnumChatFormatting.RESET,
+                EnumChatFormatting.YELLOW + GTUtility.formatNumbers(energyCapacity) + EnumChatFormatting.RESET));
+        data.add(
+            translateToLocalFormatted(
+                "tt.infodata.multi.current_output",
+                EnumChatFormatting.GREEN + GTUtility.formatNumbers(getTeslaOutputCurrent()) + EnumChatFormatting.RESET,
+                EnumChatFormatting.YELLOW + GTUtility.formatNumbers(outputCurrentMax) + EnumChatFormatting.RESET));
+
+        return data.toArray(new String[0]);
     }
 
     private enum CapacitorHatchElement implements IHatchElement<MTETeslaTower> {

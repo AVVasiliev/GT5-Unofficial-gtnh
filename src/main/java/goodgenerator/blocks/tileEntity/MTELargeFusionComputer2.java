@@ -45,7 +45,7 @@ public class MTELargeFusionComputer2 extends MTELargeFusionComputer {
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType("Fusion Reactor")
-            .addInfo("Millions of nuclear.")
+            .addInfo("More Power!!!!")
             .addInfo(
                 EnumChatFormatting.AQUA + GTUtility.formatNumbers(getSingleHatchPower())
                     + EnumChatFormatting.GRAY
@@ -61,17 +61,8 @@ public class MTELargeFusionComputer2 extends MTELargeFusionComputer {
                 "If the recipe requires a voltage tier over " + GTUtility.getColoredTierNameFromTier((byte) tier())
                     + EnumChatFormatting.GRAY
                     + " , you can't do it either")
-            .addInfo("Make sure the whole structure is built in the 3x3")
-            .addInfo("chunk area of the ring center (not controller).")
-            .addInfo("Startup < 160,000,000 EU: 128x Parallel")
-            .addInfo("Startup >= 160,000,000 EU: 64x Parallel")
-            .addInfo(
-                "Support" + EnumChatFormatting.BLUE
-                    + " Tec"
-                    + EnumChatFormatting.DARK_BLUE
-                    + "Tech"
-                    + EnumChatFormatting.GRAY
-                    + " Energy/Laser Hatches!")
+            .addInfo(createParallelText())
+            .addTecTechHatchInfo()
             .addCasingInfoMin("Fusion Machine Casing", 1664, false)
             .addCasingInfoMin("Compact Fusion Coil", 560, false)
             .addCasingInfoMin("Duranium Frame Box", 128, false)
@@ -81,7 +72,7 @@ public class MTELargeFusionComputer2 extends MTELargeFusionComputer {
             .addOutputHatch("1-16, Hint block with dot 1", 1)
             .addStructureInfo("Supports Crafting Input Buffer")
             .addStructureInfo(
-                "ALL Hatches must be " + GTUtility.getColoredTierNameFromTier((byte) hatchTier())
+                "Energy Hatches must be " + GTUtility.getColoredTierNameFromTier((byte) energyHatchTier())
                     + EnumChatFormatting.GRAY
                     + " or better")
             .toolTipFinisher();
@@ -129,7 +120,7 @@ public class MTELargeFusionComputer2 extends MTELargeFusionComputer {
     }
 
     @Override
-    public int hatchTier() {
+    public int energyHatchTier() {
         return 7;
     }
 
@@ -144,8 +135,8 @@ public class MTELargeFusionComputer2 extends MTELargeFusionComputer {
     }
 
     @Override
-    public int extraPara(int startEnergy) {
-        return startEnergy < 160000000 ? 2 : 1;
+    public int extraPara(long startEnergy) {
+        return startEnergy < 160000000L ? 2 : 1;
     }
 
     @Override

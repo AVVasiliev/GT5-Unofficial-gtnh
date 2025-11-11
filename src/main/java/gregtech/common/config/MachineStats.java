@@ -5,7 +5,7 @@ import com.gtnewhorizon.gtnhlib.config.Config;
 import gregtech.api.enums.Mods;
 
 @Config(
-    modid = Mods.Names.GREG_TECH,
+    modid = Mods.ModIDs.GREG_TECH,
     category = "machine_stats",
     configSubDirectory = "GregTech",
     filename = "MachineStats")
@@ -127,7 +127,7 @@ public class MachineStats {
         public int UUAPerUUM;
 
         @Config.Comment("Speed bonus delivered by the UUA.")
-        @Config.DefaultInt(40)
+        @Config.DefaultInt(4)
         @Config.RequiresMcRestart
         public int UUASpeedBonus;
     }

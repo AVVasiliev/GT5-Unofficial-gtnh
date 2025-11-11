@@ -17,6 +17,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.oredict.OreDictionary;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -29,6 +30,7 @@ import com.gtnewhorizons.modularui.api.screen.ModularWindow;
 import com.gtnewhorizons.modularui.api.screen.UIBuildContext;
 import com.gtnewhorizons.modularui.common.widget.FakeSyncWidget;
 
+import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.SoundResource;
 import gregtech.api.enums.TAE;
 import gregtech.api.interfaces.IIconContainer;
@@ -44,10 +46,8 @@ import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.pollution.PollutionConfig;
 import gtPlusPlus.api.recipe.GTPPRecipeMaps;
 import gtPlusPlus.core.block.ModBlocks;
-import gtPlusPlus.core.material.Material;
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
-import gtPlusPlus.xmod.gregtech.common.helpers.FlotationRecipeHandler;
 
 public class MTEFrothFlotationCell extends GTPPMultiBlockBase<MTEFrothFlotationCell> implements ISurvivalConstructable {
 
@@ -69,7 +69,7 @@ public class MTEFrothFlotationCell extends GTPPMultiBlockBase<MTEFrothFlotationC
 
     @Override
     public String getMachineType() {
-        return "Flotation Cell";
+        return "Flotation Cell, FCR";
     }
 
     @Override
@@ -78,6 +78,7 @@ public class MTEFrothFlotationCell extends GTPPMultiBlockBase<MTEFrothFlotationC
         tt.addMachineType(getMachineType())
             .addInfo("Process that milled ore!")
             .addInfo("You can only ever process one type of material per controller")
+            .addPerfectOCInfo()
             .addPollutionAmount(getPollutionPerSecond(null))
             .beginStructureBlock(7, 9, 7, true)
             .addController("Front Center")
@@ -94,7 +95,7 @@ public class MTEFrothFlotationCell extends GTPPMultiBlockBase<MTEFrothFlotationC
 
     @Override
     protected SoundResource getProcessStartSound() {
-        return SoundResource.IC2_MACHINES_ELECTROFURNACE_LOOP;
+        return SoundResource.GTCEU_LOOP_HUM;
     }
 
     @Override
@@ -103,8 +104,18 @@ public class MTEFrothFlotationCell extends GTPPMultiBlockBase<MTEFrothFlotationC
     }
 
     @Override
+    protected IIconContainer getActiveGlowOverlay() {
+        return TexturesGtBlock.oMCDFrothFlotationCellActiveGlow;
+    }
+
+    @Override
     protected IIconContainer getInactiveOverlay() {
         return TexturesGtBlock.oMCDFrothFlotationCell;
+    }
+
+    @Override
+    protected IIconContainer getInactiveGlowOverlay() {
+        return TexturesGtBlock.oMCDFrothFlotationCellGlow;
     }
 
     @Override
@@ -115,11 +126,6 @@ public class MTEFrothFlotationCell extends GTPPMultiBlockBase<MTEFrothFlotationC
     @Override
     public RecipeMap<?> getRecipeMap() {
         return GTPPRecipeMaps.flotationCellRecipes;
-    }
-
-    @Override
-    public int getMaxParallelRecipes() {
-        return 1;
     }
 
     @Override
@@ -159,7 +165,7 @@ public class MTEFrothFlotationCell extends GTPPMultiBlockBase<MTEFrothFlotationC
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return survivialBuildPiece(mName, stackSize, 3, 3, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(mName, stackSize, 3, 3, 0, elementBudget, env, false, true);
     }
 
     @Override
@@ -174,18 +180,8 @@ public class MTEFrothFlotationCell extends GTPPMultiBlockBase<MTEFrothFlotationC
     }
 
     @Override
-    public int getMaxEfficiency(final ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
     public int getPollutionPerSecond(final ItemStack aStack) {
         return PollutionConfig.pollutionPerSecondMultiFrothFlotationCell;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(final ItemStack aStack) {
-        return false;
     }
 
     @Override
@@ -195,32 +191,39 @@ public class MTEFrothFlotationCell extends GTPPMultiBlockBase<MTEFrothFlotationC
             @NotNull
             @Override
             protected CheckRecipeResult validateRecipe(@NotNull GTRecipe recipe) {
-                /*
-                 * Material checks Makes sure we can only ever use one type of material in this flotation cell. We used
-                 * to depend on Alk's hash, but it's unreliable and user-hostile So we're using unlocalized name of
-                 * material now.
-                 */
-                Material foundMaterial = FlotationRecipeHandler
-                    .getMaterialOfMilledProduct(FlotationRecipeHandler.findMilledStack(recipe));
-                String foundMaterialName = null;
-                if (foundMaterial != null) {
-                    foundMaterialName = foundMaterial.getUnlocalizedName();
-                }
-
-                if (foundMaterialName == null) {
+                // Make sure we lock to a specific milled ore, checked via oredict
+                String milledName = getMilledStackName(recipe);
+                if (milledName == null) {
                     return CheckRecipeResultRegistry.NO_RECIPE;
                 }
 
                 // Set material locked for this controller
-                if (lockedMaterialName == null) {
-                    lockedMaterialName = foundMaterialName;
+                // "milled" check is to clear old save data since the name caching system changed
+                if (lockedMaterialName == null || !lockedMaterialName.startsWith("milled")) {
+                    lockedMaterialName = milledName;
                 }
 
-                // Check material match
-                if (!Objects.equals(lockedMaterialName, foundMaterialName)) {
+                // Ensure oredict matches
+                if (!Objects.equals(lockedMaterialName, milledName)) {
                     return SimpleCheckRecipeResult.ofFailure("machine_locked_to_different_recipe");
                 }
                 return CheckRecipeResultRegistry.SUCCESSFUL;
+            }
+
+            private String getMilledStackName(GTRecipe recipe) {
+                if (recipe == null || recipe.mInputs == null) {
+                    return null;
+                }
+
+                for (ItemStack stack : recipe.mInputs) {
+                    for (int oreID : OreDictionary.getOreIDs(stack)) {
+                        String oredict = OreDictionary.getOreName(oreID);
+                        if (oredict.startsWith(OrePrefixes.milled.toString())) {
+                            return oredict;
+                        }
+                    }
+                }
+                return null;
             }
         }.enablePerfectOverclock();
     }
@@ -275,6 +278,11 @@ public class MTEFrothFlotationCell extends GTPPMultiBlockBase<MTEFrothFlotationC
     @Override
     public boolean isRecipeLockingEnabled() {
         return lockedMaterialName != null && !lockedMaterialName.isEmpty();
+    }
+
+    @Override
+    protected boolean useMui2() {
+        return false;
     }
 
     @Override

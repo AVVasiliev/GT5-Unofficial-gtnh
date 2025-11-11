@@ -16,11 +16,12 @@ import com.gtnewhorizon.structurelib.structure.IStructureElement;
 
 import bartworks.util.BWTooltipReference;
 import bartworks.util.BWUtil;
+import gregtech.api.enums.GTValues;
 import gregtech.api.logic.ProcessingLogic;
 import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
 import gregtech.api.metatileentity.implementations.MTEHatch;
 import gregtech.api.metatileentity.implementations.MTEHatchEnergy;
-import gregtech.api.metatileentity.implementations.MTEHatchMuffler;
+import gregtech.api.metatileentity.implementations.MTEHatchEnergyDebug;
 import gregtech.api.util.GTUtility;
 
 public abstract class MegaMultiBlockBase<T extends MegaMultiBlockBase<T>> extends MTEExtendedPowerMultiBlockBase<T> {
@@ -34,7 +35,7 @@ public abstract class MegaMultiBlockBase<T extends MegaMultiBlockBase<T>> extend
     }
 
     protected String[] getExtendedInfoData() {
-        return new String[0];
+        return GTValues.emptyStringArray;
     }
 
     protected long[] getCurrentInfoData() {
@@ -50,17 +51,16 @@ public abstract class MegaMultiBlockBase<T extends MegaMultiBlockBase<T>> extend
 
     @Override
     public String[] getInfoData() {
-        int mPollutionReduction = 0;
-
-        for (MTEHatchMuffler tHatch : validMTEList(mMufflerHatches)) {
-            mPollutionReduction = Math.max(tHatch.calculatePollutionReduction(100), mPollutionReduction);
-        }
-
         long[] ttHatches = this.getCurrentInfoData();
         long storedEnergy = ttHatches[0];
         long maxEnergy = ttHatches[1];
 
         for (MTEHatchEnergy tHatch : validMTEList(mEnergyHatches)) {
+            if (tHatch instanceof MTEHatchEnergyDebug debugHatch) {
+                storedEnergy = debugHatch.getEUVar();
+                maxEnergy = debugHatch.maxEUStore();
+                break;
+            }
             storedEnergy += tHatch.getBaseMetaTileEntity()
                 .getStoredEU();
             maxEnergy += tHatch.getBaseMetaTileEntity()
@@ -124,7 +124,7 @@ public abstract class MegaMultiBlockBase<T extends MegaMultiBlockBase<T>> extend
                 + " %",
             StatCollector.translateToLocal("GT5U.multiblock.pollution") + ": "
                 + EnumChatFormatting.GREEN
-                + mPollutionReduction
+                + getAveragePollutionPercentage()
                 + EnumChatFormatting.RESET
                 + " %" };
 
@@ -138,29 +138,10 @@ public abstract class MegaMultiBlockBase<T extends MegaMultiBlockBase<T>> extend
     }
 
     @Override
-    public boolean isCorrectMachinePart(ItemStack itemStack) {
-        return true;
-    }
-
-    @Override
-    public int getDamageToComponent(ItemStack itemStack) {
-        return 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack itemStack) {
-        return false;
-    }
-
-    @Override
-    public int getMaxEfficiency(ItemStack itemStack) {
-        return 10000;
-    }
-
-    @Override
     protected void setProcessingLogicPower(ProcessingLogic logic) {
         logic.setAvailableVoltage(this.getMaxInputEu());
         logic.setAvailableAmperage(1);
+        logic.setUnlimitedTierSkips();
     }
 
     protected static class StructureElementAirNoHint<T> implements IStructureElement<T> {
@@ -177,6 +158,11 @@ public abstract class MegaMultiBlockBase<T extends MegaMultiBlockBase<T>> extend
         @Override
         public boolean check(T o, World world, int x, int y, int z) {
             return world.isAirBlock(x, y, z);
+        }
+
+        @Override
+        public boolean couldBeValid(T o, World world, int x, int y, int z, ItemStack trigger) {
+            return check(o, world, x, y, z);
         }
 
         @Override

@@ -88,13 +88,12 @@ public class ReplicatorBackend extends RecipeMapBackend {
                     .duration(GTUtility.safeInt(uum * 512L, 1))
                     .eut(TierEU.RECIPE_LV)
                     .ignoreCollision()
-                    .noOptimize()
                     .build())
             .map(Collections::singletonList)
             .orElse(Collections.emptyList());
     }
 
     private static int getUUMAmountFromMass(long mass) {
-        return GTUtility.safeInt((long) Math.pow(mass, GTMod.gregtechproxy.replicatorExponent), 1);
+        return GTUtility.safeInt((long) Math.pow(mass, GTMod.proxy.replicatorExponent), 1);
     }
 }

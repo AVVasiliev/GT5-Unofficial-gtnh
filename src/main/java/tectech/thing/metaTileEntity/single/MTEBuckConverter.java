@@ -2,6 +2,7 @@ package tectech.thing.metaTileEntity.single;
 
 import static gregtech.api.enums.GTValues.V;
 import static gregtech.api.enums.GTValues.VN;
+import static gregtech.api.enums.Textures.BlockIcons.*;
 import static net.minecraft.util.StatCollector.translateToLocal;
 
 import java.util.function.Consumer;
@@ -11,6 +12,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import com.gtnewhorizons.modularui.api.NumberFormatMUI;
@@ -19,12 +21,12 @@ import com.gtnewhorizons.modularui.api.screen.ModularWindow;
 import com.gtnewhorizons.modularui.api.screen.UIBuildContext;
 import com.gtnewhorizons.modularui.common.widget.ButtonWidget;
 import com.gtnewhorizons.modularui.common.widget.DrawableWidget;
+import com.gtnewhorizons.modularui.common.widget.FakeSyncWidget;
 import com.gtnewhorizons.modularui.common.widget.TextWidget;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import gregtech.api.enums.Textures;
-import gregtech.api.gui.modularui.GTUIInfos;
 import gregtech.api.gui.modularui.GTUITextures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.modularui.IAddGregtechLogo;
@@ -32,14 +34,13 @@ import gregtech.api.interfaces.modularui.IAddUIWidgets;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTETieredMachineBlock;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTUtility;
 import tectech.util.CommonValues;
-import tectech.util.TTUtility;
 
 public class MTEBuckConverter extends MTETieredMachineBlock implements IAddUIWidgets, IAddGregtechLogo {
 
-    private static GTRenderedTexture BUCK, BUCK_ACTIVE;
+    private static ITexture BUCK, BUCK_ACTIVE;
     public int EUT = 0, AMP = 0;
     private static final NumberFormatMUI numberFormat = new NumberFormatMUI();
 
@@ -52,12 +53,10 @@ public class MTEBuckConverter extends MTETieredMachineBlock implements IAddUIWid
             0,
             new String[] { CommonValues.TEC_MARK_GENERAL, translateToLocal("gt.blockmachines.machine.tt.buck.desc.0"),
                 EnumChatFormatting.BLUE + translateToLocal("gt.blockmachines.machine.tt.buck.desc.1"), });
-        TTUtility.setTier(aTier, this);
     }
 
     public MTEBuckConverter(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
         super(aName, aTier, 0, aDescription, aTextures);
-        TTUtility.setTier(aTier, this);
     }
 
     @Override
@@ -69,19 +68,18 @@ public class MTEBuckConverter extends MTETieredMachineBlock implements IAddUIWid
     @SideOnly(Side.CLIENT)
     public void registerIcons(IIconRegister aBlockIconRegister) {
         super.registerIcons(aBlockIconRegister);
-        BUCK = new GTRenderedTexture(new Textures.BlockIcons.CustomIcon("iconsets/BUCK"));
-        BUCK_ACTIVE = new GTRenderedTexture(new Textures.BlockIcons.CustomIcon("iconsets/BUCK_ACTIVE"));
+        BUCK = TextureFactory.of(new Textures.BlockIcons.CustomIcon("iconsets/BUCK"));
+        BUCK_ACTIVE = TextureFactory.of(new Textures.BlockIcons.CustomIcon("iconsets/BUCK_ACTIVE"));
     }
 
     @Override
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection facing,
         int colorIndex, boolean aActive, boolean aRedstone) {
-        return new ITexture[] { tectech.thing.metaTileEntity.Textures.MACHINE_CASINGS_TT[mTier][colorIndex + 1],
+        return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[mTier][colorIndex + 1],
             side == facing ? (aActive ? BUCK_ACTIVE : BUCK)
-                : (side == facing.getOpposite()
-                    ? tectech.thing.metaTileEntity.Textures.OVERLAYS_ENERGY_IN_POWER_TT[mTier]
-                    : (aActive ? tectech.thing.metaTileEntity.Textures.OVERLAYS_ENERGY_OUT_POWER_TT[mTier]
-                        : tectech.thing.metaTileEntity.Textures.OVERLAYS_ENERGY_IN_POWER_TT[mTier])) };
+                : (side == facing.getOpposite() ? Textures.BlockIcons.OVERLAYS_ENERGY_IN_MULTI_16A[mTier + 1]
+                    : (aActive ? Textures.BlockIcons.OVERLAYS_ENERGY_OUT_MULTI_16A[mTier + 1]
+                        : Textures.BlockIcons.OVERLAYS_ENERGY_IN_MULTI_16A[mTier + 1])) };
     }
 
     @Override
@@ -115,28 +113,13 @@ public class MTEBuckConverter extends MTETieredMachineBlock implements IAddUIWid
     }
 
     @Override
-    public boolean isSimpleMachine() {
-        return false;
-    }
-
-    @Override
     public boolean onRightclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
-        GTUIInfos.openGTTileEntityUI(aBaseMetaTileEntity, aPlayer);
+        openGui(aPlayer);
         return true;
     }
 
     @Override
     public boolean isFacingValid(ForgeDirection facing) {
-        return true;
-    }
-
-    @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
-        return true;
-    }
-
-    @Override
-    public boolean isElectric() {
         return true;
     }
 
@@ -211,24 +194,37 @@ public class MTEBuckConverter extends MTETieredMachineBlock implements IAddUIWid
 
     @Override
     public void addUIWidgets(ModularWindow.Builder builder, UIBuildContext buildContext) {
+        builder.widget(new FakeSyncWidget.IntegerSyncer(() -> EUT, val -> EUT = val));
+        builder.widget(new FakeSyncWidget.IntegerSyncer(() -> AMP, val -> AMP = val));
+
         builder.widget(
             new DrawableWidget().setDrawable(GTUITextures.PICTURE_SCREEN_BLACK)
                 .setSize(90, 72)
                 .setPos(43, 4))
             .widget(
-                new TextWidget().setStringSupplier(() -> "EUT: " + numberFormat.format(EUT))
+                new TextWidget()
+                    .setStringSupplier(
+                        () -> StatCollector.translateToLocal("tt.gui.text.debug.eut") + " " + numberFormat.format(EUT))
                     .setDefaultColor(COLOR_TEXT_WHITE.get())
                     .setPos(46, 8))
             .widget(
-                new TextWidget().setStringSupplier(() -> "TIER: " + VN[GTUtility.getTier(Math.abs(EUT))])
+                new TextWidget()
+                    .setStringSupplier(
+                        () -> StatCollector
+                            .translateToLocalFormatted("tt.gui.text.debug.tier", VN[GTUtility.getTier(Math.abs(EUT))]))
                     .setDefaultColor(COLOR_TEXT_WHITE.get())
                     .setPos(46, 16))
             .widget(
-                new TextWidget().setStringSupplier(() -> "AMP: " + numberFormat.format(AMP))
+                new TextWidget()
+                    .setStringSupplier(
+                        () -> StatCollector.translateToLocal("tt.gui.text.debug.amp") + " " + numberFormat.format(AMP))
                     .setDefaultColor(COLOR_TEXT_WHITE.get())
                     .setPos(46, 24))
             .widget(
-                new TextWidget().setStringSupplier(() -> "SUM: " + numberFormat.format((long) AMP * EUT))
+                new TextWidget()
+                    .setStringSupplier(
+                        () -> StatCollector
+                            .translateToLocalFormatted("tt.gui.text.debug.sum", numberFormat.format((long) AMP * EUT)))
                     .setDefaultColor(COLOR_TEXT_WHITE.get())
                     .setPos(46, 32));
 

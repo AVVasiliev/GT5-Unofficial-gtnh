@@ -13,13 +13,12 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.IIcon;
+import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
-import net.minecraftforge.oredict.OreDictionary;
 
 import cpw.mods.fml.common.registry.GameRegistry;
 import gtPlusPlus.core.item.chemistry.general.ItemGenericChemBase;
-import gtPlusPlus.core.util.minecraft.ItemUtils;
-import gtPlusPlus.core.util.minecraft.OreDictUtils;
+import gtPlusPlus.xmod.gregtech.common.tileentities.machines.multi.production.chemplant.MTEChemicalPlant;
 
 public class ItemAgrichemBase extends Item {
 
@@ -75,47 +74,15 @@ public class ItemAgrichemBase extends Item {
         return false;
     }
 
-    private static boolean mHasCheckedForSodiumHydroxide = false;
-    private static boolean mShowSodiumHydroxide = true;
-
-    private static boolean checkSodiumHydroxide() {
-        if (mHasCheckedForSodiumHydroxide) {
-            return mShowSodiumHydroxide;
-        } else {
-            if (OreDictUtils.containsValidEntries("dustSodiumHydroxide_GT5U")
-                || OreDictUtils.containsValidEntries("dustSodiumHydroxide")) {
-                List<ItemStack> aTest = OreDictionary.getOres("dustSodiumHydroxide", false);
-                if (aTest.isEmpty()) {
-                    aTest = OreDictionary.getOres("dustSodiumHydroxide_GT5U", false);
-                    if (!aTest.isEmpty()) {
-                        mShowSodiumHydroxide = false;
-                    }
-                } else {
-                    mShowSodiumHydroxide = false;
-                }
-            }
-        }
-        mHasCheckedForSodiumHydroxide = true;
-        return mShowSodiumHydroxide;
-    }
-
     @Override
-    public void getSubItems(Item aItem, CreativeTabs p_150895_2_, List aList) {
+    public void getSubItems(Item aItem, CreativeTabs p_150895_2_, List<ItemStack> aList) {
         for (int i = 0; i < base.length; i++) {
-            if (i == 19) {
-                // Only show if it doesn't exist.
-                if (checkSodiumHydroxide()) {
-                    aList.add(ItemUtils.simpleMetaStack(aItem, i, 1));
-                }
-            } else {
-                aList.add(ItemUtils.simpleMetaStack(aItem, i, 1));
+            switch (i) {
+                // skip no longer used items
+                case 16, 18, 19, 20, 21 -> {}
+                default -> aList.add(new ItemStack(aItem, 1, i));
             }
         }
-    }
-
-    @Override
-    public boolean getIsRepairable(ItemStack p_82789_1_, ItemStack p_82789_2_) {
-        return false;
     }
 
     @Override
@@ -126,11 +93,6 @@ public class ItemAgrichemBase extends Item {
     @Override
     public boolean isBookEnchantable(ItemStack stack, ItemStack book) {
         return false;
-    }
-
-    @Override
-    public int getItemEnchantability() {
-        return 0;
     }
 
     @Override
@@ -173,7 +135,7 @@ public class ItemAgrichemBase extends Item {
 
     @Override
     public double getDurabilityForDisplay(ItemStack aStack) {
-        if (ItemUtils.isCatalyst(aStack)) {
+        if (MTEChemicalPlant.isCatalyst(aStack)) {
             if (aStack.getTagCompound() == null || aStack.getTagCompound()
                 .hasNoTags()) {
                 createCatalystNBT(aStack);
@@ -193,8 +155,10 @@ public class ItemAgrichemBase extends Item {
         int aDamageSegment = 0;
         int aDam = 0;
         EnumChatFormatting durability = EnumChatFormatting.GRAY;
-        if (ItemUtils.isCatalyst(aStack)) {
-            list.add(EnumChatFormatting.GRAY + "Active Reaction Agent");
+        if (MTEChemicalPlant.isCatalyst(aStack)) {
+            list.add(
+                EnumChatFormatting.GRAY
+                    + StatCollector.translateToLocal("GTPP.tooltip.catalyst.active_reaction_agent"));
             aMaxDamage = getCatalystMaxDamage(aStack);
             aDamageSegment = aMaxDamage / 5;
             aDam = aMaxDamage - getCatalystDamage(aStack);
@@ -217,7 +181,7 @@ public class ItemAgrichemBase extends Item {
 
     @Override
     public boolean showDurabilityBar(ItemStack aStack) {
-        if (ItemUtils.isCatalyst(aStack)) {
+        if (MTEChemicalPlant.isCatalyst(aStack)) {
             int aDam = getCatalystDamage(aStack);
             return aDam > 0;
         }

@@ -20,17 +20,18 @@ import java.util.Set;
 
 import net.minecraft.item.ItemStack;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.Materials;
+import gregtech.api.enums.ToolDictNames;
 import gregtech.api.util.GTModHandler;
 import gtPlusPlus.api.interfaces.RunnableWithInfo;
 import gtPlusPlus.api.objects.Logger;
-import gtPlusPlus.api.objects.data.Pair;
 import gtPlusPlus.core.material.Material;
 import gtPlusPlus.core.material.MaterialGenerator;
 import gtPlusPlus.core.material.MaterialStack;
 import gtPlusPlus.core.material.state.MaterialState;
-import gtPlusPlus.core.recipe.common.CI;
 import gtPlusPlus.core.util.minecraft.ItemUtils;
 import gtPlusPlus.core.util.minecraft.MaterialUtils;
 import gtPlusPlus.core.util.minecraft.RecipeUtils;
@@ -88,8 +89,7 @@ public class RecipeGenOre extends RecipeGenBase {
         boolean allFailed = false;
 
         // Setup Bonuses
-        ArrayList<Material> aMatComp = new ArrayList<>();
-        aMatComp.addAll(MaterialUtils.getCompoundMaterialsRecursively(material));
+        ArrayList<Material> aMatComp = new ArrayList<>(MaterialUtils.getCompoundMaterialsRecursively(material));
 
         if (aMatComp.size() < 3) {
             while (aMatComp.size() < 3) {
@@ -167,7 +167,7 @@ public class RecipeGenOre extends RecipeGenBase {
         ArrayList<Pair<Integer, Material>> componentMap = new ArrayList<>();
         for (MaterialStack r : material.getComposites()) {
             if (r != null) {
-                componentMap.add(new Pair<>(r.getPartsPerOneHundred(), r.getStackMaterial()));
+                componentMap.add(Pair.of(r.getPartsPerOneHundred(), r.getStackMaterial()));
             }
         }
 
@@ -252,7 +252,7 @@ public class RecipeGenOre extends RecipeGenBase {
             .itemInputs(material.getCrushed(1))
             .itemOutputs(material.getCrushedPurified(1), matDustA, dustStone)
             .outputChances(100_00, 11_11, 100_00)
-            .fluidInputs(GTModHandler.getWater(1000))
+            .fluidInputs(Materials.Water.getFluid(1_000))
             .duration(25 * SECONDS)
             .eut(16)
             .addTo(oreWasherRecipes);
@@ -326,6 +326,15 @@ public class RecipeGenOre extends RecipeGenBase {
             .addTo(hammerRecipes);
 
         Logger.MATERIALS("[ForgeHammer] Added Recipe: 'Crushed Centrifuged to Pure Dust'");
+
+        GTValues.RA.stdBuilder()
+            .itemInputs(material.getCrushed(1))
+            .itemOutputs(material.getDustImpure(1))
+            .duration(10 * TICKS)
+            .eut(tVoltageMultiplier / 4)
+            .addTo(hammerRecipes);
+
+        Logger.MATERIALS("[ForgeHammer] Added Recipe: 'Crushed to Impure Dust'");
 
         GTValues.RA.stdBuilder()
             .itemInputs(material.getCrushedPurified(1))
@@ -612,7 +621,7 @@ public class RecipeGenOre extends RecipeGenBase {
         // Shaped Crafting
 
         RecipeUtils.addShapedRecipe(
-            CI.craftingToolHammer_Hard,
+            ToolDictNames.craftingToolHardHammer.name(),
             null,
             null,
             material.getCrushedPurified(1),
@@ -624,7 +633,7 @@ public class RecipeGenOre extends RecipeGenBase {
             material.getDustPurified(1));
 
         RecipeUtils.addShapedRecipe(
-            CI.craftingToolHammer_Hard,
+            ToolDictNames.craftingToolHardHammer.name(),
             null,
             null,
             material.getCrushed(1),
@@ -636,7 +645,7 @@ public class RecipeGenOre extends RecipeGenBase {
             material.getDustImpure(1));
 
         RecipeUtils.addShapedRecipe(
-            CI.craftingToolHammer_Hard,
+            ToolDictNames.craftingToolHardHammer.name(),
             null,
             null,
             material.getCrushedCentrifuged(1),

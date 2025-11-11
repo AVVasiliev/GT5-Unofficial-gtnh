@@ -18,10 +18,9 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEBasicMachine;
-import gregtech.api.objects.GTRenderedTexture;
 import gregtech.api.recipe.BasicUIProperties;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTUtility;
-import gtPlusPlus.core.util.minecraft.ItemUtils;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 import team.chisel.carving.Carving;
 
@@ -40,14 +39,54 @@ public class MTEAutoChisel extends MTEBasicMachine {
             "Chisels things, Gregtech style",
             1,
             1,
-            new GTRenderedTexture(BlockIcons.OVERLAY_SIDE_MASSFAB_ACTIVE),
-            new GTRenderedTexture(BlockIcons.OVERLAY_SIDE_MASSFAB),
-            new GTRenderedTexture(BlockIcons.OVERLAY_FRONT_MULTI_SMELTER_ACTIVE),
-            new GTRenderedTexture(BlockIcons.OVERLAY_FRONT_MULTI_SMELTER),
-            new GTRenderedTexture(TexturesGtBlock.Overlay_MatterFab_Active),
-            new GTRenderedTexture(TexturesGtBlock.Overlay_MatterFab),
-            new GTRenderedTexture(BlockIcons.OVERLAY_BOTTOM_MASSFAB_ACTIVE),
-            new GTRenderedTexture(BlockIcons.OVERLAY_BOTTOM_MASSFAB));
+            TextureFactory.of(
+                TextureFactory.of(BlockIcons.OVERLAY_SIDE_MASSFAB_ACTIVE),
+                TextureFactory.builder()
+                    .addIcon(BlockIcons.OVERLAY_SIDE_MASSFAB_ACTIVE_GLOW)
+                    .glow()
+                    .build()),
+            TextureFactory.of(
+                TextureFactory.of(BlockIcons.OVERLAY_SIDE_MASSFAB),
+                TextureFactory.builder()
+                    .addIcon(BlockIcons.OVERLAY_SIDE_MASSFAB_GLOW)
+                    .glow()
+                    .build()),
+            TextureFactory.of(
+                TextureFactory.of(BlockIcons.OVERLAY_FRONT_MULTI_SMELTER_ACTIVE),
+                TextureFactory.builder()
+                    .addIcon(BlockIcons.OVERLAY_FRONT_MULTI_SMELTER_ACTIVE_GLOW)
+                    .glow()
+                    .build()),
+            TextureFactory.of(
+                TextureFactory.of(BlockIcons.OVERLAY_FRONT_MULTI_SMELTER),
+                TextureFactory.builder()
+                    .addIcon(BlockIcons.OVERLAY_FRONT_MULTI_SMELTER_GLOW)
+                    .glow()
+                    .build()),
+            TextureFactory.of(
+                TextureFactory.of(TexturesGtBlock.Overlay_MatterFab_Active),
+                TextureFactory.builder()
+                    .addIcon(TexturesGtBlock.Overlay_MatterFab_Active_Glow)
+                    .glow()
+                    .build()),
+            TextureFactory.of(
+                TextureFactory.of(TexturesGtBlock.Overlay_MatterFab),
+                TextureFactory.builder()
+                    .addIcon(TexturesGtBlock.Overlay_MatterFab_Glow)
+                    .glow()
+                    .build()),
+            TextureFactory.of(
+                TextureFactory.of(BlockIcons.OVERLAY_BOTTOM_MASSFAB_ACTIVE),
+                TextureFactory.builder()
+                    .addIcon(BlockIcons.OVERLAY_BOTTOM_MASSFAB_ACTIVE_GLOW)
+                    .glow()
+                    .build()),
+            TextureFactory.of(
+                TextureFactory.of(BlockIcons.OVERLAY_BOTTOM_MASSFAB),
+                TextureFactory.builder()
+                    .addIcon(BlockIcons.OVERLAY_BOTTOM_MASSFAB_GLOW)
+                    .glow()
+                    .build()));
     }
 
     public MTEAutoChisel(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
@@ -147,7 +186,7 @@ public class MTEAutoChisel extends MTEBasicMachine {
                         return FOUND_RECIPE_BUT_DID_NOT_MEET_REQUIREMENTS;
                     }
                     if (!tIsCached) {
-                        cacheItem(ItemUtils.getSimpleStack(aInput, 1), ItemUtils.getSimpleStack(tOutput, 1));
+                        cacheItem(GTUtility.copyAmount(1, aInput), GTUtility.copyAmount(1, tOutput));
                     }
                     this.mOutputItems[0] = tOutput.copy();
                     return FOUND_AND_SUCCESSFULLY_USED_RECIPE;

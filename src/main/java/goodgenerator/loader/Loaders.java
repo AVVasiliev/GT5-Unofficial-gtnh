@@ -7,7 +7,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.OreDictionary;
 
-import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.registry.GameRegistry;
 import goodgenerator.blocks.myFluids.FluidsBuilder;
 import goodgenerator.blocks.regularBlock.AntimatterRenderBlock;
@@ -19,18 +18,15 @@ import goodgenerator.blocks.regularBlock.BlockTurbineCasing;
 import goodgenerator.blocks.tileEntity.AntimatterForge;
 import goodgenerator.blocks.tileEntity.AntimatterGenerator;
 import goodgenerator.blocks.tileEntity.AntimatterOutputHatch;
-import goodgenerator.blocks.tileEntity.GTMetaTileEntity.MTEDieselGenerator;
 import goodgenerator.blocks.tileEntity.GTMetaTileEntity.MTENeutronAccelerator;
 import goodgenerator.blocks.tileEntity.GTMetaTileEntity.MTENeutronSensor;
 import goodgenerator.blocks.tileEntity.GTMetaTileEntity.MTEYOTTAHatch;
 import goodgenerator.blocks.tileEntity.MTEComponentAssemblyLine;
 import goodgenerator.blocks.tileEntity.MTECoolantTower;
-import goodgenerator.blocks.tileEntity.MTEEssentiaHatch;
 import goodgenerator.blocks.tileEntity.MTEEssentiaOutputHatch;
 import goodgenerator.blocks.tileEntity.MTEEssentiaOutputHatchME;
 import goodgenerator.blocks.tileEntity.MTEExtremeHeatExchanger;
 import goodgenerator.blocks.tileEntity.MTEFuelRefineFactory;
-import goodgenerator.blocks.tileEntity.MTELargeEssentiaGenerator;
 import goodgenerator.blocks.tileEntity.MTELargeEssentiaSmeltery;
 import goodgenerator.blocks.tileEntity.MTELargeFusionComputer1;
 import goodgenerator.blocks.tileEntity.MTELargeFusionComputer2;
@@ -44,10 +40,8 @@ import goodgenerator.blocks.tileEntity.MTESupercriticalFluidTurbine;
 import goodgenerator.blocks.tileEntity.MTEUniversalChemicalFuelEngine;
 import goodgenerator.blocks.tileEntity.MTEYottaFluidTank;
 import goodgenerator.blocks.tileEntity.render.TileAntimatter;
-import goodgenerator.client.render.BlockRenderHandler;
 import goodgenerator.crossmod.ic2.CropsLoader;
 import goodgenerator.crossmod.nei.NEIConfig;
-import goodgenerator.crossmod.thaumcraft.LargeEssentiaEnergyData;
 import goodgenerator.items.GGItem;
 import goodgenerator.items.GGItemBlocks;
 import goodgenerator.items.GGMaterial;
@@ -57,11 +51,17 @@ import goodgenerator.util.CrackRecipeAdder;
 import goodgenerator.util.MaterialFix;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.GTValues;
+import gregtech.api.enums.Materials;
 import gregtech.api.enums.MetaTileEntityIDs;
 import gregtech.api.enums.Mods;
+import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.render.TextureFactory;
+import gregtech.api.util.GTOreDictUnificator;
+import gregtech.common.misc.GTStructureChannels;
+import gregtech.common.tileentities.generators.MTEDieselGenerator;
+import kekztech.common.blocks.BlockTFFTStorageField;
 
 public class Loaders {
 
@@ -123,14 +123,6 @@ public class Loaders {
             GoodGenerator.MOD_ID + ":fluidCore/5", GoodGenerator.MOD_ID + ":fluidCore/6",
             GoodGenerator.MOD_ID + ":fluidCore/7", GoodGenerator.MOD_ID + ":fluidCore/8",
             GoodGenerator.MOD_ID + ":fluidCore/9", GoodGenerator.MOD_ID + ":fluidCore/10" });
-    public static final Item upgradeEssentia = new GGItem(
-        "upgradeEssentia",
-        GoodGenerator.GG,
-        new String[] { GoodGenerator.MOD_ID + ":upgradeEssentia/null", GoodGenerator.MOD_ID + ":upgradeEssentia/air",
-            GoodGenerator.MOD_ID + ":upgradeEssentia/thermal", GoodGenerator.MOD_ID + ":upgradeEssentia/unstable",
-            GoodGenerator.MOD_ID + ":upgradeEssentia/victus", GoodGenerator.MOD_ID + ":upgradeEssentia/tainted",
-            GoodGenerator.MOD_ID + ":upgradeEssentia/mechanics", GoodGenerator.MOD_ID + ":upgradeEssentia/spirit",
-            GoodGenerator.MOD_ID + ":upgradeEssentia/radiation", GoodGenerator.MOD_ID + ":upgradeEssentia/electric" });
     public static final Item highEnergyMixture = new GGItem(
         "highEnergyMixture",
         GoodGenerator.GG,
@@ -246,7 +238,6 @@ public class Loaders {
     public static final Block essentiaFilterCasing = new BlockCasing(
         "essentiaFilterCasing",
         new String[] { GoodGenerator.MOD_ID + ":essentiaFilterCasing" });
-    public static Block essentiaHatch;
     public static Block essentiaOutputHatch;
     public static Block essentiaOutputHatch_ME;
     public static final Block componentAssemblylineCasing = new BlockCasing(
@@ -269,7 +260,6 @@ public class Loaders {
     public static ItemStack MAR;
     public static ItemStack FRF;
     public static ItemStack UCFE;
-    public static ItemStack LEG;
     public static ItemStack NS;
     public static ItemStack NA;
     public static ItemStack YFT;
@@ -281,7 +271,7 @@ public class Loaders {
     public static ItemStack CT;
     public static ItemStack[] LFC = new ItemStack[5];
 
-    public static ItemStack[] NeutronAccelerators = new ItemStack[9];
+    public static ItemStack[] NeutronAccelerators = new ItemStack[13];
     public static ItemStack[] Generator_Diesel = new ItemStack[2];
 
     public static ItemStack CompAssline;
@@ -303,8 +293,10 @@ public class Loaders {
             MetaTileEntityIDs.NeutronAcceleratorLV.ID, MetaTileEntityIDs.NeutronAcceleratorMV.ID,
             MetaTileEntityIDs.NeutronAcceleratorHV.ID, MetaTileEntityIDs.NeutronAcceleratorEV.ID,
             MetaTileEntityIDs.NeutronAcceleratorIV.ID, MetaTileEntityIDs.NeutronAcceleratorLuV.ID,
-            MetaTileEntityIDs.NeutronAcceleratorZPM.ID, MetaTileEntityIDs.NeutronAcceleratorUV.ID, };
-        for (int i = 0; i < 9; i++) {
+            MetaTileEntityIDs.NeutronAcceleratorZPM.ID, MetaTileEntityIDs.NeutronAcceleratorUV.ID,
+            MetaTileEntityIDs.NeutronAcceleratorUHV.ID, MetaTileEntityIDs.NeutronAcceleratorUEV.ID,
+            MetaTileEntityIDs.NeutronAcceleratorUIV.ID, MetaTileEntityIDs.NeutronAcceleratorUMV.ID, };
+        for (int i = 0; i < 13; i++) {
             Loaders.NeutronAccelerators[i] = new MTENeutronAccelerator(
                 neutronAcceleratorIDs[i],
                 "Neutron Accelerator " + GTValues.VN[i],
@@ -322,11 +314,11 @@ public class Loaders {
         Loaders.YFH = new MTEYOTTAHatch(MetaTileEntityIDs.YottaHatch.ID, "YottaFluidTankHatch", "YOTHatch", 5)
             .getStackForm(1L);
         Loaders.AMHatch = new AntimatterOutputHatch(
-            IDs_GoodGenerator.AntimatterHatch.ID,
+            MetaTileEntityIDs.AntimatterHatch.ID,
             "AntimatterHatch",
             "Antimatter Hatch").getStackForm(1L);
         Loaders.SCTurbine = new MTESupercriticalFluidTurbine(
-            IDs_GoodGenerator.SupercriticalFluidTurbine.ID,
+            MetaTileEntityIDs.SupercriticalFluidTurbine.ID,
             "SupercriticalSteamTurbine",
             "Large Supercritical Steam Turbine").getStackForm(1L);
         Loaders.XHE = new MTEExtremeHeatExchanger(
@@ -361,12 +353,14 @@ public class Loaders {
             MetaTileEntityIDs.DieselGeneratorEV.ID,
             "basicgenerator.diesel.tier.04",
             "Turbo Supercharging Combustion Generator",
-            4).getStackForm(1L);
+            4,
+            65).getStackForm(1L);
         Loaders.Generator_Diesel[1] = new MTEDieselGenerator(
             MetaTileEntityIDs.DieselGeneratorIV.ID,
             "basicgenerator.diesel.tier.05",
             "Ultimate Chemical Energy Releaser",
-            5).getStackForm(1L);
+            5,
+            50).getStackForm(1L);
         Loaders.CT = new MTECoolantTower(MetaTileEntityIDs.CoolantTower.ID, "CoolantTower", "Coolant Tower")
             .getStackForm(1L);
         Loaders.CompAssline = new MTEComponentAssemblyLine(
@@ -374,14 +368,14 @@ public class Loaders {
             "ComponentAssemblyLine",
             "Component Assembly Line").getStackForm(1L);
         CrackRecipeAdder.registerPipe(MetaTileEntityIDs.PipeIncoloy903.ID, GGMaterial.incoloy903, 15000, 8000, true);
-        CrackRecipeAdder.registerWire(MetaTileEntityIDs.WireSignalium.ID, GGMaterial.signalium, 12, 131072, 16, true);
+        CrackRecipeAdder.registerWire(MetaTileEntityIDs.WireSignalium.ID, GGMaterial.signalium, 12, 131072, 32, true);
         CrackRecipeAdder.registerWire(MetaTileEntityIDs.WireLumiium.ID, GGMaterial.lumiium, 8, 524288, 64, true);
         Loaders.AMForge = new AntimatterForge(
-            IDs_GoodGenerator.AntimatterForge.ID,
+            MetaTileEntityIDs.AntimatterForge.ID,
             "AntimatterForge",
             "Semi-Stable Antimatter Stabilization Sequencer").getStackForm(1L);
         Loaders.AMGenerator = new AntimatterGenerator(
-            IDs_GoodGenerator.AntimatterGenerator.ID,
+            MetaTileEntityIDs.AntimatterGenerator.ID,
             "AntimatterGenerator",
             "Shielded Lagrangian Annihilation Matrix").getStackForm(1L);
     }
@@ -450,27 +444,22 @@ public class Loaders {
         GameRegistry.registerItem(huiCircuit, "huiCircuit", GoodGenerator.MOD_ID);
         GameRegistry.registerItem(circuitWrap, "circuitWrap", GoodGenerator.MOD_ID);
         GameRegistry.registerTileEntity(TileAntimatter.class, "AntimatterRender");
+
+        GTStructureChannels.PRASS_UNIT_CASING.registerAsIndicator(new ItemStack(impreciseUnitCasing), 1);
+        for (int i = 1; i < 6; i++) {
+            GTStructureChannels.PRASS_UNIT_CASING
+                .registerAsIndicator(new ItemStack(preciseUnitCasing, 1, i - 1), i + 1);
+        }
     }
 
     public static void compactMod() {
         if (!Mods.Thaumcraft.isModLoaded()) return;
-        LargeEssentiaEnergyData.processEssentiaData();
-        GameRegistry.registerItem(upgradeEssentia, "upgradeEssentia", GoodGenerator.MOD_ID);
-        GameRegistry.registerTileEntity(MTEEssentiaHatch.class, "EssentiaHatch");
         GameRegistry.registerTileEntity(MTEEssentiaOutputHatch.class, "EssentiaOutputHatch");
         GameRegistry.registerTileEntity(MTEEssentiaOutputHatchME.class, "EssentiaOutputHatch_ME");
-        Loaders.LEG = new MTELargeEssentiaGenerator(
-            MetaTileEntityIDs.LargeEssentiaGenerator.ID,
-            "LargeEssentiaGenerator",
-            "Large Essentia Generator - Marked for Deprecation").getStackForm(1L);
         Loaders.LES = new MTELargeEssentiaSmeltery(
             MetaTileEntityIDs.LargeEssentiaSmeltery.ID,
             "LargeEssentiaSmeltery",
             "Large Essentia Smeltery").getStackForm(1L);
-        essentiaHatch = new BlockTEContainer(
-            "essentiaHatch",
-            new String[] { GoodGenerator.MOD_ID + ":essentiaHatch" },
-            1);
         essentiaOutputHatch = new BlockTEContainer(
             "essentiaOutputHatch",
             new String[] { GoodGenerator.MOD_ID + ":essentiaOutputHatch" },
@@ -481,7 +470,6 @@ public class Loaders {
             3);
         GameRegistry.registerBlock(magicCasing, GGItemBlocks.class, "magicCasing");
         GameRegistry.registerBlock(essentiaCell, GGItemBlocks.class, "essentiaCell");
-        GameRegistry.registerBlock(essentiaHatch, GGItemBlocks.class, "essentiaHatch");
         GameRegistry.registerBlock(essentiaOutputHatch, GGItemBlocks.class, "essentiaOutputHatch");
         GameRegistry.registerBlock(essentiaFilterCasing, GGItemBlocks.class, "essentiaFilterCasing");
         GameRegistry.registerBlock(essentiaOutputHatch_ME, GGItemBlocks.class, "essentiaOutputHatch_ME");
@@ -491,6 +479,22 @@ public class Loaders {
 
     public static void addOreDic() {
         OreDictionary.registerOre("dustAluminumNitride", aluminumNitride);
+
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.ULV, new ItemStack(circuitWrap, 1, 0));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.LV, new ItemStack(circuitWrap, 1, 1));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.MV, new ItemStack(circuitWrap, 1, 2));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.HV, new ItemStack(circuitWrap, 1, 3));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.EV, new ItemStack(circuitWrap, 1, 4));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.IV, new ItemStack(circuitWrap, 1, 5));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.LuV, new ItemStack(circuitWrap, 1, 6));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.ZPM, new ItemStack(circuitWrap, 1, 7));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.UV, new ItemStack(circuitWrap, 1, 8));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.UHV, new ItemStack(circuitWrap, 1, 9));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.UEV, new ItemStack(circuitWrap, 1, 10));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.UIV, new ItemStack(circuitWrap, 1, 11));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.UMV, new ItemStack(circuitWrap, 1, 12));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.UXV, new ItemStack(circuitWrap, 1, 13));
+        GTOreDictUnificator.registerOre(OrePrefixes.wrapCircuit, Materials.MAX, new ItemStack(circuitWrap, 1, 14));
     }
 
     public static void addTexturePage() {
@@ -516,6 +520,9 @@ public class Loaders {
                 .of(magneticFluxCasing, 0);
             Textures.BlockIcons.casingTexturePages[GoodGeneratorTexturePage][10] = TextureFactory
                 .of(gravityStabilizationCasing, 0);
+            // index 126 taken by GTNH-Lanthanides
+            Textures.BlockIcons.casingTexturePages[GoodGeneratorTexturePage][127] = TextureFactory
+                .of(BlockTFFTStorageField.TFFTCasingIcon.INSTANCE);
         }
     }
 
@@ -525,15 +532,9 @@ public class Loaders {
         addTexturePage();
         compactMod();
         FluidsBuilder.Register();
-        FuelRodLoader.RegisterRod();
     }
 
     public static void initLoad() {
-        if (FMLCommonHandler.instance()
-            .getSide()
-            .isClient()) {
-            new BlockRenderHandler();
-        }
         GTMetaTileRegister();
         initLoadRecipes();
         CropsLoader.registerCrops();
@@ -546,7 +547,7 @@ public class Loaders {
     public static void completeLoad() {
         RecipeLoader2.FinishLoadRecipe();
         MaterialFix.addRecipeForMultiItems();
-        ComponentAssemblyLineRecipeLoader.run();
+        ComponentAssemblyLineLoader.run();
     }
 
     public static void initLoadRecipes() {

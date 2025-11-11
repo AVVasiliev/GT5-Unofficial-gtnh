@@ -8,15 +8,13 @@ import net.minecraftforge.common.util.ForgeDirection;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import gregtech.api.enums.TAE;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTLanguageManager;
 import gregtech.common.blocks.MaterialCasings;
 import gtPlusPlus.xmod.gregtech.api.enums.GregtechItemList;
-import gtPlusPlus.xmod.gregtech.api.objects.GTPPCopiedBlockTexture;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.CasingTextureHandler;
 
 public class GregtechMetaCasingBlocks extends GregtechMetaCasingBlocksAbstract {
-
-    CasingTextureHandler TextureHandler = new CasingTextureHandler();
 
     public GregtechMetaCasingBlocks() {
         super(GregtechMetaCasingItems.class, "miscutils.blockcasings", MaterialCasings.INSTANCE);
@@ -24,7 +22,7 @@ public class GregtechMetaCasingBlocks extends GregtechMetaCasingBlocksAbstract {
             if (i == 2 || i == 3 || i == 4) {
                 continue;
             }
-            TAE.registerTexture(0, i, new GTPPCopiedBlockTexture(this, 6, i));
+            TAE.registerTexture(0, i, TextureFactory.of(this, i));
         }
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".0.name", "Centrifuge Casing");
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".1.name", "Structural Coke Oven Casing");
@@ -40,7 +38,7 @@ public class GregtechMetaCasingBlocks extends GregtechMetaCasingBlocksAbstract {
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".10.name", "Iron Plated Bricks");
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".11.name", "Multitank Exterior Casing");
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".12.name", "Hastelloy-N Reactor Casing");
-        GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".13.name", "Zeron-100 Reactor Shielding");
+        GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".13.name", "Reactor Shield Casing");
         GTLanguageManager
             .addStringLocalization(this.getUnlocalizedName() + ".14.name", "Blast Smelter Heat Containment Coil ");
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".15.name", "Blast Smelter Casing Block");

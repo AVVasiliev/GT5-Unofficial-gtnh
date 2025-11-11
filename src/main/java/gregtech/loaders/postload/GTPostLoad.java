@@ -8,24 +8,21 @@ import static gregtech.api.enums.Mods.GalaxySpace;
 import static gregtech.api.enums.Mods.Thaumcraft;
 import static gregtech.api.recipe.RecipeMaps.fluidCannerRecipes;
 import static gregtech.api.recipe.RecipeMaps.massFabFakeRecipes;
-import static gregtech.api.recipe.RecipeMaps.rockBreakerFakeRecipes;
 import static gregtech.api.recipe.RecipeMaps.scannerFakeRecipes;
 import static gregtech.api.util.GTRecipeBuilder.MINUTES;
 import static gregtech.api.util.GTRecipeBuilder.SECONDS;
 import static gregtech.api.util.GTRecipeBuilder.TICKS;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.fluids.FluidContainerRegistry;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
@@ -33,12 +30,11 @@ import net.minecraftforge.fluids.FluidStack;
 import com.google.common.base.Stopwatch;
 
 import cpw.mods.fml.common.ProgressManager;
-import cpw.mods.fml.relauncher.Side;
-import cpw.mods.fml.relauncher.SideOnly;
 import gregtech.GTMod;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.ItemList;
 import gregtech.api.enums.Materials;
+import gregtech.api.enums.Mods;
 import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.SubTag;
 import gregtech.api.enums.TierEU;
@@ -52,9 +48,9 @@ import gregtech.api.util.GTRecipeBuilder;
 import gregtech.api.util.GTRecipeConstants;
 import gregtech.api.util.GTRecipeRegistrator;
 import gregtech.api.util.GTUtility;
-import gregtech.common.items.MetaGeneratedTool01;
 import gregtech.common.items.behaviors.BehaviourDataOrb;
 import gregtech.common.tileentities.machines.basic.MTEMassfabricator;
+import gregtech.common.tileentities.machines.basic.MTERockBreaker;
 import ic2.api.recipe.IRecipeInput;
 import ic2.api.recipe.RecipeOutput;
 
@@ -64,7 +60,7 @@ public class GTPostLoad {
     public static void activateOreDictHandler() {
         @SuppressWarnings("UnstableApiUsage") // Stable enough for this project
         Stopwatch stopwatch = Stopwatch.createStarted();
-        GTMod.gregtechproxy.activateOreDictHandler();
+        GTMod.proxy.activateOreDictHandler();
 
         // noinspection UnstableApiUsage// Stable enough for this project
         GTMod.GT_FML_LOGGER
@@ -145,7 +141,6 @@ public class GTPostLoad {
                 .itemOutputs(ItemList.IC2_Crop_Seeds.getWithName(1L, "Scanned Seeds"))
                 .duration(8 * SECONDS)
                 .eut(8)
-                .noOptimize()
                 .ignoreCollision()
                 .fake()
                 .addTo(scannerFakeRecipes);
@@ -156,7 +151,6 @@ public class GTPostLoad {
             .special(ItemList.Tool_DataStick.getWithName(1L, "Stick to save it to"))
             .duration(6 * SECONDS + 8 * TICKS)
             .eut(TierEU.RECIPE_LV)
-            .noOptimize()
             .ignoreCollision()
             .fake()
             .addTo(scannerFakeRecipes);
@@ -167,7 +161,6 @@ public class GTPostLoad {
             .special(ItemList.Tool_DataStick.getWithName(1L, "Stick to save it to"))
             .duration(6 * SECONDS + 8 * TICKS)
             .eut(TierEU.RECIPE_LV)
-            .noOptimize()
             .ignoreCollision()
             .fake()
             .addTo(scannerFakeRecipes);
@@ -177,7 +170,6 @@ public class GTPostLoad {
             .itemOutputs(ItemList.Tool_DataOrb.getWithName(1L, "Copy of the Orb"))
             .duration(25 * SECONDS + 12 * TICKS)
             .eut(TierEU.RECIPE_LV)
-            .noOptimize()
             .ignoreCollision()
             .fake()
             .addTo(scannerFakeRecipes);
@@ -188,7 +180,6 @@ public class GTPostLoad {
             .special(ItemList.Tool_DataStick.getWithName(0L, "Stick to copy"))
             .duration(6 * SECONDS + 8 * TICKS)
             .eut(TierEU.RECIPE_LV)
-            .noOptimize()
             .ignoreCollision()
             .fake()
             .addTo(scannerFakeRecipes);
@@ -198,7 +189,6 @@ public class GTPostLoad {
             .itemOutputs(ItemList.Tool_DataStick.getWithName(1L, "Analyzed Prospection Data"))
             .duration(50 * SECONDS)
             .eut(TierEU.RECIPE_LV)
-            .noOptimize()
             .ignoreCollision()
             .fake()
             .addTo(scannerFakeRecipes);
@@ -214,7 +204,6 @@ public class GTPostLoad {
                 .special(ItemList.Tool_DataStick.getWithName(1L, "Stick to save it to"))
                 .duration(30 * MINUTES)
                 .eut(TierEU.RECIPE_HV)
-                .noOptimize()
                 .ignoreCollision()
                 .fake()
                 .addTo(scannerFakeRecipes);
@@ -230,7 +219,6 @@ public class GTPostLoad {
                     .special(ItemList.Tool_DataStick.getWithName(1L, "Stick to save it to"))
                     .duration(30 * MINUTES)
                     .eut(TierEU.RECIPE_MV)
-                    .noOptimize()
                     .ignoreCollision()
                     .fake()
                     .addTo(scannerFakeRecipes);
@@ -245,7 +233,6 @@ public class GTPostLoad {
                         .special(ItemList.Tool_DataStick.getWithName(1L, "Stick to save it to"))
                         .duration(30 * MINUTES)
                         .eut(TierEU.RECIPE_HV)
-                        .noOptimize()
                         .ignoreCollision()
                         .fake()
                         .addTo(scannerFakeRecipes);
@@ -312,7 +299,6 @@ public class GTPostLoad {
                 .duration(MTEMassfabricator.sDurationMultiplier)
                 .eut(MTEMassfabricator.BASE_EUT)
                 .ignoreCollision()
-                .noOptimize()
                 .fake()
                 .build()
                 .get();
@@ -328,82 +314,71 @@ public class GTPostLoad {
             .duration(MTEMassfabricator.sDurationMultiplier / MTEMassfabricator.sUUASpeedBonus)
             .eut(MTEMassfabricator.BASE_EUT)
             .ignoreCollision()
-            .noOptimize()
             .fake()
             .build()
             .get();
 
         massFabFakeRecipes.add(MTEMassfabricator.uuaRecipe);
 
-        GTValues.RA.stdBuilder()
-            .itemInputs(ItemList.Display_ITS_FREE.getWithName(1L, "IT'S FREE! Place Lava on Side"))
-            .itemOutputs(new ItemStack(Blocks.cobblestone, 1))
-            .duration(16 * TICKS)
-            .eut(TierEU.RECIPE_LV)
-            .ignoreCollision()
-            .noOptimize()
-            .fake()
-            .addTo(rockBreakerFakeRecipes);
+        MTERockBreaker.addRockBreakerRecipe(
+            b -> b.recipeDescription(StatCollector.translateToLocal("gt.recipe.rockbreaker.fakeitem.top"))
+                .sideBlocks(Blocks.water)
+                .topBlock(Blocks.lava)
+                .outputItem(new ItemStack(Blocks.stone, 1))
+                .duration(16 * TICKS));
 
-        GTValues.RA.stdBuilder()
-            .itemInputs(ItemList.Display_ITS_FREE.getWithName(1L, "IT'S FREE! Place Lava on Side"))
-            .itemOutputs(new ItemStack(Blocks.stone, 1))
-            .duration(16 * TICKS)
-            .eut(TierEU.RECIPE_LV)
-            .ignoreCollision()
-            .noOptimize()
-            .fake()
-            .addTo(rockBreakerFakeRecipes);
+        MTERockBreaker.addRockBreakerRecipe(
+            b -> b.recipeDescription(StatCollector.translateToLocal("gt.recipe.rockbreaker.fakeitem.side"))
+                .sideBlocks(Blocks.water, Blocks.lava)
+                .outputItem(new ItemStack(Blocks.cobblestone, 1))
+                .duration(16 * TICKS));
 
-        GTValues.RA.stdBuilder()
-            .itemInputs(
-                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Redstone, 1L),
-                GTUtility.getIntegratedCircuit(1))
-            .itemOutputs(new ItemStack(Blocks.obsidian, 1))
-            .duration(6 * SECONDS + 8 * TICKS)
-            .eut(TierEU.RECIPE_LV)
-            .ignoreCollision()
-            .noOptimize()
-            .fake()
-            .addTo(rockBreakerFakeRecipes);
+        MTERockBreaker.addRockBreakerRecipe(
+            b -> b.sideBlocks(Blocks.water)
+                .anywhereBlocks(Blocks.lava)
+                .inputItem(GTOreDictUnificator.get(OrePrefixes.dust, Materials.Redstone, 1L), true)
+                .circuit(1)
+                .outputItem(new ItemStack(Blocks.obsidian, 1))
+                .duration(6 * SECONDS + 8 * TICKS));
+
+        MTERockBreaker.addRockBreakerRecipe(
+            b -> b.sideBlocks(Blocks.water)
+                .anywhereBlocks(Blocks.lava)
+                .inputItem(GTOreDictUnificator.get(OrePrefixes.dust, Materials.Glowstone, 1L), true)
+                .circuit(6)
+                .outputItem(new ItemStack(Blocks.netherrack, 1))
+                .duration(16 * TICKS));
+
+        if (Mods.EtFuturumRequiem.isModLoaded()) {
+            MTERockBreaker.addRockBreakerRecipe(
+                b -> b.sideBlocks(Blocks.lava)
+                    .bottomBlock(Blocks.soul_sand)
+                    .inputItem(GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "blue_ice", 0, 0), false)
+                    .circuit(1)
+                    .outputItem(GTOreDictUnificator.get(OrePrefixes.stone, Materials.Basalt, 1L))
+                    .duration(16 * TICKS));
+
+            MTERockBreaker.addRockBreakerRecipe(
+                b -> b.sideBlocks(Blocks.lava)
+                    .bottomBlock(Blocks.soul_sand)
+                    .inputItem(GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "magma", 0, 0), false)
+                    .circuit(1)
+                    .outputItem(GTModHandler.getModItem(Mods.EtFuturumRequiem.ID, "cobbled_deepslate", 1, 0))
+                    .duration(16 * TICKS));
+        }
     }
 
-    public static void nerfVanillaTools() {
-        if (!GTMod.gregtechproxy.mNerfedVanillaTools) {
+    public static void changeWoodenVanillaTools() {
+        if (!GTMod.proxy.mChangeWoodenVanillaTools) {
             return;
         }
 
-        GTLog.out.println("GTMod: Nerfing Vanilla Tool Durability");
-        Items.wooden_sword.setMaxDamage(12);
-        Items.wooden_pickaxe.setMaxDamage(12);
-        Items.wooden_shovel.setMaxDamage(12);
-        Items.wooden_axe.setMaxDamage(12);
-        Items.wooden_hoe.setMaxDamage(12);
-
-        Items.stone_sword.setMaxDamage(48);
-        Items.stone_pickaxe.setMaxDamage(48);
-        Items.stone_shovel.setMaxDamage(48);
-        Items.stone_axe.setMaxDamage(48);
-        Items.stone_hoe.setMaxDamage(48);
-
-        Items.iron_sword.setMaxDamage(256);
-        Items.iron_pickaxe.setMaxDamage(256);
-        Items.iron_shovel.setMaxDamage(256);
-        Items.iron_axe.setMaxDamage(256);
-        Items.iron_hoe.setMaxDamage(256);
-
-        Items.golden_sword.setMaxDamage(24);
-        Items.golden_pickaxe.setMaxDamage(24);
-        Items.golden_shovel.setMaxDamage(24);
-        Items.golden_axe.setMaxDamage(24);
-        Items.golden_hoe.setMaxDamage(24);
-
-        Items.diamond_sword.setMaxDamage(768);
-        Items.diamond_pickaxe.setMaxDamage(768);
-        Items.diamond_shovel.setMaxDamage(768);
-        Items.diamond_axe.setMaxDamage(768);
-        Items.diamond_hoe.setMaxDamage(768);
-
+        GTLog.out.println("GTMod: Updating Vanilla Wooden Tools");
+        Items.wooden_sword.setMaxDamage(64);
+        Items.wooden_pickaxe.setMaxDamage(64);
+        Items.wooden_shovel.setMaxDamage(64);
+        Items.wooden_axe.setMaxDamage(64);
+        Items.wooden_hoe.setMaxDamage(64);
     }
 
     public static void replaceVanillaMaterials() {
@@ -434,56 +409,9 @@ public class GTPostLoad {
         String plateName = OrePrefixes.plate.get(m)
             .toString();
         boolean noSmash = !m.contains(SubTag.NO_SMASHING);
-        if ((m.mTypes & 2) != 0) GTRecipeRegistrator.registerUsagesForMaterials(plateName, noSmash, m.getIngots(1));
-        if ((m.mTypes & 4) != 0) GTRecipeRegistrator.registerUsagesForMaterials(plateName, noSmash, m.getGems(1));
+        if (m.hasMetalItems()) GTRecipeRegistrator.registerUsagesForMaterials(plateName, noSmash, m.getIngots(1));
+        if (m.hasGemItems()) GTRecipeRegistrator.registerUsagesForMaterials(plateName, noSmash, m.getGems(1));
         if (m.getBlocks(1) != null) GTRecipeRegistrator.registerUsagesForMaterials(null, noSmash, m.getBlocks(1));
-    }
-
-    public static void createGTtoolsCreativeTab() {
-        new CreativeTabs("GTtools") {
-
-            @SideOnly(Side.CLIENT)
-            @Override
-            public ItemStack getIconItemStack() {
-                return ItemList.Tool_Cheat.get(1, new ItemStack(Blocks.iron_block, 1));
-            }
-
-            @SideOnly(Side.CLIENT)
-            @Override
-            public Item getTabIconItem() {
-                return ItemList.Circuit_Integrated.getItem();
-            }
-
-            @Override
-            public void displayAllReleventItems(List<ItemStack> aList) {
-
-                for (int i = 0; i < 32766; i += 2) {
-                    if (MetaGeneratedTool01.INSTANCE.getToolStats(new ItemStack(MetaGeneratedTool01.INSTANCE, 1, i))
-                        == null) {
-                        continue;
-                    }
-
-                    ItemStack tStack = new ItemStack(MetaGeneratedTool01.INSTANCE, 1, i);
-                    MetaGeneratedTool01.INSTANCE.isItemStackUsable(tStack);
-                    aList
-                        .add(MetaGeneratedTool01.INSTANCE.getToolWithStats(i, 1, Materials.Lead, Materials.Lead, null));
-                    aList.add(
-                        MetaGeneratedTool01.INSTANCE.getToolWithStats(i, 1, Materials.Nickel, Materials.Nickel, null));
-                    aList.add(
-                        MetaGeneratedTool01.INSTANCE.getToolWithStats(i, 1, Materials.Cobalt, Materials.Cobalt, null));
-                    aList.add(
-                        MetaGeneratedTool01.INSTANCE.getToolWithStats(i, 1, Materials.Osmium, Materials.Osmium, null));
-                    aList.add(
-                        MetaGeneratedTool01.INSTANCE
-                            .getToolWithStats(i, 1, Materials.Adamantium, Materials.Adamantium, null));
-                    aList.add(
-                        MetaGeneratedTool01.INSTANCE
-                            .getToolWithStats(i, 1, Materials.Neutronium, Materials.Neutronium, null));
-
-                }
-                super.displayAllReleventItems(aList);
-            }
-        };
     }
 
     public static void addSolidFakeLargeBoilerFuels() {

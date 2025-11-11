@@ -13,7 +13,6 @@ import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 
 import javax.annotation.Nonnull;
 
@@ -45,13 +44,11 @@ import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.api.util.tooltip.TooltipHelper;
 import gregtech.common.pollution.PollutionConfig;
 import gtPlusPlus.core.block.ModBlocks;
-import gtPlusPlus.core.util.minecraft.PlayerUtils;
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
-import mcp.mobius.waila.api.IWailaConfigHandler;
-import mcp.mobius.waila.api.IWailaDataAccessor;
 
 public class MTEIndustrialArcFurnace extends GTPPMultiBlockBase<MTEIndustrialArcFurnace>
     implements ISurvivalConstructable {
@@ -80,15 +77,17 @@ public class MTEIndustrialArcFurnace extends GTPPMultiBlockBase<MTEIndustrialArc
 
     @Override
     public String getMachineType() {
-        return "(Plasma/Electric) Arc Furnace";
+        return "Arc Furnace, Plasma Arc Furnace, IAF";
     }
 
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType(getMachineType())
-            .addInfo("250% faster than using single block machines of the same voltage")
-            .addInfo("Processes 8 * voltage tier * W items")
+            .addInfo(TooltipHelper.parallelText("Width * Voltage Tier") + " Parallels")
+            .addInfo(TooltipHelper.parallelText("8x") + " Parallels in Plasma Mode")
+            .addStaticSpeedInfo(3.5f)
+            .addStaticEuEffInfo(1f)
             .addInfo("Right-click controller with a Screwdriver to change modes")
             .addInfo("Max Size required to process Plasma recipes")
             .addPollutionAmount(getPollutionPerSecond(null))
@@ -170,7 +169,7 @@ public class MTEIndustrialArcFurnace extends GTPPMultiBlockBase<MTEIndustrialArc
         int maxTier = getTierFromHint(stackSize);
         int built;
         for (int tier = 1; tier <= maxTier; tier++) {
-            built = survivialBuildPiece(
+            built = survivalBuildPiece(
                 STRUCTURE_PIECE_FRONT + tier,
                 stackSize,
                 tier,
@@ -183,7 +182,7 @@ public class MTEIndustrialArcFurnace extends GTPPMultiBlockBase<MTEIndustrialArc
             if (built >= 0) return built;
         }
 
-        return survivialBuildPiece(
+        return survivalBuildPiece(
             STRUCTURE_PIECE_REST + maxTier,
             stackSize,
             maxTier,
@@ -217,8 +216,18 @@ public class MTEIndustrialArcFurnace extends GTPPMultiBlockBase<MTEIndustrialArc
     }
 
     @Override
+    protected IIconContainer getActiveGlowOverlay() {
+        return TexturesGtBlock.oMCDIndustrialArcFurnaceActiveGlow;
+    }
+
+    @Override
     protected IIconContainer getInactiveOverlay() {
         return TexturesGtBlock.oMCDIndustrialArcFurnace;
+    }
+
+    @Override
+    protected IIconContainer getInactiveGlowOverlay() {
+        return TexturesGtBlock.oMCDIndustrialArcFurnaceGlow;
     }
 
     @Override
@@ -245,27 +254,17 @@ public class MTEIndustrialArcFurnace extends GTPPMultiBlockBase<MTEIndustrialArc
     @Override
     protected ProcessingLogic createProcessingLogic() {
         return new ProcessingLogic().setSpeedBonus(1F / 3.5F)
-            .setMaxParallelSupplier(this::getMaxParallelRecipes);
+            .setMaxParallelSupplier(this::getTrueParallel);
     }
 
     @Override
     public int getMaxParallelRecipes() {
-        return (this.mSize * 8 * GTUtility.getTier(this.getMaxInputVoltage()));
-    }
-
-    @Override
-    public int getMaxEfficiency(final ItemStack aStack) {
-        return 10000;
+        return (this.mSize * (mPlasmaMode ? 8 : 1) * GTUtility.getTier(this.getMaxInputVoltage()));
     }
 
     @Override
     public int getPollutionPerSecond(final ItemStack aStack) {
         return PollutionConfig.pollutionPerSecondMultiIndustrialArcFurnace;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(final ItemStack aStack) {
-        return false;
     }
 
     public Block getCasingBlock() {
@@ -285,7 +284,7 @@ public class MTEIndustrialArcFurnace extends GTPPMultiBlockBase<MTEIndustrialArc
         if (this.mSize > 5) {
             this.mPlasmaMode = !mPlasmaMode;
             if (mPlasmaMode) {
-                PlayerUtils.messagePlayer(
+                GTUtility.sendChatToPlayer(
                     aPlayer,
                     "[" + EnumChatFormatting.RED
                         + "MODE"
@@ -295,7 +294,7 @@ public class MTEIndustrialArcFurnace extends GTPPMultiBlockBase<MTEIndustrialArc
                         + "Plasma"
                         + EnumChatFormatting.RESET);
             } else {
-                PlayerUtils.messagePlayer(
+                GTUtility.sendChatToPlayer(
                     aPlayer,
                     "[" + EnumChatFormatting.RED
                         + "MODE"
@@ -306,7 +305,7 @@ public class MTEIndustrialArcFurnace extends GTPPMultiBlockBase<MTEIndustrialArc
                         + EnumChatFormatting.RESET);
             }
         } else {
-            PlayerUtils.messagePlayer(
+            GTUtility.sendChatToPlayer(
                 aPlayer,
                 "[" + EnumChatFormatting.RED
                     + "MODE"
@@ -334,22 +333,15 @@ public class MTEIndustrialArcFurnace extends GTPPMultiBlockBase<MTEIndustrialArc
     }
 
     @Override
+    public String getMachineModeName() {
+        return StatCollector.translateToLocal("GT5U.GTPP_MULTI_ARC_FURNACE.mode." + (mPlasmaMode ? 1 : 0));
+    }
+
+    @Override
     public void getWailaNBTData(EntityPlayerMP player, TileEntity tile, NBTTagCompound tag, World world, int x, int y,
         int z) {
         super.getWailaNBTData(player, tile, tag, world, x, y, z);
         tag.setBoolean("mode", mPlasmaMode);
-    }
-
-    @Override
-    public void getWailaBody(ItemStack itemStack, List<String> currentTip, IWailaDataAccessor accessor,
-        IWailaConfigHandler config) {
-        super.getWailaBody(itemStack, currentTip, accessor, config);
-        final NBTTagCompound tag = accessor.getNBTData();
-        currentTip.add(
-            StatCollector.translateToLocal("GT5U.machines.oreprocessor1") + " "
-                + EnumChatFormatting.WHITE
-                + StatCollector.translateToLocal("GT5U.GTPP_MULTI_ARC_FURNACE.mode." + (tag.getBoolean("mode") ? 1 : 0))
-                + EnumChatFormatting.RESET);
     }
 
     @SideOnly(Side.CLIENT)

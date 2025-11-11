@@ -32,18 +32,19 @@ public class BehaviourScrewdriver extends BehaviourNone {
         if (aBlock == null) {
             return false;
         }
-        byte aMeta = (byte) aWorld.getBlockMetadata(aX, aY, aZ);
+        int aMeta = aWorld.getBlockMetadata(aX, aY, aZ);
+        int metadata = aMeta / 4 * 4 + (aMeta % 4 + 1) % 4;
         if ((aBlock == Blocks.unpowered_repeater) || (aBlock == Blocks.powered_repeater)) {
             if (GTModHandler.damageOrDechargeItem(aStack, this.mVanillaCosts, this.mEUCosts, aPlayer)) {
-                aWorld.setBlockMetadataWithNotify(aX, aY, aZ, aMeta / 4 * 4 + (aMeta % 4 + 1) % 4, 3);
-                GTUtility.sendSoundToPlayers(aWorld, SoundResource.IC2_TOOLS_WRENCH, 1.0F, -1.0F, aX, aY, aZ);
+                aWorld.setBlockMetadataWithNotify(aX, aY, aZ, metadata, 3);
+                GTUtility.sendSoundToPlayers(aWorld, SoundResource.GTCEU_OP_SCREWDRIVER, 1.0F, 1.0F, hitX, hitY, hitZ);
             }
             return true;
         }
         if ((aBlock == Blocks.unpowered_comparator) || (aBlock == Blocks.powered_comparator)) {
             if (GTModHandler.damageOrDechargeItem(aStack, this.mVanillaCosts, this.mEUCosts, aPlayer)) {
-                aWorld.setBlockMetadataWithNotify(aX, aY, aZ, aMeta / 4 * 4 + (aMeta % 4 + 1) % 4, 3);
-                GTUtility.sendSoundToPlayers(aWorld, SoundResource.IC2_TOOLS_WRENCH, 1.0F, -1.0F, aX, aY, aZ);
+                aWorld.setBlockMetadataWithNotify(aX, aY, aZ, metadata, 3);
+                GTUtility.sendSoundToPlayers(aWorld, SoundResource.GTCEU_OP_SCREWDRIVER, 1.0F, 1.0F, hitX, hitY, hitZ);
             }
             return true;
         }

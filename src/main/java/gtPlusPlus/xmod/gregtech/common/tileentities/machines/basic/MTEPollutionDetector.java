@@ -3,31 +3,33 @@ package gtPlusPlus.xmod.gregtech.common.tileentities.machines.basic;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import gregtech.GTMod;
+import gregtech.api.enums.GTValues;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.metatileentity.implementations.MTETieredMachineBlock;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTUtility;
 import gregtech.common.pollution.Pollution;
 import gtPlusPlus.core.lib.GTPPCore;
 import gtPlusPlus.core.util.math.MathUtils;
-import gtPlusPlus.core.util.minecraft.PlayerUtils;
-import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMetaTileEntity;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 
-public class MTEPollutionDetector extends GTPPMetaTileEntity {
+public class MTEPollutionDetector extends MTETieredMachineBlock {
 
     int mCurrentPollution;
     int mAveragePollution;
     int[] mAveragePollutionArray = new int[10];
     private int mArrayPos = 0;
     private int mTickTimer = 0;
-    private final int mSecondTimer = 0;
     private long mRedstoneLevel = 0;
 
     public MTEPollutionDetector(final int aID, final String aName, final String aNameRegional, final int aTier,
@@ -35,26 +37,29 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
         super(aID, aName, aNameRegional, aTier, aSlotCount, aDescription);
     }
 
-    public MTEPollutionDetector(final String aName, final int aTier, final String aDescription,
+    public MTEPollutionDetector(final String aName, final int aTier, final String[] aDescription,
         final ITexture[][][] aTextures, final int aSlotCount) {
         super(aName, aTier, aSlotCount, aDescription, aTextures);
     }
 
     @Override
     public String[] getDescription() {
-        return new String[] { this.mDescription, "Right click to check pollution levels.",
-            "Configure with screwdriver to set redstone output amount.", "Does not use power.",
-            GTPPCore.GT_Tooltip.get() };
+        return ArrayUtils.addAll(
+            this.mDescriptionArray,
+            "Right click to check pollution levels.",
+            "Configure with screwdriver to set redstone output amount.",
+            "Does not use power.",
+            GTPPCore.GT_Tooltip.get());
     }
 
     @Override
     public ITexture[] getTexture(final IGregTechTileEntity aBaseMetaTileEntity, final ForgeDirection side,
         final ForgeDirection facing, final int aColorIndex, final boolean aActive, final boolean aRedstone) {
         return side == facing
-            ? new ITexture[] { new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Dimensional),
-                new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Screen_Frequency) }
-            : new ITexture[] { new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Dimensional),
-                new GTRenderedTexture(Textures.BlockIcons.VOID) };
+            ? new ITexture[] { TextureFactory.of(TexturesGtBlock.Casing_Machine_Dimensional),
+                TextureFactory.of(TexturesGtBlock.Casing_Machine_Screen_Frequency) }
+            : new ITexture[] { TextureFactory.of(TexturesGtBlock.Casing_Machine_Dimensional),
+                TextureFactory.of(Textures.BlockIcons.VOID) };
     }
 
     @Override
@@ -84,52 +89,52 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
 
     public ITexture[] getFront(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Screen_2) };
+            TextureFactory.of(TexturesGtBlock.Casing_Machine_Screen_2) };
     }
 
     public ITexture[] getBack(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
+            TextureFactory.of(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
     }
 
     public ITexture[] getBottom(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
+            TextureFactory.of(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
     }
 
     public ITexture[] getTop(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
+            TextureFactory.of(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
     }
 
     public ITexture[] getSides(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
+            TextureFactory.of(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
     }
 
     public ITexture[] getFrontActive(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Screen_2) };
+            TextureFactory.of(TexturesGtBlock.Casing_Machine_Screen_2) };
     }
 
     public ITexture[] getBackActive(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
+            TextureFactory.of(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
     }
 
     public ITexture[] getBottomActive(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
+            TextureFactory.of(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
     }
 
     public ITexture[] getTopActive(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
+            TextureFactory.of(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
     }
 
     public ITexture[] getSidesActive(final byte aColor) {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[this.mTier][aColor + 1],
-            new GTRenderedTexture(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
+            TextureFactory.of(TexturesGtBlock.Casing_Machine_Simple_Bottom) };
     }
 
     @Override
@@ -137,24 +142,9 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
         return new MTEPollutionDetector(
             this.mName,
             this.mTier,
-            this.mDescription,
+            this.mDescriptionArray,
             this.mTextures,
             this.mInventory.length);
-    }
-
-    @Override
-    public boolean isSimpleMachine() {
-        return false;
-    }
-
-    @Override
-    public boolean isElectric() {
-        return true;
-    }
-
-    @Override
-    public boolean isValidSlot(final int aIndex) {
-        return true;
     }
 
     @Override
@@ -165,11 +155,6 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
     @Override
     public boolean isEnetInput() {
         return true;
-    }
-
-    @Override
-    public boolean isEnetOutput() {
-        return false;
     }
 
     @Override
@@ -195,52 +180,12 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
     }
 
     @Override
-    public long maxEUStore() {
-        return 0;
-    }
-
-    @Override
-    public int getCapacity() {
-        return 0;
-    }
-
-    @Override
-    public long maxEUInput() {
-        return 0;
-    }
-
-    @Override
-    public long maxEUOutput() {
-        return 0;
-    }
-
-    @Override
     public long maxAmperesIn() {
         return 0;
     }
 
     @Override
     public long maxAmperesOut() {
-        return 0;
-    }
-
-    @Override
-    public int rechargerSlotStartIndex() {
-        return 0;
-    }
-
-    @Override
-    public int dechargerSlotStartIndex() {
-        return 0;
-    }
-
-    @Override
-    public int rechargerSlotCount() {
-        return 0;
-    }
-
-    @Override
-    public int dechargerSlotCount() {
         return 0;
     }
 
@@ -257,11 +202,6 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
     }
 
     @Override
-    public boolean isAccessAllowed(final EntityPlayer aPlayer) {
-        return true;
-    }
-
-    @Override
     public boolean onRightclick(final IGregTechTileEntity aBaseMetaTileEntity, final EntityPlayer aPlayer) {
         if (aBaseMetaTileEntity.isClientSide()) {
             return true;
@@ -271,11 +211,11 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
     }
 
     private void showPollution(final World worldIn, final EntityPlayer playerIn) {
-        if (!GTMod.gregtechproxy.mPollution) {
-            PlayerUtils.messagePlayer(playerIn, "This block is useless, Pollution is disabled.");
+        if (!GTMod.proxy.mPollution) {
+            GTUtility.sendChatToPlayer(playerIn, "This block is useless, Pollution is disabled.");
         } else {
-            PlayerUtils.messagePlayer(playerIn, "This chunk contains " + getCurrentChunkPollution() + " pollution.");
-            PlayerUtils.messagePlayer(playerIn, "Emit Redstone at pollution level: " + this.mRedstoneLevel);
+            GTUtility.sendChatToPlayer(playerIn, "This chunk contains " + getCurrentChunkPollution() + " pollution.");
+            GTUtility.sendChatToPlayer(playerIn, "Emit Redstone at pollution level: " + this.mRedstoneLevel);
         }
     }
 
@@ -301,8 +241,13 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
 
     @Override
     public String[] getInfoData() {
-        return new String[] { this.getLocalName(), "Current Pollution: " + this.mCurrentPollution,
-            "Average/10 Sec: " + this.mAveragePollution, "Emit Redstone at pollution level: " + this.mRedstoneLevel };
+        return new String[] { this.getLocalName(),
+            StatCollector
+                .translateToLocalFormatted("gtpp.infodata.pollution_creator.pollution", this.mCurrentPollution),
+            StatCollector
+                .translateToLocalFormatted("gtpp.infodata.pollution_detector.pollution.avg", this.mAveragePollution),
+            StatCollector
+                .translateToLocalFormatted("gtpp.infodata.pollution_detector.redstone_level", this.mRedstoneLevel) };
     }
 
     @Override
@@ -312,7 +257,7 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
 
     @Override
     public int[] getAccessibleSlotsFromSide(final int p_94128_1_) {
-        return new int[] {};
+        return GTValues.emptyIntArray;
     }
 
     @Override
@@ -341,11 +286,6 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
     }
 
     @Override
-    public ItemStack getStackInSlotOnClosing(final int p_70304_1_) {
-        return null;
-    }
-
-    @Override
     public void setInventorySlotContents(final int p_70299_1_, final ItemStack p_70299_2_) {}
 
     @Override
@@ -354,38 +294,12 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
     }
 
     @Override
-    public boolean hasCustomInventoryName() {
-        return false;
-    }
-
-    @Override
     public int getInventoryStackLimit() {
         return 0;
     }
 
     @Override
-    public boolean isUseableByPlayer(final EntityPlayer p_70300_1_) {
-        return false;
-    }
-
-    @Override
-    public void openInventory() {}
-
-    @Override
-    public void closeInventory() {}
-
-    @Override
     public boolean isItemValidForSlot(final int p_94041_1_, final ItemStack p_94041_2_) {
-        return false;
-    }
-
-    @Override
-    public boolean isOverclockerUpgradable() {
-        return false;
-    }
-
-    @Override
-    public boolean isTransformerUpgradable() {
         return false;
     }
 
@@ -455,7 +369,8 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
     }
 
     @Override
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ,
+        ItemStack aTool) {
 
         if (side == this.getBaseMetaTileEntity()
             .getFrontFacing()) {
@@ -470,7 +385,7 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
             GTUtility.sendChatToPlayer(aPlayer, "Emit Redstone at Pollution Level: " + this.mRedstoneLevel);
         }
 
-        super.onScrewdriverRightClick(side, aPlayer, aX, aY, aZ);
+        super.onScrewdriverRightClick(side, aPlayer, aX, aY, aZ, aTool);
     }
 
     @Override
@@ -491,14 +406,5 @@ public class MTEPollutionDetector extends GTPPMetaTileEntity {
     @Override
     public void onMachineBlockUpdate() {
         super.onMachineBlockUpdate();
-    }
-
-    @Override
-    public boolean hasSidedRedstoneOutputBehavior() {
-        if (this.getCurrentChunkPollution() >= this.mRedstoneLevel) {
-            this.markDirty();
-            return true;
-        }
-        return false;
     }
 }

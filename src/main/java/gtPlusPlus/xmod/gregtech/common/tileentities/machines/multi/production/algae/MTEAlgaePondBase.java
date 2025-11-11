@@ -32,6 +32,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.GTValues;
+import gregtech.api.enums.Materials;
 import gregtech.api.enums.SoundResource;
 import gregtech.api.enums.TAE;
 import gregtech.api.interfaces.IIconContainer;
@@ -51,16 +52,13 @@ import gregtech.api.util.ReflectionUtil;
 import gregtech.common.pollution.PollutionConfig;
 import gtPlusPlus.api.objects.Logger;
 import gtPlusPlus.core.block.ModBlocks;
-import gtPlusPlus.core.item.chemistry.AgriculturalChem;
 import gtPlusPlus.core.lib.GTPPCore;
 import gtPlusPlus.core.util.math.MathUtils;
-import gtPlusPlus.core.util.minecraft.FluidUtils;
-import gtPlusPlus.core.util.minecraft.ItemUtils;
+import gtPlusPlus.xmod.gregtech.api.enums.GregtechItemList;
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 import ic2.core.init.BlocksItems;
 import ic2.core.init.InternalName;
-import tectech.thing.casing.TTCasingsContainer;
 
 public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> implements ISurvivalConstructable {
 
@@ -85,6 +83,11 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
     }
 
     @Override
+    public boolean supportsPowerPanel() {
+        return false;
+    }
+
+    @Override
     public IMetaTileEntity newMetaEntity(final IGregTechTileEntity aTileEntity) {
         return new MTEAlgaePondBase(this.mName);
     }
@@ -101,9 +104,9 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
             .addInfo("Grows Algae!")
             .addInfo("Provide compost to boost production by one tier")
             .addInfo("Does not require power or maintenance")
-            .addInfo("All Machine Casings must be the same tier, this dictates machine speed.")
+            .addInfo("All Machine Casings must be the same tier, this dictates machine speed")
             .addInfo("Requires one Input Hatch that matches the tier of the Casings")
-            .addInfo("Fill Input Hatch with Water to fill the inside of the multiblock.")
+            .addInfo("Fill Input Hatch with Water to fill the inside of the multiblock")
             .addPollutionAmount(getPollutionPerSecond(null))
             .beginStructureBlock(9, 3, 9, true)
             .addController("Front Center")
@@ -155,7 +158,7 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
                         onElementPass(
                             x -> ++x.mCasing,
                             addTieredBlock(
-                                TTCasingsContainer.sBlockCasingsNH,
+                                GregTechAPI.sBlockCasingsNH,
                                 MTEAlgaePondBase::setMeta,
                                 MTEAlgaePondBase::getMeta,
                                 10,
@@ -174,7 +177,7 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return survivialBuildPiece(mName, stackSize, 4, 2, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(mName, stackSize, 4, 2, 0, elementBudget, env, false, true);
     }
 
     @Override
@@ -205,7 +208,7 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
 
     @Override
     protected SoundResource getProcessStartSound() {
-        return SoundResource.IC2_MACHINES_ELECTROFURNACE_LOOP;
+        return SoundResource.GTCEU_LOOP_BATH;
     }
 
     @Override
@@ -214,8 +217,18 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
     }
 
     @Override
+    protected IIconContainer getActiveGlowOverlay() {
+        return TexturesGtBlock.oMCDAlgaePondBaseActiveGlow;
+    }
+
+    @Override
     protected IIconContainer getInactiveOverlay() {
         return TexturesGtBlock.oMCDAlgaePondBase;
+    }
+
+    @Override
+    protected IIconContainer getInactiveGlowOverlay() {
+        return TexturesGtBlock.oMCDAlgaePondBaseGlow;
     }
 
     @Override
@@ -262,11 +275,11 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
             for (int j = mOffsetZ_Lower + 1; j <= mOffsetZ_Upper - 1; ++j) {
                 for (int h = 0; h < 2; h++) {
                     Block tBlock = aBaseMetaTileEntity.getBlockOffset(xDir + i, h, zDir + j);
-                    byte tMeta = aBaseMetaTileEntity.getMetaIDOffset(xDir + i, h, zDir + j);
+                    int tMeta = aBaseMetaTileEntity.getMetaIDOffset(xDir + i, h, zDir + j);
                     if (isNotStaticWater(tBlock, tMeta)) {
                         if (this.getStoredFluids() != null) {
                             for (FluidStack stored : this.getStoredFluids()) {
-                                if (stored.isFluidEqual(FluidUtils.getFluidStack("water", 1))) {
+                                if (stored.isFluidEqual(Materials.Water.getFluid(1))) {
                                     if (stored.amount >= 1000) {
                                         // Utils.LOG_WARNING("Going to try swap an air block for water from inut bus.");
                                         stored.amount -= 1000;
@@ -283,7 +296,8 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
                         }
                     }
                     tBlock = aBaseMetaTileEntity.getBlockOffset(xDir + i, h, zDir + j);
-                    if (tBlock == Blocks.water || tBlock == Blocks.flowing_water) {
+                    if (tBlock == Blocks.water || tBlock == Blocks.flowing_water
+                        || tBlock == BlocksItems.getFluidBlock(InternalName.fluidDistilledWater)) {
                         ++tAmount;
                         // Logger.INFO("Found Water");
                     }
@@ -301,25 +315,14 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
         }
     }
 
-    private boolean isNotStaticWater(Block block, byte meta) {
+    private boolean isNotStaticWater(Block block, int meta) {
         return block == Blocks.air || block == Blocks.flowing_water
-            || block == BlocksItems.getFluidBlock(InternalName.fluidDistilledWater)
             || (cofhWater != null && cofhWater.isAssignableFrom(block.getClass()) && meta != 0);
-    }
-
-    @Override
-    public int getMaxEfficiency(final ItemStack aStack) {
-        return 10000;
     }
 
     @Override
     public int getPollutionPerSecond(final ItemStack aStack) {
         return PollutionConfig.pollutionPerSecondMultiAlgaePond;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(final ItemStack aStack) {
-        return false;
     }
 
     @Override
@@ -350,7 +353,7 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }
         }.setEuModifier(0F)
-            .setMaxParallelSupplier(this::getMaxParallelRecipes);
+            .setMaxParallelSupplier(this::getTrueParallel);
     }
 
     private int getCasingTier() {
@@ -367,7 +370,7 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
             aInitStructureCheck = aBaseMetaTileEntity.getBlockOffset(xDir, -1, zDir);
             aInitStructureCheckMeta = aBaseMetaTileEntity.getMetaIDOffset(xDir, -1, zDir);
             if (aInitStructureCheck == GregTechAPI.sBlockCasings1
-                || aInitStructureCheck == TTCasingsContainer.sBlockCasingsNH) {
+                || aInitStructureCheck == GregTechAPI.sBlockCasingsNH) {
                 return aInitStructureCheckMeta;
             }
             return 0;
@@ -393,7 +396,7 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
     }
 
     private static boolean isUsingCompost(ItemStack[] aItemInputs, int aTier) {
-        ItemStack aCompost = ItemUtils.getSimpleStack(AgriculturalChem.mCompost, 1);
+        ItemStack aCompost = GregtechItemList.Compost.get(1);
         final int compostForTier = compostForTier(aTier);
         int compostFound = 0;
         for (ItemStack i : aItemInputs) {
@@ -408,7 +411,7 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
     }
 
     private static int compostForTier(int aTier) {
-        return aTier > 1 ? (int) Math.min(64, Math.pow(2, aTier - 1)) : 1;
+        return aTier > 1 ? (int) Math.min(64, GTUtility.powInt(2, aTier - 1)) : 1;
     }
 
     private static GTRecipe generateBaseRecipe(int aTier, boolean isUsingCompost) {
@@ -419,12 +422,12 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
         if (isUsingCompost) {
             // Make it use 4 compost per tier if we have some available
             // Compost consumption maxes out at 1 stack per cycle
-            ItemStack aCompost = ItemUtils.getSimpleStack(AgriculturalChem.mCompost, compostForTier(aTier));
+            ItemStack aCompost = GregtechItemList.Compost.get(compostForTier(aTier));
             aInputs = new ItemStack[] { aCompost };
             // Boost Tier by one if using compost, so it gets a speed boost
             aTier++;
         } else {
-            aInputs = new ItemStack[] {};
+            aInputs = GTValues.emptyItemStackArray;
         }
 
         ItemStack[] aOutputs = getOutputsForTier(aTier);
@@ -433,7 +436,7 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
             aInputs,
             aOutputs,
             null,
-            new int[] {},
+            GTValues.emptyIntArray,
             new FluidStack[] { GTValues.NF },
             new FluidStack[] { GTValues.NF },
             getRecipeDuration(aTier),
@@ -459,61 +462,61 @@ public class MTEAlgaePondBase extends GTPPMultiBlockBase<MTEAlgaePondBase> imple
         ArrayList<ItemStack> outputList = new ArrayList<>();
 
         if (aTier >= 0) {
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mAlgaeBiosmass, 2));
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mAlgaeBiosmass, 4));
+            outputList.add(GregtechItemList.AlgaeBiomass.get(2));
+            outputList.add(GregtechItemList.AlgaeBiomass.get(4));
             if (MathUtils.randInt(0, 10) > 9) {
-                outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGreenAlgaeBiosmass, 2));
+                outputList.add(GregtechItemList.GreenAlgaeBiomass.get(2));
             }
         }
         if (aTier >= 1) {
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mAlgaeBiosmass, 4));
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGreenAlgaeBiosmass, 2));
+            outputList.add(GregtechItemList.AlgaeBiomass.get(4));
+            outputList.add(GregtechItemList.GreenAlgaeBiomass.get(2));
             if (MathUtils.randInt(0, 10) > 9) {
-                outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGreenAlgaeBiosmass, 4));
+                outputList.add(GregtechItemList.GreenAlgaeBiomass.get(4));
             }
         }
         if (aTier >= 2) {
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGreenAlgaeBiosmass, 2));
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGreenAlgaeBiosmass, 3));
+            outputList.add(GregtechItemList.GreenAlgaeBiomass.get(2));
+            outputList.add(GregtechItemList.GreenAlgaeBiomass.get(3));
             if (MathUtils.randInt(0, 10) > 9) {
-                outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGreenAlgaeBiosmass, 8));
+                outputList.add(GregtechItemList.GreenAlgaeBiomass.get(8));
             }
         }
         if (aTier >= 3) {
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGreenAlgaeBiosmass, 4));
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mBrownAlgaeBiosmass, 1));
+            outputList.add(GregtechItemList.GreenAlgaeBiomass.get(4));
+            outputList.add(GregtechItemList.BrownAlgaeBiomass.get(1));
             if (MathUtils.randInt(0, 10) > 9) {
-                outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mBrownAlgaeBiosmass, 4));
+                outputList.add(GregtechItemList.BrownAlgaeBiomass.get(4));
             }
         }
         if (aTier >= 4) {
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mBrownAlgaeBiosmass, 2));
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mBrownAlgaeBiosmass, 3));
+            outputList.add(GregtechItemList.BrownAlgaeBiomass.get(2));
+            outputList.add(GregtechItemList.BrownAlgaeBiomass.get(3));
             if (MathUtils.randInt(0, 10) > 9) {
-                outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGoldenBrownAlgaeBiosmass, 4));
+                outputList.add(GregtechItemList.GoldenBrownAlgaeBiomass.get(4));
             }
         }
         if (aTier >= 5) {
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mBrownAlgaeBiosmass, 4));
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGoldenBrownAlgaeBiosmass, 2));
+            outputList.add(GregtechItemList.BrownAlgaeBiomass.get(4));
+            outputList.add(GregtechItemList.GoldenBrownAlgaeBiomass.get(2));
             if (MathUtils.randInt(0, 10) > 9) {
-                outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mRedAlgaeBiosmass, 4));
+                outputList.add(GregtechItemList.RedAlgaeBiomass.get(4));
             }
         }
         if (aTier >= 6) {
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGoldenBrownAlgaeBiosmass, 4));
-            outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mRedAlgaeBiosmass, 2));
+            outputList.add(GregtechItemList.GoldenBrownAlgaeBiomass.get(4));
+            outputList.add(GregtechItemList.RedAlgaeBiomass.get(2));
             if (MathUtils.randInt(0, 10) > 9) {
-                outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mRedAlgaeBiosmass, 8));
+                outputList.add(GregtechItemList.RedAlgaeBiomass.get(8));
             }
             // Iterate a special loop at higher tiers to provide more Red/Gold Algae.
             for (int i = 0; i < 20; i++) {
                 if (aTier >= (6 + i)) {
                     int aMulti = i + 1;
-                    outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGreenAlgaeBiosmass, aMulti * 4));
-                    outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mBrownAlgaeBiosmass, aMulti * 3));
-                    outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mGoldenBrownAlgaeBiosmass, aMulti * 2));
-                    outputList.add(ItemUtils.getSimpleStack(AgriculturalChem.mRedAlgaeBiosmass, aMulti));
+                    outputList.add(GregtechItemList.GreenAlgaeBiomass.get(aMulti * 4));
+                    outputList.add(GregtechItemList.BrownAlgaeBiomass.get(aMulti * 3));
+                    outputList.add(GregtechItemList.GoldenBrownAlgaeBiomass.get(aMulti * 2));
+                    outputList.add(GregtechItemList.RedAlgaeBiomass.get(aMulti));
                 } else {
                     break;
                 }

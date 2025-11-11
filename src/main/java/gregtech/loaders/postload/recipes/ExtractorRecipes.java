@@ -22,23 +22,24 @@ public class ExtractorRecipes implements Runnable {
         addExtractionRecipe(new ItemStack(Blocks.bookshelf, 1, WILDCARD), new ItemStack(Items.book, 3, 0));
         addExtractionRecipe(
             new ItemStack(Items.slime_ball, 1),
-            GTOreDictUnificator.get(OrePrefixes.dust, Materials.RawRubber, 2L));
+            GTOreDictUnificator.get(OrePrefixes.dust, Materials.RubberRaw, 2L));
         addExtractionRecipe(
             ItemList.IC2_Resin.get(1L),
-            GTOreDictUnificator.get(OrePrefixes.dust, Materials.RawRubber, 3L));
+            GTOreDictUnificator.get(OrePrefixes.dust, Materials.RubberRaw, 3L));
         addExtractionRecipe(
             getIC2Item("rubberSapling", 1L),
-            GTOreDictUnificator.get(OrePrefixes.dust, Materials.RawRubber, 1L));
+            GTOreDictUnificator.get(OrePrefixes.dust, Materials.RubberRaw, 1L));
         addExtractionRecipe(
             getIC2Item("rubberLeaves", 16L),
-            GTOreDictUnificator.get(OrePrefixes.dust, Materials.RawRubber, 1L));
+            GTOreDictUnificator.get(OrePrefixes.dust, Materials.RubberRaw, 1L));
 
         addExtractionRecipe(ItemList.Cell_Air.get(1L), ItemList.Cell_Empty.get(1L));
-        addExtractionRecipe(getIC2Item("filledTinCan", 1), getIC2Item("tinCan", 1));
+        addExtractionRecipe(ItemList.IC2_Food_Can_Filled.get(1L), ItemList.IC2_Food_Can_Empty.get(1L));
         addExtractionRecipe(new ItemStack(Blocks.clay, 1), new ItemStack(Items.clay_ball, 4));
         addExtractionRecipe(new ItemStack(Blocks.brick_block, 1), new ItemStack(Items.brick, 4));
         addExtractionRecipe(new ItemStack(Blocks.nether_brick, 1), new ItemStack(Items.netherbrick, 4));
         addExtractionRecipe(new ItemStack(Blocks.snow, 1), new ItemStack(Items.snowball, 4));
+        addExtractionRecipe(ItemList.Cell_Water.get(1), getIC2Item("hydratingCell", 1));
 
         GTValues.RA.stdBuilder()
             .itemInputs(ItemList.Battery_SU_LV_SulfuricAcid.get(1L))

@@ -1,7 +1,6 @@
 package gregtech.common.tileentities.machines.multi.compressor;
 
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.*;
-import static gregtech.api.enums.GTValues.AuthorFourIsTheNumber;
 import static gregtech.api.enums.GTValues.Ollie;
 import static gregtech.api.enums.HatchElement.*;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_MULTI_COMPRESSOR;
@@ -10,7 +9,9 @@ import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_MULTI_COMPRES
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_MULTI_COMPRESSOR_COOLING;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_MULTI_COMPRESSOR_COOLING_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_MULTI_COMPRESSOR_GLOW;
+import static gregtech.api.util.GTStructureUtility.activeCoils;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
+import static gregtech.api.util.GTStructureUtility.chainAllGlasses;
 import static gregtech.api.util.GTStructureUtility.ofCoil;
 
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
@@ -43,7 +45,6 @@ import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.logic.ProcessingLogic;
 import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
-import gregtech.api.multitileentity.multiblock.casing.Glasses;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.recipe.check.CheckRecipeResult;
@@ -56,6 +57,7 @@ import gregtech.api.util.IGTHatchAdder;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.shutdown.SimpleShutDownReason;
 import gregtech.common.blocks.BlockCasings10;
+import gregtech.common.misc.GTStructureChannels;
 import mcp.mobius.waila.api.IWailaConfigHandler;
 import mcp.mobius.waila.api.IWailaDataAccessor;
 
@@ -81,7 +83,7 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
                 {"      B~B      ","     BBBBB     "," B  BBBBBBB  B ","BBB BBBBBBB BBB"," B  BBBBBBB  B ","     BBBBB     ","      BBB      "}
             }))
             //spotless:on
-        .addElement('A', Glasses.chainAllGlasses())
+        .addElement('A', chainAllGlasses())
         .addElement(
             'B',
             buildHatchAdder(MTEHIPCompressor.class).atLeast(Maintenance, Energy, SpecialHatchElement.HeatSensor)
@@ -90,7 +92,10 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
                 .buildAndChain(onElementPass(MTEHIPCompressor::onCasingAdded, ofBlock(GregTechAPI.sBlockCasings10, 4))))
         .addElement('C', ofBlock(GregTechAPI.sBlockCasings10, 9))
         .addElement('D', ofBlock(GregTechAPI.sBlockCasings10, 10))
-        .addElement('F', ofCoil(MTEHIPCompressor::setCoilLevel, MTEHIPCompressor::getCoilLevel))
+        .addElement(
+            'F',
+            GTStructureChannels.HEATING_COIL
+                .use(activeCoils(ofCoil(MTEHIPCompressor::setCoilLevel, MTEHIPCompressor::getCoilLevel))))
         .addElement(
             'G',
             buildHatchAdder(MTEHIPCompressor.class).atLeast(InputBus, OutputBus, InputHatch)
@@ -106,7 +111,7 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
     private int coilTier = 0;
 
     private float heat = 0;
-    private boolean cooling = false;
+    private boolean overheated = false;
 
     public MTEHIPCompressor(final int aID, final String aName, final String aNameRegional) {
         super(aID, aName, aNameRegional);
@@ -122,25 +127,20 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
     }
 
     @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return true;
-    }
-
-    @Override
     public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
         return new MTEHIPCompressor(this.mName);
     }
 
     @Override
     public void onValueUpdate(byte aValue) {
-        boolean oCooling = cooling;
-        cooling = (aValue & 1) == 1;
-        if (oCooling != cooling) getBaseMetaTileEntity().issueTextureUpdate();
+        boolean oldOverheated = overheated;
+        overheated = (aValue & 1) == 1;
+        if (oldOverheated != overheated) getBaseMetaTileEntity().issueTextureUpdate();
     }
 
     @Override
     public byte getUpdateData() {
-        return (byte) (cooling ? 1 : 0);
+        return (byte) (overheated ? 1 : 0);
     }
 
     @Override
@@ -148,7 +148,7 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
         int colorIndex, boolean aActive, boolean redstoneLevel) {
         ITexture[] rTexture;
         if (side == aFacing) {
-            if (cooling) {
+            if (overheated) {
                 rTexture = new ITexture[] {
                     Textures.BlockIcons
                         .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings10, 4)),
@@ -198,7 +198,7 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Compressor")
+        tt.addMachineType("Compressor, HIP")
             .addInfo("HIP Unit heats up while running")
             .addInfo(
                 "When it reaches maximum heat, it becomes " + EnumChatFormatting.DARK_RED
@@ -218,10 +218,10 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
                     + EnumChatFormatting.GRAY
                     + " HIP")
             .addInfo(
-                "If the machine " + EnumChatFormatting.DARK_RED
-                    + "overheats"
+                "If the machine is " + EnumChatFormatting.DARK_RED
+                    + "overheated"
                     + EnumChatFormatting.GRAY
-                    + " during these recipes, recipe will be voided!")
+                    + " when one of these recipes starts, it will be voided!")
             .addInfo("Read the current heat using Heat Sensor Hatches")
             .addSeparator()
             .addInfo("More advanced coils allow better heat control - the unit will take longer to overheat")
@@ -234,7 +234,12 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
                 "Unit cools by " + EnumChatFormatting.GREEN
                     + "2%"
                     + EnumChatFormatting.GRAY
-                    + " every second while not running")
+                    + " base every second while not running")
+            .addInfo(
+                "Cooling rate increases by an additional " + EnumChatFormatting.GREEN
+                    + "2%"
+                    + EnumChatFormatting.GRAY
+                    + " for each second since running")
             .addSeparator()
             .addInfo(
                 "250% " + EnumChatFormatting.RED
@@ -263,21 +268,25 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
                     + "1"
                     + EnumChatFormatting.GRAY
                     + " parallels per voltage tier")
-            .beginStructureBlock(7, 5, 7, true)
+            .beginStructureBlock(15, 10, 7, false)
             .addController("Front Center")
             .addCasingInfoMin("Electric Compressor Casing", 95, false)
             .addCasingInfoMin("Compressor Pipe Casing", 60, false)
             .addCasingInfoExactly("Coolant Duct", 12, false)
             .addCasingInfoExactly("Heating Duct", 12, false)
-            .addCasingInfoExactly("EV+ Glass", 22, false)
+            .addCasingInfoExactly("Any Tiered Glass", 22, false)
             .addCasingInfoExactly("Coil", 30, true)
-            .addOtherStructurePart("Heat Sensor Hatch", "Any Electric Compressor Casing", 1)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GT5U.tooltip.structure.heat_sensor_hatch"),
+                "Any Electric Compressor Casing",
+                1)
             .addInputBus("Pipe Casings on Side", 2)
             .addInputHatch("Pipe Casings on Side", 2)
             .addOutputBus("Pipe Casings on Side", 2)
             .addEnergyHatch("Any Electric Compressor Casing", 1)
             .addMaintenanceHatch("Any Electric Compressor Casing", 1)
-            .toolTipFinisher(AuthorFourIsTheNumber, Ollie);
+            .addSubChannelUsage(GTStructureChannels.HEATING_COIL)
+            .toolTipFinisher(Ollie);
         return tt;
     }
 
@@ -289,7 +298,7 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 7, 9, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 7, 9, 0, elementBudget, env, false, true);
     }
 
     private int mCasingAmount;
@@ -306,26 +315,20 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
     }
 
     @Override
-    protected void setProcessingLogicPower(ProcessingLogic logic) {
-        logic.setAvailableVoltage(GTUtility.roundUpVoltage(this.getMaxInputVoltage()));
-        logic.setAvailableAmperage(1L);
-    }
-
-    @Override
     public void saveNBTData(NBTTagCompound aNBT) {
         aNBT.setFloat("heat", heat);
-        aNBT.setBoolean("cooling", cooling);
+        aNBT.setBoolean("cooling", overheated);
         aNBT.setInteger("coilTier", coilTier);
-        aNBT.setBoolean("doingHIP", doingHIP);
+        aNBT.setInteger("coolingTimer", coolingTimer);
         super.saveNBTData(aNBT);
     }
 
     @Override
     public void loadNBTData(NBTTagCompound aNBT) {
         if (aNBT.hasKey("heat")) heat = aNBT.getFloat("heat");
-        if (aNBT.hasKey("cooling")) cooling = aNBT.getBoolean("cooling");
+        if (aNBT.hasKey("cooling")) overheated = aNBT.getBoolean("cooling");
         if (aNBT.hasKey("coilTier")) coilTier = aNBT.getInteger("coilTier");
-        if (aNBT.hasKey("doingHIP")) doingHIP = aNBT.getBoolean("doingHIP");
+        if (aNBT.hasKey("coolingTimer")) coolingTimer = aNBT.getInteger("coolingTimer");
         super.loadNBTData(aNBT);
     }
 
@@ -334,7 +337,7 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
         int z) {
         super.getWailaNBTData(player, tile, tag, world, x, y, z);
         tag.setInteger("heat", Math.round(heat));
-        tag.setBoolean("cooling", cooling);
+        tag.setBoolean("cooling", overheated);
     }
 
     @Override
@@ -356,8 +359,6 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
                 + EnumChatFormatting.RESET);
     }
 
-    private boolean doingHIP = false;
-
     @Override
     protected ProcessingLogic createProcessingLogic() {
         return new ProcessingLogic() {
@@ -365,55 +366,67 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
             @NotNull
             @Override
             protected CheckRecipeResult validateRecipe(@NotNull GTRecipe recipe) {
-                doingHIP = false;
                 setSpeedBonus(1F / 3.5F);
                 setEuModifier(0.75F);
 
-                if (cooling) {
+                // Nerf when heated
+                if (overheated) {
                     setSpeedBonus(2.5F);
                     setEuModifier(1.1F);
                 }
 
-                int recipeReq = recipe.getMetadataOrDefault(CompressionTierKey.INSTANCE, 0);
-                if (recipeReq == 1) {
-                    doingHIP = true;
-                } else if (recipeReq == 2) {
+                // If Black Hole required, no recipe
+                if (recipe.getMetadataOrDefault(CompressionTierKey.INSTANCE, 0) == 2) {
                     return CheckRecipeResultRegistry.NO_RECIPE;
                 }
                 return super.validateRecipe(recipe);
             }
-        }.setMaxParallelSupplier(this::getMaxParallelRecipes);
+
+            @NotNull
+            @Override
+            protected CheckRecipeResult onRecipeStart(@NotNull GTRecipe recipe) {
+                // If HIP required, check for overheat and potentially crash
+                if (recipe.getMetadataOrDefault(CompressionTierKey.INSTANCE, 0) == 1) {
+                    if (overheated) {
+                        stopMachine(SimpleShutDownReason.ofCritical("overheated"));
+                        return CheckRecipeResultRegistry.NO_RECIPE;
+                    }
+                }
+                return super.onRecipeStart(recipe);
+            }
+        }.noRecipeCaching()
+            .setMaxParallelSupplier(this::getTrueParallel);
     }
 
-    @Override
-    public boolean onRunningTick(ItemStack aStack) {
-        if (cooling && doingHIP) {
-            stopMachine(SimpleShutDownReason.ofCritical("overheated"));
-            doingHIP = false;
-        }
-        return super.onRunningTick(aStack);
-    }
+    private int coolingTimer = 0;
 
     @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
         super.onPostTick(aBaseMetaTileEntity, aTick);
 
-        if (aTick % 20 == 0) {
+        if (aTick % 20 != 0 || aBaseMetaTileEntity.isClientSide()) return;
 
-            // Default to cooling by 2%
-            float heatMod = -2;
+        // Default to cooling by 2%
+        float heatMod = -2;
 
-            // If the machine is running, heat by 5% x 0.90 ^ (Coil Tier)
-            // Cupronickel is 0, so base will be 5% increase
-            if (this.maxProgresstime() != 0) {
-                heatMod = (float) (5 * Math.pow(0.9, coilTier));
-            }
+        // If the machine is running, heat by 5% x 0.90 ^ (Coil Tier)
+        // Cupronickel is 0, so base will be 5% increase
+        // Also reset cooling speed
+        if (this.maxProgresstime() != 0) {
+            heatMod = (float) (5 * GTUtility.powInt(0.9, coilTier));
+            coolingTimer = 0;
+        } else {
+            // If the machine isn't running, add and increment the cooling timer
+            heatMod -= coolingTimer;
+            coolingTimer += 2;
+        }
 
-            heat = MathUtils.clamp(heat + heatMod, 0, 100);
+        heat = MathUtils.clamp(heat + heatMod, 0, 100);
 
-            if ((cooling && heat <= 0) || (!cooling && heat >= 100)) {
-                cooling = !cooling;
-            }
+        // Switch overheated conditionally and reset the cooling speed
+        if ((overheated && heat <= 0) || (!overheated && heat >= 100)) {
+            overheated = !overheated;
+            coolingTimer = 0;
         }
 
         // Update all the sensors
@@ -423,29 +436,15 @@ public class MTEHIPCompressor extends MTEExtendedPowerMultiBlockBase<MTEHIPCompr
 
     }
 
+    @Override
     public int getMaxParallelRecipes() {
-        return cooling ? GTUtility.getTier(this.getMaxInputVoltage())
+        return overheated ? GTUtility.getTier(this.getMaxInputVoltage())
             : (4 * GTUtility.getTier(this.getMaxInputVoltage()));
     }
 
     @Override
     public RecipeMap<?> getRecipeMap() {
         return RecipeMaps.compressorRecipes;
-    }
-
-    @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
-        return false;
     }
 
     @Override

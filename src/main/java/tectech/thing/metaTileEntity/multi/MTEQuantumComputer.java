@@ -5,6 +5,7 @@ import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose
 import static gregtech.api.enums.GTValues.V;
 import static gregtech.api.enums.HatchElement.Energy;
 import static gregtech.api.enums.HatchElement.Maintenance;
+import static gregtech.api.recipe.RecipeMaps.quantumComputerFakeRecipes;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 import static gregtech.api.util.GTUtility.validMTEList;
 import static net.minecraft.util.StatCollector.translateToLocal;
@@ -22,6 +23,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import org.jetbrains.annotations.NotNull;
@@ -41,6 +43,7 @@ import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatch;
+import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.recipe.check.SimpleCheckRecipeResult;
@@ -103,6 +106,7 @@ public class MTEQuantumComputer extends TTMultiblockBase implements ISurvivalCon
                     Energy.or(HatchElement.EnergyMulti),
                     Maintenance,
                     HatchElement.Uncertainty,
+                    HatchElement.InputData,
                     HatchElement.OutputData,
                     WirelessComputationHatchElement.INSTANCE)
                 .casingIndex(BlockGTCasingsTT.textureOffset + 1)
@@ -156,6 +160,11 @@ public class MTEQuantumComputer extends TTMultiblockBase implements ISurvivalCon
         super(aName);
         eCertainMode = 5;
         eCertainStatus = -128; // no-brain value
+    }
+
+    @Override
+    public RecipeMap<?> getRecipeMap() {
+        return quantumComputerFakeRecipes;
     }
 
     @Override
@@ -262,7 +271,7 @@ public class MTEQuantumComputer extends TTMultiblockBase implements ISurvivalCon
             return SimpleCheckRecipeResult.ofFailure("no_computing");
         }
         if (overclock.getStatus(true).isOk && overvolt.getStatus(true).isOk) {
-            float eut = V[7] * (float) overClockRatio * (float) overVoltageRatio;
+            float eut = Math.max(V[6], V[7] * (float) overClockRatio * (float) overVoltageRatio);
             if (eut < Integer.MAX_VALUE - 7) {
                 mEUt = -(int) eut;
             } else {
@@ -346,14 +355,17 @@ public class MTEQuantumComputer extends TTMultiblockBase implements ISurvivalCon
     @Override
     public MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType(translateToLocal("gt.blockmachines.multimachine.em.computer.name")) // Machine Type: Quantum
-                                                                                              // Computer
+        tt.addMachineType(translateToLocal("gt.blockmachines.multimachine.em.computer.machinetype")) // Machine Type:
+                                                                                                     // Quantum
+            // Computer
             .addInfo(translateToLocal("gt.blockmachines.multimachine.em.computer.desc.0")) // Controller block of
                                                                                            // the Quantum Computer
             .addInfo(translateToLocal("gt.blockmachines.multimachine.em.computer.desc.1")) // Used to generate
                                                                                            // computation (and heat)
-            .addInfo(translateToLocal("gt.blockmachines.multimachine.em.computer.desc.2")) // Use screwdriver to toggle
+            .addInfo(translateToLocal("gt.blockmachines.multimachine.em.computer.desc.2")) // Use screwdriver to
+                                                                                           // toggle
                                                                                            // wireless mode
+            .addTecTechHatchInfo()
             .beginVariableStructureBlock(2, 2, 4, 4, 5, 16, false)
             .addOtherStructurePart(
                 translateToLocal("gt.blockmachines.hatch.certain.tier.07.name"),
@@ -367,11 +379,6 @@ public class MTEQuantumComputer extends TTMultiblockBase implements ISurvivalCon
                 translateToLocal("gt.blockmachines.hatch.rack.tier.08.name"),
                 translateToLocal("tt.keyword.Structure.AnyAdvComputerCasingExceptOuter"),
                 2) // Computer Rack: Any Advanced Computer Casing, except the outer ones
-            .addOtherStructurePart(
-                translateToLocal("gt.blockmachines.hatch.param.tier.05.name"),
-                translateToLocal("tt.keyword.Structure.Optional") + " "
-                    + translateToLocal("tt.keyword.Structure.AnyComputerCasingFirstOrLastSlice"),
-                2) // Parametrizer: (optional) Any Computer Casing on first or last slice
             .addEnergyHatch(translateToLocal("tt.keyword.Structure.AnyComputerCasingFirstOrLastSlice"), 1) // Energy
                                                                                                            // Hatch:
                                                                                                            // Any
@@ -397,7 +404,8 @@ public class MTEQuantumComputer extends TTMultiblockBase implements ISurvivalCon
     }
 
     @Override
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ,
+        ItemStack aTool) {
         if (getBaseMetaTileEntity().isServerSide()) {
             wirelessModeEnabled = !wirelessModeEnabled;
             if (wirelessModeEnabled) {
@@ -525,19 +533,19 @@ public class MTEQuantumComputer extends TTMultiblockBase implements ISurvivalCon
     public int survivalConstruct(ItemStack stackSize, int elementBudget, IItemSource source, EntityPlayerMP actor) {
         if (mMachine) return -1;
         int built;
-        built = survivialBuildPiece("front", stackSize, 1, 2, 0, elementBudget, source, actor, false, true);
+        built = survivalBuildPiece("front", stackSize, 1, 2, 0, elementBudget, source, actor, false, true);
         if (built >= 0) return built;
-        built = survivialBuildPiece("cap", stackSize, 1, 2, -1, elementBudget, source, actor, false, true);
+        built = survivalBuildPiece("cap", stackSize, 1, 2, -1, elementBudget, source, actor, false, true);
         if (built >= 0) return built;
 
         byte offset = -2;
         for (int rackSlices = Math.min(stackSize.stackSize, 12); rackSlices > 0; rackSlices--) {
-            built = survivialBuildPiece("slice", stackSize, 1, 2, offset--, elementBudget, source, actor, false, true);
+            built = survivalBuildPiece("slice", stackSize, 1, 2, offset--, elementBudget, source, actor, false, true);
             if (built >= 0) return built;
         }
-        built = survivialBuildPiece("cap", stackSize, 1, 2, offset--, elementBudget, source, actor, false, true);
+        built = survivalBuildPiece("cap", stackSize, 1, 2, offset--, elementBudget, source, actor, false, true);
         if (built >= 0) return built;
-        return survivialBuildPiece("back", stackSize, 1, 2, offset, elementBudget, source, actor, false, true);
+        return survivalBuildPiece("back", stackSize, 1, 2, offset, elementBudget, source, actor, false, true);
     }
 
     @Override
@@ -556,12 +564,13 @@ public class MTEQuantumComputer extends TTMultiblockBase implements ISurvivalCon
         if (wirelessModeEnabled) {
             WirelessComputationPacket wirelessComputationPacket = WirelessComputationPacket
                 .getPacketByUserId(getBaseMetaTileEntity().getOwnerUuid());
-            data.add("Wireless mode: " + EnumChatFormatting.GREEN + "enabled");
+            data.add(StatCollector.translateToLocal("tt.infodata.qc.wireless_mode.enabled"));
             data.add(
-                "Total wireless computation available: " + EnumChatFormatting.YELLOW
-                    + wirelessComputationPacket.getAvailableComputationStored());
+                StatCollector.translateToLocalFormatted(
+                    "tt.infodata.qc.total_wireless_computation",
+                    "" + EnumChatFormatting.YELLOW + wirelessComputationPacket.getAvailableComputationStored()));
         } else {
-            data.add("Wireless mode: " + EnumChatFormatting.RED + "disabled");
+            data.add(StatCollector.translateToLocal("tt.infodata.qc.wireless_mode.disabled"));
         }
         return data.toArray(new String[] {});
     }

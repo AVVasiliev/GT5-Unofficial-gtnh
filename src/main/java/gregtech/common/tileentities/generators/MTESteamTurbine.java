@@ -32,10 +32,9 @@ import gregtech.api.metatileentity.implementations.MTEBasicGenerator;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTModHandler;
+import gregtech.api.util.GTUtility;
 
 public class MTESteamTurbine extends MTEBasicGenerator {
-
-    public int mEfficiency;
 
     public MTESteamTurbine(int aID, String aName, String aNameRegional, int aTier) {
         super(
@@ -44,17 +43,10 @@ public class MTESteamTurbine extends MTEBasicGenerator {
             aNameRegional,
             aTier,
             new String[] { "Converts Steam into EU", "Base rate: 2L of Steam -> 1 EU" });
-        this.mEfficiency = 6 + this.mTier;
-    }
-
-    public MTESteamTurbine(String aName, int aTier, String aDescription, ITexture[][][] aTextures) {
-        super(aName, aTier, aDescription, aTextures);
-        this.mEfficiency = 6 + this.mTier;
     }
 
     public MTESteamTurbine(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
         super(aName, aTier, aDescription, aTextures);
-        this.mEfficiency = 6 + this.mTier;
     }
 
     @Override
@@ -79,7 +71,8 @@ public class MTESteamTurbine extends MTEBasicGenerator {
         desc[mDescriptionArray.length] = "Fuel Efficiency: " + (600 / getEfficiency()) + "%";
         desc[mDescriptionArray.length + 1] = String.format(
             "Consumes up to %sL of Steam per second",
-            (int) (4000 * (8 * Math.pow(4, mTier) + Math.pow(2, Math.max(mTier - 1, 0))) / (600 / getEfficiency())));
+            (int) (4000 * (8 * GTUtility.powInt(4, mTier) + GTUtility.powInt(2, Math.max(mTier - 1, 0)))
+                / (600 / getEfficiency())));
         return desc;
     }
 
@@ -90,7 +83,7 @@ public class MTESteamTurbine extends MTEBasicGenerator {
 
     @Override
     public int getEfficiency() {
-        return this.mEfficiency;
+        return 6 + this.mTier;
     }
 
     @Override
@@ -106,7 +99,7 @@ public class MTESteamTurbine extends MTEBasicGenerator {
 
     @Override
     public int consumedFluidPerOperation(FluidStack aLiquid) {
-        return this.mEfficiency;
+        return this.getEfficiency();
     }
 
     @Override
@@ -118,7 +111,7 @@ public class MTESteamTurbine extends MTEBasicGenerator {
                     .addIcon(STEAM_TURBINE_FRONT_GLOW)
                     .glow()
                     .build()),
-            OVERLAYS_ENERGY_OUT[this.mTier] };
+            OVERLAYS_ENERGY_OUT[this.mTier + 1] };
     }
 
     @Override
@@ -174,7 +167,7 @@ public class MTESteamTurbine extends MTEBasicGenerator {
                     .addIcon(STEAM_TURBINE_FRONT_ACTIVE_GLOW)
                     .glow()
                     .build()),
-            OVERLAYS_ENERGY_OUT[this.mTier] };
+            OVERLAYS_ENERGY_OUT[this.mTier + 1] };
     }
 
     @Override

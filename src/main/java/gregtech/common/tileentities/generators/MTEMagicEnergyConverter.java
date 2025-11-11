@@ -22,21 +22,12 @@ import gregtech.api.render.TextureFactory;
 
 public class MTEMagicEnergyConverter extends MTEBasicGenerator {
 
-    public int mEfficiency;
-
     public MTEMagicEnergyConverter(int aID, String aName, String aNameRegional, int aTier) {
         super(aID, aName, aNameRegional, aTier, "Put your strange stuff in here");
-        onConfigLoad();
-    }
-
-    public MTEMagicEnergyConverter(String aName, int aTier, String aDescription, ITexture[][][] aTextures) {
-        super(aName, aTier, aDescription, aTextures);
-        onConfigLoad();
     }
 
     public MTEMagicEnergyConverter(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
         super(aName, aTier, aDescription, aTextures);
-        onConfigLoad();
     }
 
     @Override
@@ -55,17 +46,8 @@ public class MTEMagicEnergyConverter extends MTEBasicGenerator {
     }
 
     @Override
-    public int getCapacity() {
-        return 16000;
-    }
-
-    public void onConfigLoad() {
-        this.mEfficiency = 100 - this.mTier * 5;
-    }
-
-    @Override
     public int getEfficiency() {
-        return this.mEfficiency;
+        return 100 - this.mTier * 5;
     }
 
     @Override
@@ -75,7 +57,7 @@ public class MTEMagicEnergyConverter extends MTEBasicGenerator {
                 .addIcon(MACHINE_CASING_MAGIC_GLOW)
                 .glow()
                 .build(),
-            OVERLAYS_ENERGY_OUT[mTier] };
+            OVERLAYS_ENERGY_OUT[mTier + 1] };
     }
 
     @Override
@@ -121,7 +103,7 @@ public class MTEMagicEnergyConverter extends MTEBasicGenerator {
                 .addIcon(MACHINE_CASING_MAGIC_ACTIVE_GLOW)
                 .glow()
                 .build(),
-            OVERLAYS_ENERGY_OUT[mTier] };
+            OVERLAYS_ENERGY_OUT[mTier + 1] };
     }
 
     @Override

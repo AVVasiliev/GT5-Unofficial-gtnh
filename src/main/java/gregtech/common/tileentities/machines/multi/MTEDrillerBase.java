@@ -3,7 +3,6 @@ package gregtech.common.tileentities.machines.multi;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.lazy;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
-import static gregtech.api.enums.GTValues.W;
 import static gregtech.api.enums.HatchElement.Energy;
 import static gregtech.api.enums.HatchElement.InputBus;
 import static gregtech.api.enums.HatchElement.InputHatch;
@@ -17,6 +16,7 @@ import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_ORE_DRILL_ACT
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_ORE_DRILL_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.getCasingTextureForId;
 import static gregtech.api.metatileentity.BaseTileEntity.TOOLTIP_DELAY;
+import static gregtech.api.util.GTRecipeBuilder.WILDCARD;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 import static gregtech.api.util.GTStructureUtility.ofFrame;
 import static gregtech.api.util.GTUtility.validMTEList;
@@ -116,7 +116,6 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
                     'b',
                     lazy(
                         t -> buildHatchAdder(MTEDrillerBase.class).atLeastList(t.getAllowedHatches())
-                            .adder(MTEDrillerBase::addToMachineList)
                             .casingIndex(t.casingTextureIndex)
                             .dot(1)
                             .buildAndChain(
@@ -200,7 +199,7 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
         int frameId = 4096 + getFrameMaterial().mMetaItemSubID;
         frameMeta = GregTechAPI.METATILEENTITIES[frameId] != null
             ? GregTechAPI.METATILEENTITIES[frameId].getTileEntityBaseType()
-            : W;
+            : WILDCARD;
         casingTextureIndex = getCasingTextureIndex();
         workState = STATE_DOWNWARD;
 
@@ -262,7 +261,7 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
 
     @Override
     public boolean onSolderingToolRightClick(ForgeDirection side, ForgeDirection wrenchingSide,
-        EntityPlayer entityPlayer, float aX, float aY, float aZ) {
+        EntityPlayer entityPlayer, float aX, float aY, float aZ, ItemStack aTool) {
         if (side == getBaseMetaTileEntity().getFrontFacing()) {
             mChunkLoadingEnabled = !mChunkLoadingEnabled;
             GTUtility.sendChatToPlayer(
@@ -271,7 +270,7 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
                     : GTUtility.trans("503", "Mining chunk loading disabled"));
             return true;
         }
-        return super.onSolderingToolRightClick(side, wrenchingSide, entityPlayer, aX, aY, aZ);
+        return super.onSolderingToolRightClick(side, wrenchingSide, entityPlayer, aX, aY, aZ, aTool);
     }
 
     @Override
@@ -295,8 +294,9 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
     protected boolean tryPickPipe() {
         if (yHead == yDrill) return isPickingPipes = false;
         if (tryOutputPipe()) {
-            if (checkBlockAndMeta(xPipe, yHead + 1, zPipe, miningPipeBlock, W)) getBaseMetaTileEntity().getWorld()
-                .setBlock(xPipe, yHead + 1, zPipe, miningPipeTipBlock);
+            if (checkBlockAndMeta(xPipe, yHead + 1, zPipe, miningPipeBlock, WILDCARD))
+                getBaseMetaTileEntity().getWorld()
+                    .setBlock(xPipe, yHead + 1, zPipe, miningPipeTipBlock);
             getBaseMetaTileEntity().getWorld()
                 .setBlockToAir(xPipe, yHead, zPipe);
             return isPickingPipes = true;
@@ -386,7 +386,7 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
     }
 
     protected boolean reachingVoidOrBedrock() {
-        return yHead <= 0 || checkBlockAndMeta(xPipe, yHead - 1, zPipe, Blocks.bedrock, W);
+        return yHead <= 0 || checkBlockAndMeta(xPipe, yHead - 1, zPipe, Blocks.bedrock, WILDCARD);
     }
 
     private boolean isHasMiningPipes() {
@@ -396,15 +396,6 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
     private boolean isHasMiningPipes(int minCount) {
         ItemStack pipe = getStackInSlot(1);
         return pipe != null && pipe.stackSize > minCount - 1 && pipe.isItemEqual(miningPipe);
-    }
-
-    /**
-     * @deprecated Readded for compability
-     * @return if no pipes are present
-     */
-    @Deprecated
-    protected boolean waitForPipes() {
-        return !isHasMiningPipes();
     }
 
     private boolean isEnergyEnough() {
@@ -576,8 +567,8 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
     }
 
     /**
-     * Allow drills to set a specific failure reason specific to their situation. E.g.: out of drilling fluid.
-     * Should be used when the machine doesn't turn off due to the failure.
+     * Allow drills to set a specific failure reason specific to their situation. E.g.: out of drilling fluid. Should be
+     * used when the machine doesn't turn off due to the failure.
      *
      * @param newFailureReason A new failure reason
      */
@@ -605,8 +596,8 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
     }
 
     /**
-     * Sets a line in the UI to explain why the drill shut down. E.g.: operation finished.
-     * Should be used when the machine has been turned off due to an operating issue or completion.
+     * Sets a line in the UI to explain why the drill shut down. E.g.: operation finished. Should be used when the
+     * machine has been turned off due to an operating issue or completion.
      *
      * @param newReason The reason for the machine shutdown
      */
@@ -649,9 +640,9 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
 
     private boolean checkPipesAndSetYHead() {
         yHead = yDrill - 1;
-        while (checkBlockAndMeta(xPipe, yHead, zPipe, miningPipeBlock, W)) yHead--; // skip pipes
+        while (checkBlockAndMeta(xPipe, yHead, zPipe, miningPipeBlock, WILDCARD)) yHead--; // skip pipes
         // is pipe tip OR is controller layer
-        if (checkBlockAndMeta(xPipe, yHead, zPipe, miningPipeTipBlock, W) || ++yHead == yDrill) return true;
+        if (checkBlockAndMeta(xPipe, yHead, zPipe, miningPipeTipBlock, WILDCARD) || ++yHead == yDrill) return true;
         // pipe column is broken - try fix
         getBaseMetaTileEntity().getWorld()
             .setBlock(xPipe, yHead, zPipe, miningPipeTipBlock);
@@ -659,7 +650,7 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
     }
 
     private boolean checkBlockAndMeta(int x, int y, int z, Block block, int meta) {
-        return (meta == W || getBaseMetaTileEntity().getMetaID(x, y, z) == meta)
+        return (meta == WILDCARD || getBaseMetaTileEntity().getMetaID(x, y, z) == meta)
             && getBaseMetaTileEntity().getBlock(x, y, z) == block;
     }
 
@@ -670,26 +661,6 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
         mFakePlayer.setWorld(aBaseTile.getWorld());
         mFakePlayer.setPosition(aBaseTile.getXCoord(), aBaseTile.getYCoord(), aBaseTile.getZCoord());
         return mFakePlayer;
-    }
-
-    @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return true;
-    }
-
-    @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
-        return false;
     }
 
     protected abstract ItemList getCasingBlockItem();
@@ -703,6 +674,12 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
     protected abstract boolean checkHatches();
 
     protected abstract void setElectricityStats();
+
+    public int calculateMaxProgressTime(int tier) {
+        return calculateMaxProgressTime(tier, false);
+    }
+
+    public abstract int calculateMaxProgressTime(int tier, boolean simulateWorking);
 
     public int getTotalConfigValue() {
         int config = 0;
@@ -776,7 +753,12 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return survivialBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 1, 6, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(STRUCTURE_PIECE_MAIN, stackSize, 1, 6, 0, elementBudget, env, false, true);
+    }
+
+    @Override
+    protected boolean useMui2() {
+        return false;
     }
 
     @Override
@@ -791,7 +773,7 @@ public abstract class MTEDrillerBase extends MTEEnhancedMultiBlockBase<MTEDrille
     }
 
     @Override
-    protected boolean showRecipeTextInGUI() {
+    public boolean showRecipeTextInGUI() {
         return false;
     }
 

@@ -9,6 +9,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import com.gtnewhorizons.modularui.api.NumberFormatMUI;
@@ -22,7 +23,6 @@ import com.gtnewhorizons.modularui.common.widget.TextWidget;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import gregtech.api.enums.Textures;
-import gregtech.api.gui.modularui.GTUIInfos;
 import gregtech.api.gui.modularui.GTUITextures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.modularui.IAddGregtechLogo;
@@ -30,18 +30,17 @@ import gregtech.api.interfaces.modularui.IAddUIWidgets;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTETieredMachineBlock;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.render.TextureFactory;
 import gregtech.common.pollution.Pollution;
 import tectech.TecTech;
 import tectech.util.CommonValues;
-import tectech.util.TTUtility;
 
 /**
  * Created by Tec on 23.03.2017.
  */
 public class MTEDebugPollutor extends MTETieredMachineBlock implements IAddUIWidgets, IAddGregtechLogo {
 
-    private static GTRenderedTexture POLLUTOR;
+    private static ITexture POLLUTOR;
     public int pollution = 0;
     private static final NumberFormatMUI numberFormat = new NumberFormatMUI();
 
@@ -55,12 +54,10 @@ public class MTEDebugPollutor extends MTETieredMachineBlock implements IAddUIWid
             new String[] { CommonValues.TEC_MARK_GENERAL, translateToLocal("gt.blockmachines.debug.tt.pollutor.desc.0"),
                 EnumChatFormatting.BLUE + translateToLocal("gt.blockmachines.debug.tt.pollutor.desc.1"),
                 EnumChatFormatting.BLUE + translateToLocal("gt.blockmachines.debug.tt.pollutor.desc.2") });
-        TTUtility.setTier(aTier, this);
     }
 
     public MTEDebugPollutor(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
         super(aName, aTier, 0, aDescription, aTextures);
-        TTUtility.setTier(aTier, this);
     }
 
     @Override
@@ -72,14 +69,14 @@ public class MTEDebugPollutor extends MTETieredMachineBlock implements IAddUIWid
     @SideOnly(Side.CLIENT)
     public void registerIcons(IIconRegister aBlockIconRegister) {
         super.registerIcons(aBlockIconRegister);
-        POLLUTOR = new GTRenderedTexture(new Textures.BlockIcons.CustomIcon("iconsets/POLLUTOR"));
+        POLLUTOR = TextureFactory.of(new Textures.BlockIcons.CustomIcon("iconsets/POLLUTOR"));
     }
 
     @Override
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection facing,
         int colorIndex, boolean aActive, boolean aRedstone) {
-        return new ITexture[] { tectech.thing.metaTileEntity.Textures.MACHINE_CASINGS_TT[mTier][colorIndex + 1],
-            (side == facing) ? POLLUTOR : tectech.thing.metaTileEntity.Textures.OVERLAYS_ENERGY_OUT_LASER_TT[mTier] };
+        return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[mTier][colorIndex + 1],
+            (side == facing) ? POLLUTOR : Textures.BlockIcons.OVERLAYS_ENERGY_OUT_MULTI_LASER[mTier + 1] };
     }
 
     @Override
@@ -110,11 +107,6 @@ public class MTEDebugPollutor extends MTETieredMachineBlock implements IAddUIWid
     }
 
     @Override
-    public boolean isSimpleMachine() {
-        return false;
-    }
-
-    @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
         if (aBaseMetaTileEntity.isServerSide()) {
             if (pollution > 0) {
@@ -132,17 +124,12 @@ public class MTEDebugPollutor extends MTETieredMachineBlock implements IAddUIWid
 
     @Override
     public boolean onRightclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
-        GTUIInfos.openGTTileEntityUI(aBaseMetaTileEntity, aPlayer);
+        openGui(aPlayer);
         return true;
     }
 
     @Override
     public boolean isFacingValid(ForgeDirection facing) {
-        return true;
-    }
-
-    @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
         return true;
     }
 
@@ -166,7 +153,10 @@ public class MTEDebugPollutor extends MTETieredMachineBlock implements IAddUIWid
                 .setSize(90, 72)
                 .setPos(43, 4))
             .widget(
-                new TextWidget().setStringSupplier(() -> "Pollution: " + numberFormat.format(pollution))
+                new TextWidget()
+                    .setStringSupplier(
+                        () -> StatCollector.translateToLocal("tt.gui.text.debug_pollutor.pollution") + ": "
+                            + numberFormat.format(pollution))
                     .setDefaultColor(COLOR_TEXT_WHITE.get())
                     .setPos(46, 8));
 

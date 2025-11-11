@@ -16,12 +16,14 @@ import net.minecraftforge.oredict.OreDictionary;
 import appeng.api.parts.IPartHost;
 import appeng.api.util.IOrientable;
 import appeng.tile.misc.TileInterface;
+import gregtech.GTMod;
 import gregtech.api.enums.SoundResource;
 import gregtech.api.items.MetaBaseItem;
 import gregtech.api.items.MetaGeneratedTool;
 import gregtech.api.util.GTLanguageManager;
 import gregtech.api.util.GTUtility;
 import ic2.api.tile.IWrenchable;
+import ic2.core.block.BlockRubWood;
 
 public class BehaviourWrench extends BehaviourNone {
 
@@ -61,16 +63,16 @@ public class BehaviourWrench extends BehaviourNone {
 
         try {
             return handler.handle() && !aWorld.isRemote;
-        } catch (Throwable ignored) {}
+        } catch (Throwable e) {
+            GTMod.GT_FML_LOGGER.error("Error wrenching", e);
+        }
         return false;
     }
 
     /**
      * <p>
-     * A class to simplify wrenching operation,
-     * stopping "checking creative", "trying to damage tool",
-     * "doing the logic" and "playing sound" again and again.
-     * This should have been a record, but it's not available in Java 8.
+     * A class to simplify wrenching operation, stopping "checking creative", "trying to damage tool", "doing the logic"
+     * and "playing sound" again and again. This should have been a record, but it's not available in Java 8.
      * </p>
      * <p>
      * {@link WrenchHandler#handle()} is the entry point of main logic.
@@ -171,8 +173,11 @@ public class BehaviourWrench extends BehaviourNone {
             final int logWoodId = OreDictionary.getOreID("logWood");
             if (Arrays.stream(OreDictionary.getOreIDs(new ItemStack(block)))
                 .anyMatch(id -> id == logWoodId)) {
-                // The meta just work
-                return setBlockMeta(costs, (meta + 4) % 12);
+                // IC2 rubber logs carry more info than just side in the meta
+                if (!(block instanceof BlockRubWood)) {
+                    // The meta just work
+                    return setBlockMeta(costs, (meta + 4) % 12);
+                }
             }
 
             // vanilla block rotate logic
@@ -225,7 +230,8 @@ public class BehaviourWrench extends BehaviourNone {
             if (player.capabilities.isCreativeMode || item.canWrench(player, x, y, z)) {
                 if (operation.getAsBoolean()) {
                     item.doDamage(stack, damage);
-                    GTUtility.sendSoundToPlayers(world, SoundResource.IC2_TOOLS_WRENCH, 1.0F, -1.0F, x, y, z);
+                    GTUtility
+                        .sendSoundToPlayers(world, SoundResource.GTCEU_OP_WRENCH, 1.0F, 1.0F, x + .5, y + .5, z + .5);
                     return true;
                 }
             }

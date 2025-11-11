@@ -25,6 +25,7 @@ import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
@@ -49,7 +50,6 @@ import gregtech.api.metatileentity.implementations.MTEHatch;
 import gregtech.api.metatileentity.implementations.MTEHatchInput;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.render.TextureFactory;
-import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
@@ -166,13 +166,13 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
             }
         }))
         // Superconductor Base ZPM frame box
-        .addElement('G', ofFrame(Materials.Tetranaquadahdiindiumhexaplatiumosminid))
+        .addElement('G', ofFrame(Materials.SuperconductorZPMBase))
         // Coolant input hatch
         .addElement(
             'K',
             lazy(
                 t -> GTStructureUtility.<MTEPurificationUnitPlasmaHeater>buildHatchAdder()
-                    .atLeast(InputHatch)
+                    .hatchClass(MTEHatchInput.class)
                     .dot(2)
                     .adder(MTEPurificationUnitPlasmaHeater::addCoolantHatchToMachineList)
                     .cacheHint(() -> "Input Hatch (Coolant)")
@@ -183,7 +183,7 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
             'P',
             lazy(
                 t -> GTStructureUtility.<MTEPurificationUnitPlasmaHeater>buildHatchAdder()
-                    .atLeast(InputHatch)
+                    .hatchClass(MTEHatchInput.class)
                     .dot(3)
                     .adder(MTEPurificationUnitPlasmaHeater::addPlasmaHatchToMachineList)
                     .cacheHint(() -> "Input Hatch (Plasma)")
@@ -249,7 +249,7 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
 
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
-        return survivialBuildPiece(
+        return survivalBuildPiece(
             STRUCTURE_PIECE_MAIN,
             stackSize,
             STRUCTURE_X_OFFSET,
@@ -281,7 +281,7 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
                     + EnumChatFormatting.WHITE
                     + GTUtility.formatNumbers(getWaterTier())
                     + EnumChatFormatting.RESET)
-            .addInfo("Must be linked to a Purification Plant using a data stick to work.")
+            .addInfo("Must be linked to a Purification Plant using a data stick to work")
             .addSeparator()
             .addInfo(
                 "Complete heating cycles by first heating the water to " + EnumChatFormatting.RED
@@ -289,24 +289,23 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
                     + "K"
                     + EnumChatFormatting.GRAY
                     + ",")
-            .addInfo(
-                "and then cooling it back down to " + EnumChatFormatting.RED + "0K" + EnumChatFormatting.GRAY + ".")
+            .addInfo("and then cooling it back down to " + EnumChatFormatting.RED + "0K")
             .addInfo(
                 "Initial temperature is reset to " + EnumChatFormatting.RED
                     + "0K"
                     + EnumChatFormatting.GRAY
-                    + " on recipe start.")
+                    + " on recipe start")
             .addInfo(
                 // TODO: Refer to heating cycles in another way to avoid confusion
                 "Each completed heating cycle boosts success chance by " + EnumChatFormatting.RED
                     + SUCCESS_PER_CYCLE
-                    + "%.")
+                    + "%")
             .addInfo(
                 "If the temperature ever reaches " + EnumChatFormatting.RED
                     + MAX_TEMP
                     + "K"
                     + EnumChatFormatting.GRAY
-                    + " the recipe will fail and output steam.")
+                    + " the recipe will fail and output steam")
             .addSeparator()
             .addInfo(
                 "Consumes up to " + EnumChatFormatting.RED
@@ -331,7 +330,7 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
                     + PLASMA_TEMP_PER_LITER
                     + "K"
                     + EnumChatFormatting.GRAY
-                    + " per liter of plasma consumed.")
+                    + " per liter of plasma consumed")
             .addInfo(
                 EnumChatFormatting.RED + "Lowers "
                     + EnumChatFormatting.GRAY
@@ -340,7 +339,7 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
                     + -COOLANT_TEMP_PER_LITER
                     + "K"
                     + EnumChatFormatting.GRAY
-                    + " per liter of coolant consumed.")
+                    + " per liter of coolant consumed")
             .addSeparator()
             .addInfo(
                 EnumChatFormatting.AQUA + ""
@@ -357,8 +356,9 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
             .addInfo(
                 EnumChatFormatting.AQUA + ""
                     + EnumChatFormatting.ITALIC
-                    + "supercritical while evaporating any remaining contaminants, ready for filtration.")
+                    + "supercritical while evaporating any remaining contaminants, ready for filtration")
             .beginStructureBlock(23, 15, 15, false)
+            .addController("Front center")
             .addCasingInfoExactlyColored(
                 "Reinforced Sterile Water Plant Casing",
                 EnumChatFormatting.GRAY,
@@ -390,11 +390,22 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
                 9,
                 EnumChatFormatting.GOLD,
                 false)
-            .addController("Front center")
-            .addOtherStructurePart("Input Hatch (Water)", EnumChatFormatting.GOLD + "1+", 1)
-            .addOtherStructurePart("Output Hatch", EnumChatFormatting.GOLD + "1", 1)
-            .addOtherStructurePart("Input Hatch (Coolant)", EnumChatFormatting.GOLD + "1", 2)
-            .addOtherStructurePart("Input Hatch (Plasma)", EnumChatFormatting.GOLD + "1", 3)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GT5U.tooltip.structure.input_hatch_water"),
+                EnumChatFormatting.GOLD + "1+",
+                1)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GT5U.tooltip.structure.output_hatch"),
+                EnumChatFormatting.GOLD + "1",
+                1)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GT5U.tooltip.structure.input_hatch_coolant"),
+                EnumChatFormatting.GOLD + "1",
+                2)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GT5U.tooltip.structure.input_hatch_plasma"),
+                EnumChatFormatting.GOLD + "1",
+                3)
             .toolTipFinisher(AuthorNotAPenguin);
         return tt;
     }
@@ -428,11 +439,12 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
     public void addRecipeOutputs() {
         super.addRecipeOutputs();
         // If the cycle was ruined, output steam
-        if (this.ruinedCycle) {
+        // currentRecipe is null when multi is unloaded and reloaded
+        if (this.ruinedCycle && currentRecipe != null) {
             FluidStack insertedWater = currentRecipe.mFluidInputs[0];
             // Multiply by 60 since that's the water:steam ratio in GTNH
             long steamAmount = insertedWater.amount * 60L;
-            addOutput(GTModHandler.getSteam(steamAmount));
+            addOutput(Materials.Steam.getGas(steamAmount));
         }
     }
 
@@ -507,8 +519,14 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
     @Override
     public String[] getInfoData() {
         ArrayList<String> infoData = new ArrayList<>(Arrays.asList(super.getInfoData()));
-        infoData.add("Current temperature: " + EnumChatFormatting.YELLOW + currentTemperature + "K");
-        infoData.add("Heating cycles completed this run: " + EnumChatFormatting.YELLOW + cyclesCompleted);
+        infoData.add(
+            StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.purification_unit_plasma_heater.temperature",
+                "" + EnumChatFormatting.YELLOW + currentTemperature));
+        infoData.add(
+            StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.purification_unit_plasma_heater.heating_cycles",
+                "" + EnumChatFormatting.YELLOW + cyclesCompleted));
         return infoData.toArray(new String[] {});
     }
 
@@ -528,11 +546,6 @@ public class MTEPurificationUnitPlasmaHeater extends MTEPurificationUnitBase<MTE
         cyclesCompleted = aNBT.getInteger("mCyclesCompleted");
         ruinedCycle = aNBT.getBoolean("mRuinedCycle");
         state = CycleState.valueOf(aNBT.getString("mCycleState"));
-    }
-
-    @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return true;
     }
 
     @Override

@@ -1,35 +1,35 @@
 package gregtech.api.metatileentity;
 
-import static gregtech.api.enums.GTValues.GT;
+import static gregtech.common.render.GTRendererBlock.BLOCK_MAX;
+import static gregtech.common.render.GTRendererBlock.BLOCK_MIN;
+import static net.minecraftforge.common.util.ForgeDirection.DOWN;
+import static net.minecraftforge.common.util.ForgeDirection.EAST;
+import static net.minecraftforge.common.util.ForgeDirection.NORTH;
+import static net.minecraftforge.common.util.ForgeDirection.SOUTH;
+import static net.minecraftforge.common.util.ForgeDirection.UP;
+import static net.minecraftforge.common.util.ForgeDirection.WEST;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
-import net.minecraft.block.Block;
 import net.minecraft.client.renderer.RenderBlocks;
-import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.AxisAlignedBB;
-import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
-import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidTankInfo;
+
+import org.jetbrains.annotations.NotNull;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import gnu.trove.list.TIntList;
-import gnu.trove.list.array.TIntArrayList;
+import gregtech.GTMod;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.Dyes;
 import gregtech.api.enums.GTValues;
@@ -38,18 +38,11 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IConnectable;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IColoredTileEntity;
-import gregtech.api.interfaces.tileentity.ICoverable;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
-import gregtech.api.objects.GTItemStack;
-import gregtech.api.util.CoverBehavior;
-import gregtech.api.util.CoverBehaviorBase;
-import gregtech.api.util.GTLanguageManager;
-import gregtech.api.util.GTUtil;
-import gregtech.api.util.GTUtility;
-import gregtech.api.util.ISerializableObject;
+import gregtech.api.render.ISBRInventoryContext;
+import gregtech.api.render.ISBRWorldContext;
 import gregtech.api.util.WorldSpawnedEventBuilder;
-import gregtech.common.GTClient;
-import gregtech.common.covers.CoverInfo;
+import gregtech.common.covers.Cover;
 
 /**
  * NEVER INCLUDE THIS FILE IN YOUR MOD!!!
@@ -57,15 +50,11 @@ import gregtech.common.covers.CoverInfo;
  * Extend this Class to add a new MetaPipe Call the Constructor with the desired ID at the load-phase (not preload and
  * also not postload!) Implement the newMetaEntity-Method to return a new ready instance of your MetaTileEntity
  * <p/>
- * Call the Constructor like the following example inside the Load Phase, to register it. "new
- * GT_MetaTileEntity_E_Furnace(54, "GT_E_Furnace", "Automatic E-Furnace");"
+ * Call the Constructor like the following example inside the Load Phase, to register it. "new MTEFurnace(54,
+ * "GT_E_Furnace", "Automatic E-Furnace");"
  */
-public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
+public abstract class MetaPipeEntity extends CommonMetaTileEntity implements IConnectable {
 
-    /**
-     * The Inventory of the MetaTileEntity. Amount of Slots can be larger than 256. HAYO!
-     */
-    public final ItemStack[] mInventory;
     /**
      * This variable tells, which directions the Block is connected to. It is a Bitmask.
      */
@@ -73,27 +62,19 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
 
     protected boolean mCheckConnections = false;
     /**
-     * Only assigned for the MetaTileEntity in the List! Also only used to get the localized Name for the ItemStack and
-     * for getInvName.
-     */
-    public String mName;
-
-    public boolean doTickProfilingInThisTick = true;
-    /**
      * accessibility to this Field is no longer given, see below
      */
     private IGregTechTileEntity mBaseMetaTileEntity;
 
     /**
-     * This registers your Machine at the List. Use only ID's larger than 2048 - the ones lower are reserved by GT.
-     * See also the list in the API package - it has a description that contains all the reservations.
+     * This registers your Machine at the List. Use only ID's larger than 2048 - the ones lower are reserved by GT. See
+     * also the list in the API package - it has a description that contains all the reservations.
      * <p>
-     * The constructor can be overloaded as follows:
-     * <blockquote>
+     * The constructor can be overloaded as follows: <blockquote>
      *
      * <pre>
      *
-     * public GT_MetaTileEntity_EBench(int id, String name, String nameRegional) {
+     * public MTEBench(int id, String name, String nameRegional) {
      *     super(id, name, nameRegional);
      * }
      * </pre>
@@ -107,27 +88,17 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
     }
 
     public MetaPipeEntity(int aID, String aBasicName, String aRegionalName, int aInvSlotCount, boolean aAddInfo) {
-        if (GregTechAPI.sPostloadStarted || !GregTechAPI.sPreloadStarted)
-            throw new IllegalAccessError("This Constructor has to be called in the load Phase");
-        if (GregTechAPI.METATILEENTITIES[aID] == null) {
-            GregTechAPI.METATILEENTITIES[aID] = this;
-        } else {
-            throw new IllegalArgumentException("MetaMachine-Slot Nr. " + aID + " is already occupied!");
-        }
-        mName = aBasicName.replaceAll(" ", "_")
-            .toLowerCase(Locale.ENGLISH);
+        super(aID, aBasicName, aRegionalName, aInvSlotCount);
         setBaseMetaTileEntity(new BaseMetaPipeEntity());
         getBaseMetaTileEntity().setMetaTileID((short) aID);
-        GTLanguageManager.addStringLocalization("gt.blockmachines." + mName + ".name", aRegionalName);
-        mInventory = new ItemStack[aInvSlotCount];
 
-        if (aAddInfo && GT.isClientSide()) {
+        if (aAddInfo && GTMod.GT.isClientSide()) {
             addInfo(aID);
         }
     }
 
     protected final void addInfo(int aID) {
-        if (!GT.isClientSide()) return;
+        if (!GTMod.GT.isClientSide()) return;
 
         ItemStack tStack = new ItemStack(GregTechAPI.sBlockMachines, 1, aID);
         Objects.requireNonNull(tStack.getItem())
@@ -138,23 +109,370 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
      * This is the normal Constructor.
      */
     public MetaPipeEntity(String aName, int aInvSlotCount) {
-        mInventory = new ItemStack[aInvSlotCount];
-        mName = aName;
+        super(aName, aInvSlotCount);
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public boolean renderInInventory(ISBRInventoryContext ctx) {
+        final float tThickness = getThickness();
+        final float pipeMin = (BLOCK_MAX - tThickness) / 2.0F;
+        final float pipeMax = BLOCK_MAX - pipeMin;
+        final RenderBlocks renderBlocks = ctx.getRenderBlocks();
+        renderBlocks.setRenderBounds(BLOCK_MIN, pipeMin, pipeMin, BLOCK_MAX, pipeMax, pipeMax);
+
+        final IGregTechTileEntity mte = getBaseMetaTileEntity();
+        final ITexture[] sideTexture = getTexture(mte, DOWN, (CONNECTED_WEST | CONNECTED_EAST), -1, false, false);
+        final ITexture[] endTexture = getTexture(mte, WEST, (CONNECTED_WEST | CONNECTED_EAST), -1, true, false);
+        ctx.renderNegativeYFacing(sideTexture);
+        ctx.renderPositiveYFacing(sideTexture);
+        ctx.renderNegativeZFacing(sideTexture);
+        ctx.renderPositiveZFacing(sideTexture);
+        ctx.renderNegativeXFacing(endTexture);
+        ctx.renderPositiveXFacing(endTexture);
+        return true;
+    }
+
+    @SuppressWarnings("OverlyComplexMethod") // Naturally complex logic
+    @Override
+    @SideOnly(Side.CLIENT)
+    public boolean renderInWorld(ISBRWorldContext ctx) {
+        BaseMetaPipeEntity rte = (BaseMetaPipeEntity) getBaseMetaTileEntity();
+        if (rte == null) return false;
+
+        final byte aConnections = rte.getConnections();
+        final float thickness = getThickness();
+        if (thickness >= 1) {
+            ctx.renderNegativeYFacing(rte.getTextureCovered(DOWN));
+            ctx.renderPositiveYFacing(rte.getTextureCovered(UP));
+            ctx.renderNegativeZFacing(rte.getTextureCovered(NORTH));
+            ctx.renderPositiveZFacing(rte.getTextureCovered(SOUTH));
+            ctx.renderNegativeXFacing(rte.getTextureCovered(WEST));
+            ctx.renderPositiveXFacing(rte.getTextureCovered(EAST));
+            return true;
+        }
+        // Range of block occupied by pipe
+        final float pipeMin = (BLOCK_MAX - thickness) / 2.0F;
+        final float pipeMax = BLOCK_MAX - pipeMin;
+
+        final ITexture[] textureUp = rte.getTextureUncovered(UP);
+        final ITexture[] textureDown = rte.getTextureUncovered(DOWN);
+        final ITexture[] textureNorth = rte.getTextureUncovered(NORTH);
+        final ITexture[] textureSouth = rte.getTextureUncovered(SOUTH);
+        final ITexture[] textureWest = rte.getTextureUncovered(WEST);
+        final ITexture[] textureEast = rte.getTextureUncovered(EAST);
+
+        final RenderBlocks renderBlocks = ctx.getRenderBlocks();
+        switch (aConnections) {
+            case NO_CONNECTION -> {
+                renderBlocks.setRenderBounds(pipeMin, pipeMin, pipeMin, pipeMax, pipeMax, pipeMax);
+
+                ctx.renderNegativeYFacing(textureDown);
+                ctx.renderPositiveYFacing(textureUp);
+                ctx.renderNegativeZFacing(textureNorth);
+                ctx.renderPositiveZFacing(textureSouth);
+                ctx.renderNegativeXFacing(textureWest);
+                ctx.renderPositiveXFacing(textureEast);
+            }
+            case CONNECTED_EAST | CONNECTED_WEST -> {
+                // EAST - WEST Pipe Sides
+                renderBlocks.setRenderBounds(BLOCK_MIN, pipeMin, pipeMin, BLOCK_MAX, pipeMax, pipeMax);
+
+                ctx.renderNegativeYFacing(textureDown);
+                ctx.renderPositiveYFacing(textureUp);
+                ctx.renderNegativeZFacing(textureNorth);
+                ctx.renderPositiveZFacing(textureSouth);
+
+                // EAST - WEST Pipe Ends
+                ctx.renderNegativeXFacing(textureWest);
+                ctx.renderPositiveXFacing(textureEast);
+            }
+            case CONNECTED_DOWN | CONNECTED_UP -> {
+                // UP - DOWN Pipe Sides
+                renderBlocks.setRenderBounds(pipeMin, BLOCK_MIN, pipeMin, pipeMax, BLOCK_MAX, pipeMax);
+
+                ctx.renderNegativeZFacing(textureNorth);
+                ctx.renderPositiveZFacing(textureSouth);
+                ctx.renderNegativeXFacing(textureWest);
+                ctx.renderPositiveXFacing(textureEast);
+
+                // UP - DOWN Pipe Ends
+                ctx.renderNegativeYFacing(textureDown);
+                ctx.renderPositiveYFacing(textureUp);
+            }
+            case CONNECTED_NORTH | CONNECTED_SOUTH -> {
+                // NORTH - SOUTH Pipe Sides
+                renderBlocks.setRenderBounds(pipeMin, pipeMin, BLOCK_MIN, pipeMax, pipeMax, BLOCK_MAX);
+
+                ctx.renderNegativeYFacing(textureDown);
+                ctx.renderPositiveYFacing(textureUp);
+                ctx.renderNegativeXFacing(textureWest);
+                ctx.renderPositiveXFacing(textureEast);
+
+                // NORTH - SOUTH Pipe Ends
+                ctx.renderNegativeZFacing(textureNorth);
+                ctx.renderPositiveZFacing(textureSouth);
+            }
+            default -> {
+                if ((aConnections & CONNECTED_WEST) == 0) {
+                    renderBlocks.setRenderBounds(pipeMin, pipeMin, pipeMin, pipeMax, pipeMax, pipeMax);
+
+                } else {
+                    renderBlocks.setRenderBounds(BLOCK_MIN, pipeMin, pipeMin, pipeMin, pipeMax, pipeMax);
+
+                    ctx.renderNegativeYFacing(textureDown);
+                    ctx.renderPositiveYFacing(textureUp);
+                    ctx.renderNegativeZFacing(textureNorth);
+                    ctx.renderPositiveZFacing(textureSouth);
+                }
+                ctx.renderNegativeXFacing(textureWest);
+                if ((aConnections & CONNECTED_EAST) == 0) {
+                    renderBlocks.setRenderBounds(pipeMin, pipeMin, pipeMin, pipeMax, pipeMax, pipeMax);
+
+                } else {
+                    renderBlocks.setRenderBounds(pipeMax, pipeMin, pipeMin, BLOCK_MAX, pipeMax, pipeMax);
+
+                    ctx.renderNegativeYFacing(textureDown);
+                    ctx.renderPositiveYFacing(textureUp);
+                    ctx.renderNegativeZFacing(textureNorth);
+                    ctx.renderPositiveZFacing(textureSouth);
+                }
+                ctx.renderPositiveXFacing(textureEast);
+                if ((aConnections & CONNECTED_DOWN) == 0) {
+                    renderBlocks.setRenderBounds(pipeMin, pipeMin, pipeMin, pipeMax, pipeMax, pipeMax);
+
+                } else {
+                    renderBlocks.setRenderBounds(pipeMin, BLOCK_MIN, pipeMin, pipeMax, pipeMin, pipeMax);
+
+                    ctx.renderNegativeZFacing(textureNorth);
+                    ctx.renderPositiveZFacing(textureSouth);
+                    ctx.renderNegativeXFacing(textureWest);
+                    ctx.renderPositiveXFacing(textureEast);
+                }
+                ctx.renderNegativeYFacing(textureDown);
+                if ((aConnections & CONNECTED_UP) == 0) {
+                    renderBlocks.setRenderBounds(pipeMin, pipeMin, pipeMin, pipeMax, pipeMax, pipeMax);
+
+                } else {
+                    renderBlocks.setRenderBounds(pipeMin, pipeMax, pipeMin, pipeMax, BLOCK_MAX, pipeMax);
+
+                    ctx.renderNegativeZFacing(textureNorth);
+                    ctx.renderPositiveZFacing(textureSouth);
+                    ctx.renderNegativeXFacing(textureWest);
+                    ctx.renderPositiveXFacing(textureEast);
+                }
+                ctx.renderPositiveYFacing(textureUp);
+                if ((aConnections & CONNECTED_NORTH) == 0) {
+                    renderBlocks.setRenderBounds(pipeMin, pipeMin, pipeMin, pipeMax, pipeMax, pipeMax);
+
+                } else {
+                    renderBlocks.setRenderBounds(pipeMin, pipeMin, BLOCK_MIN, pipeMax, pipeMax, pipeMin);
+
+                    ctx.renderNegativeYFacing(textureDown);
+                    ctx.renderPositiveYFacing(textureUp);
+                    ctx.renderNegativeXFacing(textureWest);
+                    ctx.renderPositiveXFacing(textureEast);
+                }
+                ctx.renderNegativeZFacing(textureNorth);
+                if ((aConnections & CONNECTED_SOUTH) == 0) {
+                    renderBlocks.setRenderBounds(pipeMin, pipeMin, pipeMin, pipeMax, pipeMax, pipeMax);
+
+                } else {
+                    renderBlocks.setRenderBounds(pipeMin, pipeMin, pipeMax, pipeMax, pipeMax, BLOCK_MAX);
+
+                    ctx.renderNegativeYFacing(textureDown);
+                    ctx.renderPositiveYFacing(textureUp);
+                    ctx.renderNegativeXFacing(textureWest);
+                    ctx.renderPositiveXFacing(textureEast);
+                }
+                ctx.renderPositiveZFacing(textureSouth);
+            }
+        }
+        final boolean hasCoverDown = rte.hasCoverAtSide(DOWN);
+        final boolean hasCoverUp = rte.hasCoverAtSide(UP);
+        final boolean hasCoverNorth = rte.hasCoverAtSide(NORTH);
+        final boolean hasCoverSouth = rte.hasCoverAtSide(SOUTH);
+        final boolean hasCoverWest = rte.hasCoverAtSide(WEST);
+        final boolean hasCoverEast = rte.hasCoverAtSide(EAST);
+
+        final var coverThickness = Float.min(BLOCK_MAX / 8.0F, (BLOCK_MAX - thickness) / 2.0F);
+        final float coverInnerMin = BLOCK_MIN + coverThickness;
+        final float coverInnerMax = BLOCK_MAX - coverThickness;
+
+        if (hasCoverDown) {
+            final ITexture[] coverTexture = rte.getTexture(DOWN);
+            renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MIN, BLOCK_MIN, BLOCK_MAX, coverInnerMin, BLOCK_MAX);
+            if (!hasCoverNorth) ctx.renderNegativeZFacing(coverTexture);
+            if (!hasCoverSouth) ctx.renderPositiveZFacing(coverTexture);
+            if (!hasCoverWest) ctx.renderNegativeXFacing(coverTexture);
+            if (!hasCoverEast) ctx.renderPositiveXFacing(coverTexture);
+            ctx.renderPositiveYFacing(coverTexture);
+            if ((aConnections & CONNECTED_DOWN) != 0) {
+                // Split outer face to leave hole for pipe
+                // Lower panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MIN, BLOCK_MIN, BLOCK_MAX, BLOCK_MIN, pipeMin);
+                ctx.renderNegativeYFacing(coverTexture);
+                // Upper panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MIN, pipeMax, BLOCK_MAX, BLOCK_MIN, BLOCK_MAX);
+                ctx.renderNegativeYFacing(coverTexture);
+                // Middle left panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MIN, pipeMin, pipeMin, BLOCK_MIN, pipeMax);
+                ctx.renderNegativeYFacing(coverTexture);
+                // Middle right panel
+                renderBlocks.setRenderBounds(pipeMax, BLOCK_MIN, pipeMin, BLOCK_MAX, BLOCK_MIN, pipeMax);
+            }
+            ctx.renderNegativeYFacing(coverTexture);
+        }
+
+        if (hasCoverUp) {
+            final ITexture[] coverTexture = rte.getTexture(UP);
+            renderBlocks.setRenderBounds(BLOCK_MIN, coverInnerMax, BLOCK_MIN, BLOCK_MAX, BLOCK_MAX, BLOCK_MAX);
+            if (!hasCoverNorth) ctx.renderNegativeZFacing(coverTexture);
+            if (!hasCoverSouth) ctx.renderPositiveZFacing(coverTexture);
+            if (!hasCoverWest) ctx.renderNegativeXFacing(coverTexture);
+            if (!hasCoverEast) ctx.renderPositiveXFacing(coverTexture);
+            ctx.renderNegativeYFacing(coverTexture);
+            if ((aConnections & CONNECTED_UP) != 0) {
+                // Split outer face to leave hole for pipe
+                // Lower panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MAX, BLOCK_MIN, BLOCK_MAX, BLOCK_MAX, pipeMin);
+                ctx.renderPositiveYFacing(coverTexture);
+                // Upper panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MAX, pipeMax, BLOCK_MAX, BLOCK_MAX, BLOCK_MAX);
+                ctx.renderPositiveYFacing(coverTexture);
+                // Middle left panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MAX, pipeMin, pipeMin, BLOCK_MAX, pipeMax);
+                ctx.renderPositiveYFacing(coverTexture);
+                // Middle right panel
+                renderBlocks.setRenderBounds(pipeMax, BLOCK_MAX, pipeMin, BLOCK_MAX, BLOCK_MAX, pipeMax);
+            }
+            ctx.renderPositiveYFacing(coverTexture);
+        }
+
+        if (hasCoverNorth) {
+            final ITexture[] coverTexture = rte.getTexture(NORTH);
+            renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MIN, BLOCK_MIN, BLOCK_MAX, BLOCK_MAX, coverInnerMin);
+            if (!hasCoverDown) ctx.renderNegativeYFacing(coverTexture);
+            if (!hasCoverUp) ctx.renderPositiveYFacing(coverTexture);
+            if (!hasCoverWest) ctx.renderNegativeXFacing(coverTexture);
+            if (!hasCoverEast) ctx.renderPositiveXFacing(coverTexture);
+            ctx.renderPositiveZFacing(coverTexture);
+            if ((aConnections & CONNECTED_NORTH) != 0) {
+                // Split outer face to leave hole for pipe
+                // Lower panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MIN, BLOCK_MIN, BLOCK_MAX, pipeMin, BLOCK_MIN);
+                ctx.renderNegativeZFacing(coverTexture);
+                // Upper panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, pipeMax, BLOCK_MIN, BLOCK_MAX, BLOCK_MAX, BLOCK_MIN);
+                ctx.renderNegativeZFacing(coverTexture);
+                // Middle left panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, pipeMin, BLOCK_MIN, pipeMin, pipeMax, BLOCK_MIN);
+                ctx.renderNegativeZFacing(coverTexture);
+                // Middle right panel
+                renderBlocks.setRenderBounds(pipeMax, pipeMin, BLOCK_MIN, BLOCK_MAX, pipeMax, BLOCK_MIN);
+            }
+            ctx.renderNegativeZFacing(coverTexture);
+        }
+
+        if (hasCoverSouth) {
+            final ITexture[] coverTexture = rte.getTexture(SOUTH);
+            renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MIN, coverInnerMax, BLOCK_MAX, BLOCK_MAX, BLOCK_MAX);
+            if (!hasCoverDown) ctx.renderNegativeYFacing(coverTexture);
+            if (!hasCoverUp) ctx.renderPositiveYFacing(coverTexture);
+            if (!hasCoverWest) ctx.renderNegativeXFacing(coverTexture);
+            if (!hasCoverEast) ctx.renderPositiveXFacing(coverTexture);
+            ctx.renderNegativeZFacing(coverTexture);
+            if ((aConnections & CONNECTED_SOUTH) != 0) {
+                // Split outer face to leave hole for pipe
+                // Lower panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MIN, BLOCK_MAX, BLOCK_MAX, pipeMin, BLOCK_MAX);
+                ctx.renderPositiveZFacing(coverTexture);
+                // Upper panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, pipeMax, BLOCK_MAX, BLOCK_MAX, BLOCK_MAX, BLOCK_MAX);
+                ctx.renderPositiveZFacing(coverTexture);
+                // Middle left panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, pipeMin, BLOCK_MAX, pipeMin, pipeMax, BLOCK_MAX);
+                ctx.renderPositiveZFacing(coverTexture);
+                // Middle right panel
+                renderBlocks.setRenderBounds(pipeMax, pipeMin, BLOCK_MAX, BLOCK_MAX, pipeMax, BLOCK_MAX);
+            }
+            ctx.renderPositiveZFacing(coverTexture);
+        }
+
+        if (hasCoverWest) {
+            final ITexture[] coverTexture = rte.getTexture(WEST);
+            renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MIN, BLOCK_MIN, coverInnerMin, BLOCK_MAX, BLOCK_MAX);
+            if (!hasCoverDown) ctx.renderNegativeYFacing(coverTexture);
+            if (!hasCoverUp) ctx.renderPositiveYFacing(coverTexture);
+            if (!hasCoverNorth) ctx.renderNegativeZFacing(coverTexture);
+            if (!hasCoverSouth) ctx.renderPositiveZFacing(coverTexture);
+            ctx.renderPositiveXFacing(coverTexture);
+            if ((aConnections & CONNECTED_WEST) != 0) {
+                // Split outer face to leave hole for pipe
+                // Lower panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, BLOCK_MIN, BLOCK_MIN, BLOCK_MIN, pipeMin, BLOCK_MAX);
+                ctx.renderNegativeXFacing(coverTexture);
+                // Upper panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, pipeMax, BLOCK_MIN, BLOCK_MIN, BLOCK_MAX, BLOCK_MAX);
+                ctx.renderNegativeXFacing(coverTexture);
+                // Middle left panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, pipeMin, BLOCK_MIN, BLOCK_MIN, pipeMax, pipeMin);
+                ctx.renderNegativeXFacing(coverTexture);
+                // Middle right panel
+                renderBlocks.setRenderBounds(BLOCK_MIN, pipeMin, pipeMax, BLOCK_MIN, pipeMax, BLOCK_MAX);
+            }
+            ctx.renderNegativeXFacing(coverTexture);
+        }
+
+        if (hasCoverEast) {
+            final ITexture[] coverTexture = rte.getTexture(EAST);
+            renderBlocks.setRenderBounds(coverInnerMax, BLOCK_MIN, BLOCK_MIN, BLOCK_MAX, BLOCK_MAX, BLOCK_MAX);
+            if (!hasCoverDown) ctx.renderNegativeYFacing(coverTexture);
+            if (!hasCoverUp) ctx.renderPositiveYFacing(coverTexture);
+            if (!hasCoverNorth) ctx.renderNegativeZFacing(coverTexture);
+            if (!hasCoverSouth) ctx.renderPositiveZFacing(coverTexture);
+            ctx.renderNegativeXFacing(coverTexture);
+
+            if ((aConnections & CONNECTED_EAST) != 0) {
+                // Split outer face to leave hole for pipe
+                // Lower panel
+                renderBlocks.setRenderBounds(BLOCK_MAX, BLOCK_MIN, BLOCK_MIN, BLOCK_MAX, pipeMin, BLOCK_MAX);
+                ctx.renderPositiveXFacing(coverTexture);
+                // Upper panel
+                renderBlocks.setRenderBounds(BLOCK_MAX, pipeMax, BLOCK_MIN, BLOCK_MAX, BLOCK_MAX, BLOCK_MAX);
+                ctx.renderPositiveXFacing(coverTexture);
+                // Middle left panel
+                renderBlocks.setRenderBounds(BLOCK_MAX, pipeMin, BLOCK_MIN, BLOCK_MAX, pipeMax, pipeMin);
+                ctx.renderPositiveXFacing(coverTexture);
+                // Middle right panel
+                renderBlocks.setRenderBounds(BLOCK_MAX, pipeMin, pipeMax, BLOCK_MAX, pipeMax, BLOCK_MAX);
+            }
+            ctx.renderPositiveXFacing(coverTexture);
+        }
+
+        return true;
     }
 
     /**
      * For Pipe Rendering
      */
-    public abstract float getThickNess();
+    public float getThickness() {
+        // If we are holding a soldering iron, minimize the rendered thickness of the pipe.
+        if (GTMod.GT.isClientSide() && GTMod.clientProxy()
+            .shouldHideThings()) return 0.0625F;
+        return getCollisionThickness();
+    }
+
+    /**
+     * For Bounding Box collision checks The bounding box is unaffected in case a soldering iron is held and the render
+     * thickness of the pipe is minimized.
+     */
+    public abstract float getCollisionThickness();
 
     /**
      * For Pipe Rendering
      */
     public abstract boolean renderInside(ForgeDirection side);
-
-    public boolean isDisplaySecondaryDescription() {
-        return false;
-    }
 
     @Override
     public ITexture[] getTexture(IGregTechTileEntity baseMetaTileEntity, ForgeDirection side, ForgeDirection facing,
@@ -213,7 +531,7 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
         if (difference > 1.05 && difference < 1.4) {
             side = ForgeDirection.EAST;
         }
-        boolean tCovered = side != ForgeDirection.UNKNOWN && mBaseMetaTileEntity.getCoverIDAtSide(side) > 0;
+        boolean tCovered = side != ForgeDirection.UNKNOWN && mBaseMetaTileEntity.hasCoverAtSide(side);
         if (isConnectedAtSide(side)) {
             tCovered = true;
         }
@@ -223,230 +541,30 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
     }
 
     @Override
-    public void onServerStart() {
-        /* Do nothing */
-    }
-
-    @Override
-    public void onWorldSave(File aSaveDirectory) {
-        /* Do nothing */
-    }
-
-    @Override
-    public void onWorldLoad(File aSaveDirectory) {
-        /* Do nothing */
-    }
-
-    @Override
-    public void onConfigLoad() {
-        /* Do nothing */
-    }
-
-    @Override
-    public void setItemNBT(NBTTagCompound aNBT) {
-        /* Do nothing */
-    }
-
-    @Override
-    @SideOnly(Side.CLIENT)
-    public void registerIcons(IIconRegister aBlockIconRegister) {
-        /* Do nothing */
-    }
-
-    @Override
-    public boolean allowCoverOnSide(ForgeDirection side, GTItemStack aCoverID) {
-        return true;
-    }
-
-    @Deprecated
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
-        /* Do nothing */
-    }
-
-    @Deprecated
-    public boolean onWrenchRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer entityPlayer,
-        float aX, float aY, float aZ) {
-        return false;
-    }
-
-    @Deprecated
-    public boolean onWireCutterRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer,
-        float aX, float aY, float aZ) {
-        return false;
-    }
-
-    @Deprecated
-    public boolean onSolderingToolRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer,
-        float aX, float aY, float aZ) {
-        return false;
-    }
-
-    @Override
     public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ,
-        ItemStack aTool) {
-        onScrewdriverRightClick(side, aPlayer, aX, aY, aZ);
-    }
+        ItemStack aTool) {}
 
     @Override
     public boolean onWrenchRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer, float aX,
         float aY, float aZ, ItemStack aTool) {
-        return onWrenchRightClick(side, wrenchingSide, aPlayer, aX, aY, aZ);
+        return false;
     }
 
     @Override
     public boolean onWireCutterRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer,
         float aX, float aY, float aZ, ItemStack aTool) {
-        return onWireCutterRightClick(side, wrenchingSide, aPlayer, aX, aY, aZ);
+        return false;
     }
 
     @Override
     public boolean onSolderingToolRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer,
         float aX, float aY, float aZ, ItemStack aTool) {
-        return onSolderingToolRightClick(side, wrenchingSide, aPlayer, aX, aY, aZ);
+        return false;
     }
 
     @Override
     public void onExplosion() {
         /* Do nothing */
-    }
-
-    @Override
-    public void onFirstTick(IGregTechTileEntity aBaseMetaTileEntity) {
-        /* Do nothing */
-    }
-
-    @Override
-    public void onPreTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
-        /* Do nothing */
-    }
-
-    @Override
-    public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
-        if (aBaseMetaTileEntity.isClientSide() && GTClient.changeDetected == 4) {
-            /*
-             * Client tick counter that is set to 5 on hiding pipes and covers. It triggers a texture update next client
-             * tick when reaching 4, with provision for 3 more update tasks, spreading client change detection related
-             * work and network traffic on different ticks, until it reaches 0.
-             */
-            aBaseMetaTileEntity.issueTextureUpdate();
-        }
-    }
-
-    @Override
-    public void inValidate() {
-        /* Do nothing */
-    }
-
-    @Override
-    public void onRemoval() {
-        /* Do nothing */
-    }
-
-    @Override
-    public void initDefaultModes(NBTTagCompound aNBT) {
-        /* Do nothing */
-    }
-
-    /**
-     * When a GUI is opened
-     */
-    public void onOpenGUI() {
-        /* Do nothing */
-    }
-
-    /**
-     * When a GUI is closed
-     */
-    public void onCloseGUI() {
-        /* Do nothing */
-    }
-
-    /**
-     * Called when a Player rightclicks the Machine. Sneaky rightclicks are not getting passed to this!
-     */
-    @Override
-    public boolean onRightclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer, ForgeDirection side,
-        float aX, float aY, float aZ) {
-        return false;
-    }
-
-    @Override
-    public void onLeftclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
-        /* Do nothing */
-    }
-
-    @Override
-    public void onValueUpdate(byte aValue) {
-        /* Do nothing */
-    }
-
-    @Override
-    public byte getUpdateData() {
-        return 0;
-    }
-
-    @Override
-    public void doSound(byte aIndex, double aX, double aY, double aZ) {
-        /* Do nothing */
-    }
-
-    @Override
-    public void startSoundLoop(byte aIndex, double aX, double aY, double aZ) {
-        /* Do nothing */
-    }
-
-    @Override
-    public void stopSoundLoop(byte aValue, double aX, double aY, double aZ) {
-        /* Do nothing */
-    }
-
-    @Override
-    public final void sendSound(byte aIndex) {
-        if (!getBaseMetaTileEntity().hasMufflerUpgrade())
-            getBaseMetaTileEntity().sendBlockEvent(GregTechTileClientEvents.DO_SOUND, aIndex);
-    }
-
-    @Override
-    public final void sendLoopStart(byte aIndex) {
-        if (!getBaseMetaTileEntity().hasMufflerUpgrade())
-            getBaseMetaTileEntity().sendBlockEvent(GregTechTileClientEvents.START_SOUND_LOOP, aIndex);
-    }
-
-    @Override
-    public final void sendLoopEnd(byte aIndex) {
-        if (!getBaseMetaTileEntity().hasMufflerUpgrade())
-            getBaseMetaTileEntity().sendBlockEvent(GregTechTileClientEvents.STOP_SOUND_LOOP, aIndex);
-    }
-
-    @Override
-    public boolean isFacingValid(ForgeDirection facing) {
-        return false;
-    }
-
-    @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
-        return true;
-    }
-
-    @Override
-    public boolean isValidSlot(int aIndex) {
-        return true;
-    }
-
-    @Override
-    public boolean shouldDropItemAt(int index) {
-        return true;
-    }
-
-    @Override
-    public boolean setStackToZeroInsteadOfNull(int aIndex) {
-        return false;
-    }
-
-    @Override
-    public ArrayList<String> getSpecialDebugInfo(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer,
-        int aLogLevel, ArrayList<String> aList) {
-        return aList;
     }
 
     @Override
@@ -459,225 +577,6 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
         return false;
     }
 
-    /**
-     * gets the contained Liquid
-     */
-    @Override
-    public FluidStack getFluid() {
-        return null;
-    }
-
-    /**
-     * tries to fill this Tank
-     */
-    @Override
-    public int fill(FluidStack resource, boolean doFill) {
-        return 0;
-    }
-
-    /**
-     * tries to empty this Tank
-     */
-    @Override
-    public FluidStack drain(int maxDrain, boolean doDrain) {
-        return null;
-    }
-
-    /**
-     * Tank pressure
-     */
-    public int getTankPressure() {
-        return 0;
-    }
-
-    /**
-     * Liquid Capacity
-     */
-    @Override
-    public int getCapacity() {
-        return 0;
-    }
-
-    /**
-     * Progress this machine has already made
-     */
-    public int getProgresstime() {
-        return 0;
-    }
-
-    /**
-     * Progress this Machine has to do to produce something
-     */
-    public int maxProgresstime() {
-        return 0;
-    }
-
-    /**
-     * Increases the Progress, returns the overflown Progress.
-     */
-    public int increaseProgress(int aProgress) {
-        return 0;
-    }
-
-    @Override
-    public void onMachineBlockUpdate() {
-        /* Do nothing */
-    }
-
-    @Override
-    public void receiveClientEvent(byte aEventID, byte aValue) {
-        /* Do nothing */
-    }
-
-    @Override
-    public boolean isSimpleMachine() {
-        return false;
-    }
-
-    @Override
-    public byte getComparatorValue(ForgeDirection side) {
-        return 0;
-    }
-
-    @Override
-    public boolean acceptsRotationalEnergy(ForgeDirection side) {
-        return false;
-    }
-
-    @Override
-    public boolean injectRotationalEnergy(ForgeDirection side, long aSpeed, long aEnergy) {
-        return false;
-    }
-
-    @Override
-    public String getSpecialVoltageToolTip() {
-        return null;
-    }
-
-    @Override
-    public boolean isGivingInformation() {
-        return false;
-    }
-
-    @Override
-    public String[] getInfoData() {
-        return new String[] {};
-    }
-
-    public boolean isDigitalChest() {
-        return false;
-    }
-
-    public ItemStack[] getStoredItemData() {
-        return null;
-    }
-
-    public void setItemCount(int aCount) {
-        /* Do nothing */
-    }
-
-    public int getMaxItemCount() {
-        return 0;
-    }
-
-    @Override
-    public int getSizeInventory() {
-        return mInventory.length;
-    }
-
-    @Override
-    public ItemStack getStackInSlot(int slotIndex) {
-        if (slotIndex >= 0 && slotIndex < mInventory.length) return mInventory[slotIndex];
-        return null;
-    }
-
-    @Override
-    public void setInventorySlotContents(int aIndex, ItemStack aStack) {
-        if (aIndex >= 0 && aIndex < mInventory.length) mInventory[aIndex] = aStack;
-    }
-
-    @Override
-    public String getInventoryName() {
-        if (GregTechAPI.METATILEENTITIES[getBaseMetaTileEntity().getMetaTileID()] != null)
-            return GregTechAPI.METATILEENTITIES[getBaseMetaTileEntity().getMetaTileID()].getMetaName();
-        return "";
-    }
-
-    @Override
-    public int getInventoryStackLimit() {
-        return 64;
-    }
-
-    @Override
-    public boolean isItemValidForSlot(int aIndex, ItemStack aStack) {
-        return getBaseMetaTileEntity().isValidSlot(aIndex);
-    }
-
-    @Override
-    public ItemStack decrStackSize(int aIndex, int aAmount) {
-        ItemStack tStack = getStackInSlot(aIndex), rStack = GTUtility.copyOrNull(tStack);
-        if (tStack != null) {
-            if (tStack.stackSize <= aAmount) {
-                if (setStackToZeroInsteadOfNull(aIndex)) tStack.stackSize = 0;
-                else setInventorySlotContents(aIndex, null);
-            } else {
-                rStack = tStack.splitStack(aAmount);
-                if (tStack.stackSize == 0 && !setStackToZeroInsteadOfNull(aIndex))
-                    setInventorySlotContents(aIndex, null);
-            }
-        }
-        return rStack;
-    }
-
-    @Override
-    public int[] getAccessibleSlotsFromSide(int ordinalSide) {
-        final TIntList tList = new TIntArrayList();
-        final IGregTechTileEntity tTileEntity = getBaseMetaTileEntity();
-        final CoverInfo tileCoverInfo = tTileEntity.getCoverInfoAtSide(ForgeDirection.getOrientation(ordinalSide));
-        final boolean tSkip = tileCoverInfo.letsItemsIn(-2) || tileCoverInfo.letsItemsOut(-2);
-        for (int i = 0; i < getSizeInventory(); i++) {
-            if (isValidSlot(i) && (tSkip || tileCoverInfo.letsItemsOut(i) || tileCoverInfo.letsItemsIn(i))) {
-                tList.add(i);
-            }
-        }
-        return tList.toArray();
-    }
-
-    @Override
-    public boolean canInsertItem(int slotIndex, ItemStack itemStack, int ordinalSide) {
-        return isValidSlot(slotIndex) && itemStack != null
-            && slotIndex < mInventory.length
-            && (mInventory[slotIndex] == null || GTUtility.areStacksEqual(itemStack, mInventory[slotIndex]))
-            && allowPutStack(getBaseMetaTileEntity(), slotIndex, ForgeDirection.getOrientation(ordinalSide), itemStack);
-    }
-
-    @Override
-    public boolean canExtractItem(int slotIndex, ItemStack itemStack, int ordinalSide) {
-        return isValidSlot(slotIndex) && itemStack != null
-            && slotIndex < mInventory.length
-            && allowPullStack(
-                getBaseMetaTileEntity(),
-                slotIndex,
-                ForgeDirection.getOrientation(ordinalSide),
-                itemStack);
-    }
-
-    @Override
-    public boolean canFill(ForgeDirection side, Fluid aFluid) {
-        return fill(side, new FluidStack(aFluid, 1), false) == 1;
-    }
-
-    @Override
-    public boolean canDrain(ForgeDirection side, Fluid aFluid) {
-        return drain(side, new FluidStack(aFluid, 1), false) != null;
-    }
-
-    @Override
-    public FluidTankInfo[] getTankInfo(ForgeDirection side) {
-        if (getCapacity() <= 0 && !getBaseMetaTileEntity().hasSteamEngineUpgrade()) return new FluidTankInfo[] {};
-        return new FluidTankInfo[] { getInfo() };
-    }
-
     public int fill_default(ForgeDirection side, FluidStack aFluid, boolean doFill) {
         return fill(aFluid, doFill);
     }
@@ -688,75 +587,8 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
     }
 
     @Override
-    public FluidStack drain(ForgeDirection side, FluidStack aFluid, boolean doDrain) {
-        if (getFluid() != null && aFluid != null && getFluid().isFluidEqual(aFluid))
-            return drain(aFluid.amount, doDrain);
-        return null;
-    }
-
-    @Override
-    public FluidStack drain(ForgeDirection side, int maxDrain, boolean doDrain) {
-        return drain(maxDrain, doDrain);
-    }
-
-    @Override
-    public int getFluidAmount() {
-        return 0;
-    }
-
-    @Override
-    public FluidTankInfo getInfo() {
-        return new FluidTankInfo(this);
-    }
-
-    @Override
-    public String getMetaName() {
-        return mName;
-    }
-
-    @Override
-    public ItemStack getStackInSlotOnClosing(int i) {
-        return null;
-    }
-
-    @Override
-    public boolean doTickProfilingMessageDuringThisTick() {
-        return doTickProfilingInThisTick;
-    }
-
-    @Override
-    public boolean isUseableByPlayer(EntityPlayer entityplayer) {
-        return false;
-    }
-
-    @Override
-    public boolean connectsToItemPipe(ForgeDirection side) {
-        return false;
-    }
-
-    @Override
-    public void openInventory() {
-        //
-    }
-
-    @Override
-    public void closeInventory() {
-        //
-    }
-
-    @Override
     public float getExplosionResistance(ForgeDirection side) {
-        return (mConnections & IConnectable.HAS_FOAM) != 0 ? 50.0F : 5.0F;
-    }
-
-    @Override
-    public ItemStack[] getRealInventory() {
-        return mInventory;
-    }
-
-    @Override
-    public boolean hasCustomInventoryName() {
-        return false;
+        return 5.0F;
     }
 
     @Override
@@ -783,18 +615,6 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
     }
 
     @Override
-    @SideOnly(Side.CLIENT)
-    public boolean renderInInventory(Block aBlock, int aMeta, RenderBlocks aRenderer) {
-        return false;
-    }
-
-    @Override
-    @SideOnly(Side.CLIENT)
-    public boolean renderInWorld(IBlockAccess aWorld, int aX, int aY, int aZ, Block aBlock, RenderBlocks aRenderer) {
-        return false;
-    }
-
-    @Override
     public void doExplosion(long aExplosionPower) {
         float tStrength = GTValues.getExplosionPowerForVoltage(aExplosionPower);
         int tX = getBaseMetaTileEntity().getXCoord(), tY = getBaseMetaTileEntity().getYCoord(),
@@ -813,43 +633,6 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
     @Override
     public int getLightOpacity() {
         return 0;
-    }
-
-    @Override
-    public void addCollisionBoxesToList(World aWorld, int aX, int aY, int aZ, AxisAlignedBB inputAABB,
-        List<AxisAlignedBB> outputAABB, Entity collider) {
-        AxisAlignedBB axisalignedbb1 = getCollisionBoundingBoxFromPool(aWorld, aX, aY, aZ);
-        if (axisalignedbb1 != null && inputAABB.intersectsWith(axisalignedbb1)) outputAABB.add(axisalignedbb1);
-    }
-
-    @Override
-    public AxisAlignedBB getCollisionBoundingBoxFromPool(World aWorld, int aX, int aY, int aZ) {
-        return AxisAlignedBB.getBoundingBox(aX, aY, aZ, aX + 1, aY + 1, aZ + 1);
-    }
-
-    @Override
-    public void onEntityCollidedWithBlock(World aWorld, int aX, int aY, int aZ, Entity collider) {
-        //
-    }
-
-    @Override
-    public void onCreated(ItemStack aStack, World aWorld, EntityPlayer aPlayer) {
-        //
-    }
-
-    @Override
-    public boolean allowGeneralRedstoneOutput() {
-        return false;
-    }
-
-    @Override
-    public boolean hasAlternativeModeText() {
-        return false;
-    }
-
-    @Override
-    public String getAlternativeModeText() {
-        return "";
     }
 
     protected boolean connectableColor(TileEntity tTileEntity) {
@@ -874,11 +657,11 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
         final IGregTechTileEntity baseMetaTile = getBaseMetaTileEntity();
         if (baseMetaTile == null || !baseMetaTile.isServerSide()) return 0;
 
-        final CoverInfo coverInfo = baseMetaTile.getCoverInfoAtSide(side);
+        final Cover cover = baseMetaTile.getCoverAtSide(side);
 
-        final boolean alwaysLookConnected = coverInfo.alwaysLookConnected();
-        final boolean letsIn = letsIn(coverInfo);
-        final boolean letsOut = letsOut(coverInfo);
+        final boolean alwaysLookConnected = cover.alwaysLookConnected();
+        final boolean letsIn = letsIn(cover);
+        final boolean letsOut = letsOut(cover);
 
         // Careful - tTileEntity might be null, and that's ok -- so handle it
         final TileEntity tTileEntity = baseMetaTile.getTileEntityAtSide(side);
@@ -949,31 +732,102 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
         return (mConnections & sideDirection.flag) != 0;
     }
 
-    public boolean letsIn(CoverBehavior coverBehavior, ForgeDirection side, int aCoverID, int aCoverVariable,
-        ICoverable aTileEntity) {
+    @Override
+    public void addCollisionBoxesToList(World world, int x, int y, int z, AxisAlignedBB inputAABB,
+        List<AxisAlignedBB> outputAABB, Entity collider) {
+        if (boundingBoxShouldBeFullBlock()) {
+            AxisAlignedBB fullSizeBoundingBox = AxisAlignedBB.getBoundingBox(x, y, z, x + 1, y + 1, z + 1);
+            if (inputAABB.intersectsWith(fullSizeBoundingBox)) outputAABB.add(fullSizeBoundingBox);
+        }
+        // Even if we're holding a tool, we still want to check for collisions with the regular size
+        // of the pipe in case the player is currently in contact with it.
+        AxisAlignedBB physicalBoundingBox = getPhysicalCollisionBoundingBox(x, y, z);
+        if (inputAABB.intersectsWith(physicalBoundingBox)) outputAABB.add(physicalBoundingBox);
+    }
+
+    @Override
+    public AxisAlignedBB getCollisionBoundingBoxFromPool(World world, int x, int y, int z) {
+        // This is all we need to return when drawing the interaction box around the pipe.
+        if (boundingBoxShouldBeFullBlock()) {
+            return AxisAlignedBB.getBoundingBox(x, y, z, x + 1, y + 1, z + 1);
+        }
+        // Otherwise, account for attached covers and connections
+        return getPhysicalCollisionBoundingBox(x, y, z);
+    }
+
+    private boolean boundingBoxShouldBeFullBlock() {
+        // While holding tool, make it full block.
+        return (GTMod.GT.isClientSide() && GTMod.clientProxy()
+            .forceFullBlockBB()) || getCollisionThickness() == 1;
+    }
+
+    /**
+     * Gets the bounding box that corresponds to the rendered pipe.
+     */
+    private @NotNull AxisAlignedBB getPhysicalCollisionBoundingBox(int x, int y, int z) {
+        final float space = (1f - getCollisionThickness()) / 2;
+        float yStart = space;
+        float yEnd = 1f - space;
+        float zStart = space;
+        float zEnd = 1f - space;
+        float xStart = space;
+        float xEnd = 1f - space;
+        final BaseMetaPipeEntity baseTE = (BaseMetaPipeEntity) getBaseMetaTileEntity();
+
+        if (baseTE.hasCoverAtSide(ForgeDirection.DOWN)) {
+            yStart = zStart = xStart = 0;
+            zEnd = xEnd = 1;
+        }
+        if (baseTE.hasCoverAtSide(ForgeDirection.UP)) {
+            zStart = xStart = 0;
+            yEnd = zEnd = xEnd = 1;
+        }
+        if (baseTE.hasCoverAtSide(ForgeDirection.NORTH)) {
+            yStart = zStart = xStart = 0;
+            yEnd = xEnd = 1;
+        }
+        if (baseTE.hasCoverAtSide(ForgeDirection.SOUTH)) {
+            yStart = xStart = 0;
+            yEnd = zEnd = xEnd = 1;
+        }
+        if (baseTE.hasCoverAtSide(ForgeDirection.WEST)) {
+            yStart = zStart = xStart = 0;
+            yEnd = zEnd = 1;
+        }
+        if (baseTE.hasCoverAtSide(ForgeDirection.EAST)) {
+            yStart = zStart = 0;
+            yEnd = zEnd = xEnd = 1;
+        }
+
+        // this.mConnections isn't synced, but BaseMetaPipeEntity.mConnections is for some reason
+        final byte connections = baseTE.mConnections;
+        if ((connections & ForgeDirection.DOWN.flag) != 0) {
+            yStart = 0f;
+        }
+        if ((connections & ForgeDirection.UP.flag) != 0) {
+            yEnd = 1f;
+        }
+        if ((connections & ForgeDirection.NORTH.flag) != 0) {
+            zStart = 0f;
+        }
+        if ((connections & ForgeDirection.SOUTH.flag) != 0) {
+            zEnd = 1f;
+        }
+        if ((connections & ForgeDirection.WEST.flag) != 0) {
+            xStart = 0f;
+        }
+        if ((connections & ForgeDirection.EAST.flag) != 0) {
+            xEnd = 1f;
+        }
+
+        return AxisAlignedBB.getBoundingBox(x + xStart, y + yStart, z + zStart, x + xEnd, y + yEnd, z + zEnd);
+    }
+
+    public boolean letsIn(Cover cover) {
         return false;
     }
 
-    public boolean letsIn(CoverInfo coverInfo) {
-        return false;
-    }
-
-    public boolean letsOut(CoverBehavior coverBehavior, ForgeDirection side, int aCoverID, int aCoverVariable,
-        ICoverable aTileEntity) {
-        return false;
-    }
-
-    public boolean letsOut(CoverInfo coverInfo) {
-        return false;
-    }
-
-    public boolean letsIn(CoverBehaviorBase<?> coverBehavior, ForgeDirection side, int aCoverID,
-        ISerializableObject aCoverVariable, ICoverable aTileEntity) {
-        return false;
-    }
-
-    public boolean letsOut(CoverBehaviorBase<?> coverBehavior, ForgeDirection side, int aCoverID,
-        ISerializableObject aCoverVariable, ICoverable aTileEntity) {
+    public boolean letsOut(Cover cover) {
         return false;
     }
 
@@ -1004,9 +858,9 @@ public abstract class MetaPipeEntity implements IMetaTileEntity, IConnectable {
             if (GregTechAPI.sMachineMetalGUI) {
                 dye = Dyes.MACHINE_METAL;
             } else if (getBaseMetaTileEntity() != null) {
-                dye = Dyes.getDyeFromIndex(getBaseMetaTileEntity().getColorization());
+                dye = Dyes.getOrDefault(getBaseMetaTileEntity().getColorization(), Dyes.MACHINE_METAL);
             }
         }
-        return GTUtil.getRGBInt(dye.getRGBA());
+        return dye.toInt();
     }
 }

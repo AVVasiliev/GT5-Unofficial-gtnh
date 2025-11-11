@@ -14,10 +14,9 @@ import static net.minecraft.util.EnumChatFormatting.YELLOW;
 import java.math.BigInteger;
 import java.util.ArrayList;
 
-import javax.annotation.Nonnull;
-
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -77,8 +76,8 @@ public class MTEPlasmaModule extends MTEBaseModule {
 
             @NotNull
             @Override
-            protected CheckRecipeResult validateRecipe(@Nonnull GTRecipe recipe) {
-                wirelessEUt = (long) recipe.mEUt * getMaxParallel();
+            protected CheckRecipeResult validateRecipe(@NotNull GTRecipe recipe) {
+                wirelessEUt = (long) recipe.mEUt * getActualParallel();
                 if (getUserEU(userUUID).compareTo(BigInteger.valueOf(wirelessEUt * recipe.mDuration)) < 0) {
                     return CheckRecipeResultRegistry.insufficientPower(wirelessEUt * recipe.mDuration);
                 }
@@ -91,25 +90,25 @@ public class MTEPlasmaModule extends MTEBaseModule {
 
             @NotNull
             @Override
-            protected CheckRecipeResult onRecipeStart(@Nonnull GTRecipe recipe) {
+            protected CheckRecipeResult onRecipeStart(@NotNull GTRecipe recipe) {
                 wirelessEUt = (long) recipe.mEUt * maxParallel;
-                if (!addEUToGlobalEnergyMap(userUUID, -calculatedEut * duration)) {
+                BigInteger powerForRecipe = BigInteger.valueOf(calculatedEut)
+                    .multiply(BigInteger.valueOf(duration));
+                if (!addEUToGlobalEnergyMap(userUUID, powerForRecipe.negate())) {
                     return CheckRecipeResultRegistry.insufficientPower(wirelessEUt * recipe.mDuration);
                 }
-                addToPowerTally(
-                    BigInteger.valueOf(calculatedEut)
-                        .multiply(BigInteger.valueOf(duration)));
+                addToPowerTally(powerForRecipe);
                 addToRecipeTally(calculatedParallels);
                 currentParallel = calculatedParallels;
                 EUt = calculatedEut;
-                setCalculatedEut(0);
+                overwriteCalculatedEut(0);
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }
 
-            @Nonnull
+            @NotNull
             @Override
-            protected OverclockCalculator createOverclockCalculator(@Nonnull GTRecipe recipe) {
-                return super.createOverclockCalculator(recipe).setEUt(getProcessingVoltage())
+            protected OverclockCalculator createOverclockCalculator(@NotNull GTRecipe recipe) {
+                return super.createOverclockCalculator(recipe).setEUt(getSafeProcessingVoltage())
                     .setDurationDecreasePerOC(getOverclockTimeFactor());
             }
         };
@@ -120,7 +119,8 @@ public class MTEPlasmaModule extends MTEBaseModule {
         logic.setAvailableVoltage(Long.MAX_VALUE);
         logic.setAvailableAmperage(Integer.MAX_VALUE);
         logic.setAmperageOC(false);
-        logic.setMaxParallel(getMaxParallel());
+        logic.setUnlimitedTierSkips();
+        logic.setMaxParallel(getActualParallel());
         logic.setSpeedBonus(getSpeedBonus());
         logic.setEuModifier(getEnergyDiscount());
     }
@@ -142,7 +142,7 @@ public class MTEPlasmaModule extends MTEBaseModule {
             })
             .setPlayClickSound(false)
             .setBackground(TecTechUITextures.BUTTON_CELESTIAL_32x32, TecTechUITextures.OVERLAY_BUTTON_LOAF_MODE)
-            .addTooltip("Debug Window")
+            .addTooltip(StatCollector.translateToLocal("tt.gui.tooltip.plasma_module.debug_window"))
             .setTooltipShowUpDelay(TOOLTIP_DELAY)
             .setPos(174, 91)
             .setSize(16, 16);
@@ -183,7 +183,7 @@ public class MTEPlasmaModule extends MTEBaseModule {
                     if (val) enableWorking();
                     else disableWorking();
                 }), builder)
-                .addTooltip("multi-step")
+                .addTooltip(StatCollector.translateToLocal("tt.gui.tooltip.plasma_module.debug_window.multi_step"))
                 .setTooltipShowUpDelay(TOOLTIP_DELAY)
                 .setPos(4, 40)
                 .setSize(16, 16));
@@ -196,7 +196,7 @@ public class MTEPlasmaModule extends MTEBaseModule {
                 .setTextAlignment(Alignment.Center)
                 .setTextColor(Color.WHITE.normal)
                 .setPos(3, 18)
-                .addTooltip("fusion tier")
+                .addTooltip(StatCollector.translateToLocal("tt.gui.tooltip.plasma_module.debug_window.fusion_tier"))
                 .setTooltipShowUpDelay(TOOLTIP_DELAY)
                 .setSize(16, 16)
                 .setPos(4, 20)
@@ -210,7 +210,7 @@ public class MTEPlasmaModule extends MTEBaseModule {
                 .setTextAlignment(Alignment.Center)
                 .setTextColor(Color.WHITE.normal)
                 .setPos(3, 18)
-                .addTooltip("parallel")
+                .addTooltip(StatCollector.translateToLocal("tt.gui.tooltip.plasma_module.debug_window.parallel"))
                 .setTooltipShowUpDelay(TOOLTIP_DELAY)
                 .setSize(70, 16)
                 .setPos(4, 4)
@@ -228,27 +228,34 @@ public class MTEPlasmaModule extends MTEBaseModule {
     public String[] getInfoData() {
         ArrayList<String> str = new ArrayList<>();
         str.add(
-            "Progress: " + GREEN
-                + formatNumbers(mProgresstime / 20)
-                + RESET
-                + " s / "
-                + YELLOW
-                + formatNumbers(mMaxProgresstime / 20)
-                + RESET
-                + " s");
+            StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.progress",
+                GREEN + formatNumbers(mProgresstime / 20) + RESET,
+                YELLOW + formatNumbers(mMaxProgresstime / 20) + RESET));
         str.add(
-            "Currently using: " + RED
-                + (getBaseMetaTileEntity().isActive() ? formatNumbers(EUt) : "0")
-                + RESET
-                + " EU/t");
-        str.add(YELLOW + "Max Parallel: " + RESET + formatNumbers(getMaxParallel()));
+            StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.currently_using",
+                RED + (getBaseMetaTileEntity().isActive() ? formatNumbers(EUt) : "0") + RESET));
         str.add(
-            YELLOW + "Current Parallel: "
-                + RESET
-                + (getBaseMetaTileEntity().isActive() ? formatNumbers(currentParallel) : "0"));
-        str.add(YELLOW + "Recipe time multiplier: " + RESET + formatNumbers(getSpeedBonus()));
-        str.add(YELLOW + "Energy multiplier: " + RESET + formatNumbers(getEnergyDiscount()));
-        str.add(YELLOW + "Recipe time divisor per non-perfect OC: " + RESET + formatNumbers(getOverclockTimeFactor()));
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.max_parallel",
+                RESET + formatNumbers(getActualParallel())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.parallel.current",
+                RESET + (getBaseMetaTileEntity().isActive() ? formatNumbers(currentParallel) : "0")));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.multiplier.recipe_time",
+                RESET + formatNumbers(getSpeedBonus())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.multiplier.energy",
+                RESET + formatNumbers(getEnergyDiscount())));
+        str.add(
+            YELLOW + StatCollector.translateToLocalFormatted(
+                "tt.infodata.multi.divisor.recipe_time.non_perfect_oc",
+                RESET + formatNumbers(getOverclockTimeFactor())));
         return str.toArray(new String[0]);
     }
 
@@ -256,14 +263,14 @@ public class MTEPlasmaModule extends MTEBaseModule {
     public MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType("Plasma Fabricator")
-            .addInfo("This is a module of the Godforge.")
-            .addInfo("Must be part of a Godforge to function.")
-            .addInfo("Used for extreme temperature matter ionization.")
+            .addInfo("This is a module of the Godforge")
+            .addInfo("Must be part of a Godforge to function")
+            .addInfo("Used for extreme temperature matter ionization")
             .addSeparator(EnumChatFormatting.AQUA, 74)
             .addInfo("The third module of the Godforge, this module infuses materials with extreme amounts")
             .addInfo("of heat, ionizing and turning them into plasma directly. Not all plasmas can be produced")
-            .addInfo("right away, some of them require certain upgrades to be unlocked.")
-            .addInfo("This module is specialized towards energy and overclock efficiency.")
+            .addInfo("right away, some of them require certain upgrades to be unlocked")
+            .addInfo("This module is specialized towards energy and overclock efficiency")
             .beginStructureBlock(7, 7, 13, false)
             .addStructureInfo(
                 EnumChatFormatting.GOLD + "20"

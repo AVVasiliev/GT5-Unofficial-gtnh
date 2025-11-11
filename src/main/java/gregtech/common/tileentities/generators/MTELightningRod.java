@@ -23,10 +23,6 @@ public class MTELightningRod extends MTETieredMachineBlock {
         super(aID, aName, aNameRegional, aTier, 0, "Generates EU From Lightning Bolts");
     }
 
-    public MTELightningRod(String aName, int aTier, int aInvSlotCount, String aDescription, ITexture[][][] aTextures) {
-        super(aName, aTier, aInvSlotCount, aDescription, aTextures);
-    }
-
     public MTELightningRod(String aName, int aTier, int aInvSlotCount, String[] aDescription,
         ITexture[][][] aTextures) {
         super(aName, aTier, aInvSlotCount, aDescription, aTextures);
@@ -37,7 +33,7 @@ public class MTELightningRod extends MTETieredMachineBlock {
         ForgeDirection facingDirection, int colorIndex, boolean active, boolean redstoneLevel) {
         if (sideDirection != ForgeDirection.UP) {
             return new ITexture[] { BlockIcons.MACHINE_CASINGS[mTier][colorIndex + 1],
-                BlockIcons.OVERLAYS_ENERGY_OUT_POWER[mTier] };
+                BlockIcons.OVERLAYS_ENERGY_OUT_MULTI_64A[mTier + 1] };
         }
         if (!active) return new ITexture[] { BlockIcons.MACHINE_CASINGS[mTier][colorIndex + 1],
             TextureFactory.of(BlockIcons.MACHINE_CASING_FUSION_GLASS) };
@@ -121,11 +117,6 @@ public class MTELightningRod extends MTETieredMachineBlock {
     }
 
     @Override
-    public boolean isSimpleMachine() {
-        return false;
-    }
-
-    @Override
     public boolean isFacingValid(ForgeDirection facing) {
         return facing == ForgeDirection.UP;
     }
@@ -138,11 +129,6 @@ public class MTELightningRod extends MTETieredMachineBlock {
     @Override
     public boolean isEnetOutput() {
         return true;
-    }
-
-    @Override
-    public boolean isEnetInput() {
-        return false;
     }
 
     @Override

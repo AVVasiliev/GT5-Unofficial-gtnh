@@ -2,7 +2,9 @@ package goodgenerator.blocks.tileEntity;
 
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.*;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
+import static gregtech.api.util.GTStructureUtility.chainAllGlasses;
 import static gregtech.api.util.GTStructureUtility.ofFrame;
+import static net.minecraft.util.StatCollector.translateToLocal;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,6 +26,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizons.modularui.api.NumberFormatMUI;
+import com.gtnewhorizons.modularui.api.math.Alignment;
 import com.gtnewhorizons.modularui.common.widget.DynamicPositionedColumn;
 import com.gtnewhorizons.modularui.common.widget.FakeSyncWidget;
 import com.gtnewhorizons.modularui.common.widget.SlotWidget;
@@ -46,7 +49,6 @@ import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.logic.ProcessingLogic;
 import gregtech.api.metatileentity.implementations.MTEHatch;
-import gregtech.api.multitileentity.multiblock.casing.Glasses;
 import gregtech.api.objects.XSTR;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.check.CheckRecipeResult;
@@ -56,16 +58,27 @@ import gregtech.api.util.GTUtility;
 import gregtech.api.util.IGTHatchAdder;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.OverclockCalculator;
+import tectech.thing.metaTileEntity.multi.base.INameFunction;
+import tectech.thing.metaTileEntity.multi.base.IStatusFunction;
+import tectech.thing.metaTileEntity.multi.base.LedStatus;
+import tectech.thing.metaTileEntity.multi.base.Parameters;
 
 public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements IConstructable, ISurvivalConstructable {
 
+    public Parameters.Group.ParameterIn batchSetting;
+
+    /** Name of the batch setting */
+    public static final INameFunction<MTENeutronActivator> BATCH_SETTING_NAME = (base,
+        p) -> translateToLocal("batch_mode.cfgi.0"); // Batch size
+    /** Status of the batch setting */
+    public static final IStatusFunction<MTENeutronActivator> BATCH_STATUS = (base, p) -> LedStatus
+        .fromLimitsInclusiveOuterBoundary(p.get(), 1, 0, 32, 128);
     protected static IStructureDefinition<MTENeutronActivator> multiDefinition = null;
     protected final ArrayList<MTENeutronAccelerator> mNeutronAccelerator = new ArrayList<>();
     protected final ArrayList<MTENeutronSensor> mNeutronSensor = new ArrayList<>();
     protected int casingAmount = 0;
     protected int height = 0;
     protected int eV = 0, mCeil = 0, mFloor = 0;
-    private GTRecipe lastRecipe;
     protected static final NumberFormatMUI numberFormat;
     static {
         numberFormat = new NumberFormatMUI();
@@ -102,8 +115,8 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
             @Override
             protected OverclockCalculator createOverclockCalculator(@NotNull GTRecipe recipe) {
                 return OverclockCalculator.ofNoOverclock(recipe)
-                    .setDuration((int) Math.ceil(recipe.mDuration * Math.pow(0.9f, height - 4)))
-                    .setDurationUnderOneTickSupplier(() -> recipe.mDuration * Math.pow(0.9f, height - 4));
+                    .setDuration((int) Math.ceil(recipe.mDuration * GTUtility.powInt(0.9f, height - 4)))
+                    .setDurationUnderOneTickSupplier(() -> recipe.mDuration * GTUtility.powInt(0.9f, height - 4));
             }
 
             @NotNull
@@ -116,7 +129,7 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
                 mFloor = (lastRecipe.mSpecialValue % 10000) * 1000000;
                 mCeil = (lastRecipe.mSpecialValue / 10000) * 1000000;
                 if (eV > mCeil || eV < mFloor) {
-                    setOutputItems(ItemRefer.Radioactive_Waste.get(4));
+                    overwriteOutputItems(ItemRefer.Radioactive_Waste.get(4));
                 }
                 // NA does not consume power, its hatches do. Set it to 0 to be sure
                 calculatedEut = 0;
@@ -131,28 +144,20 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
         // we have infinite power
         logic.setAvailableVoltage(Long.MAX_VALUE);
         logic.setAvailableAmperage(1);
+        logic.setUnlimitedTierSkips();
     }
 
     @Override
     public boolean onWireCutterRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer,
-        float aX, float aY, float aZ) {
-        batchMode = !batchMode;
-        if (batchMode) {
+        float aX, float aY, float aZ, ItemStack aTool) {
+        if (getMaxBatchSize() == 1) {
+            parametrization.trySetParameters(batchSetting.hatchId(), batchSetting.parameterId(), 128);
             GTUtility.sendChatToPlayer(aPlayer, StatCollector.translateToLocal("misc.BatchModeTextOn"));
         } else {
+            parametrization.trySetParameters(batchSetting.hatchId(), batchSetting.parameterId(), 1);
             GTUtility.sendChatToPlayer(aPlayer, StatCollector.translateToLocal("misc.BatchModeTextOff"));
         }
         return true;
-    }
-
-    @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
-    public int getPollutionPerTick(ItemStack aStack) {
-        return 0;
     }
 
     @Override
@@ -180,15 +185,15 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
 
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Neutron Activator")
+        tt.addMachineType("Neutron Activator, NA")
             .addInfo("Superluminal-velocity Motion.")
-            .addInfo("The minimum height of the Speeding Pipe Casing is 4.")
-            .addInfo("Per extra Speeding Pipe Casing will give time discount.")
-            .addInfo("But it will reduce the Neutron Accelerator efficiency.")
-            .addInfo("You need to input energy to the Neutron Accelerator to get it running.")
-            .addInfo("It will output correct products with Specific Neutron Kinetic Energy.")
-            .addInfo("Otherwise it will output trash.")
-            .addInfo("The Neutron Kinetic Energy will decrease 72KeV/s when no Neutron Accelerator is running.")
+            .addInfo("The minimum height of the Speeding Pipe Casing is 4")
+            .addInfo("Per extra Speeding Pipe Casing will give time discount")
+            .addInfo("But it will reduce the Neutron Accelerator efficiency")
+            .addInfo("You need to input energy to the Neutron Accelerator to get it running")
+            .addInfo("It will output correct products with Specific Neutron Kinetic Energy")
+            .addInfo("Otherwise it will output trash")
+            .addInfo("The Neutron Kinetic Energy will decrease 72KeV/s when no Neutron Accelerator is running")
             .addInfo(
                 "It will explode when the Neutron Kinetic Energy is over" + EnumChatFormatting.RED
                     + " 1200MeV"
@@ -196,6 +201,11 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
                     + ".")
             .addInfo("Inputting Graphite/Beryllium dust can reduce 10MeV per dust immediately.")
             .addController("Front bottom")
+            .addCasingInfoRange("Clean Stainless Steel Machine Casing", 7, 31, false)
+            .addCasingInfoExactly("Processor Machine Casing", 18, false)
+            .addCasingInfoMin("Steel Frame Box", 16, false)
+            .addCasingInfoMin("Speeding Pipe Casing", 4, false)
+            .addCasingInfoMin("Any Tiered Glass", 32, false)
             .addInputHatch("Hint block with dot 1")
             .addInputBus("Hint block with dot 1")
             .addOutputHatch("Hint block with dot 2")
@@ -203,11 +213,6 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
             .addMaintenanceHatch("Hint block with dot 2")
             .addOtherStructurePart("Neutron Accelerator", "Hint block with dot 2")
             .addOtherStructurePart("Neutron Sensor", "Hint block with dot 2")
-            .addCasingInfoRange("Clean Stainless Steel Machine Casing", 7, 31, false)
-            .addCasingInfoExactly("Processor Machine Casing", 18, false)
-            .addCasingInfoMin("Steel Frame Box", 16, false)
-            .addCasingInfoMin("Speeding Pipe Casing", 4, false)
-            .addCasingInfoMin("EV+ Glass", 32, false)
             .toolTipFinisher();
         return tt;
     }
@@ -233,7 +238,7 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
                         onElementPass(MTENeutronActivator::onCasingFound, ofBlock(GregTechAPI.sBlockCasings4, 1))))
                 .addElement('D', ofBlock(GregTechAPI.sBlockCasings2, 6))
                 .addElement('F', ofFrame(Materials.Steel))
-                .addElement('G', Glasses.chainAllGlasses())
+                .addElement('G', chainAllGlasses())
                 .addElement('P', ofBlock(Loaders.speedingPipe, 0))
                 .addElement(
                     'X',
@@ -298,23 +303,25 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
     }
 
     @Override
+    protected void parametersInstantiation_EM() {
+        batchSetting = parametrization.getGroup(9, true)
+            .makeInParameter(1, 1, BATCH_SETTING_NAME, BATCH_STATUS);
+    }
+
+    @Override
+    protected int getMaxBatchSize() {
+        // Batch size 1~128
+        return (int) Math.min(Math.max(batchSetting.get(), 1.0D), 128.0D);
+    }
+
+    @Override
     public boolean supportsBatchMode() {
         return true;
     }
 
     @Override
-    public boolean supportsVoidProtection() {
+    public boolean getDefaultBatchMode() {
         return true;
-    }
-
-    @Override
-    public boolean protectsExcessItem() {
-        return !eSafeVoid;
-    }
-
-    @Override
-    public boolean protectsExcessFluid() {
-        return !eSafeVoid;
     }
 
     @Override
@@ -337,7 +344,7 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
                     anyWorking = true;
                     this.eV += Math.max(
                         (R.nextInt(tHatch.getMaxEUConsume() + 1) + tHatch.getMaxEUConsume()) * 10
-                            * Math.pow(0.95, height - 4),
+                            * GTUtility.powInt(0.95, height - 4),
                         10);
                 }
             }
@@ -398,23 +405,19 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
             if (tHatch.getBaseMetaTileEntity()
                 .isActive()) {
                 currentNKEInput += (R.nextInt(tHatch.getMaxEUConsume() + 1) + tHatch.getMaxEUConsume()) * 10
-                    * Math.pow(0.95, height - 4);
+                    * GTUtility.powInt(0.95, height - 4);
                 anyWorking = true;
             }
         }
         if (!anyWorking) currentNKEInput = -72000;
-        return new String[] { "Progress:",
-            EnumChatFormatting.GREEN + Integer.toString(this.mProgresstime / 20)
-                + EnumChatFormatting.RESET
-                + " s / "
-                + EnumChatFormatting.YELLOW
-                + this.mMaxProgresstime / 20
-                + EnumChatFormatting.RESET
-                + " s",
-            "Current Neutron Kinetic Energy Input: " + EnumChatFormatting.GREEN
-                + GTUtility.formatNumbers(currentNKEInput)
-                + EnumChatFormatting.RESET
-                + "eV",
+        return new String[] {
+            StatCollector.translateToLocalFormatted(
+                "gg.scanner.info.neutron_activator.progress",
+                EnumChatFormatting.GREEN + Integer.toString(this.mProgresstime / 20) + EnumChatFormatting.RESET,
+                EnumChatFormatting.YELLOW + Integer.toString(this.mMaxProgresstime / 20) + EnumChatFormatting.RESET),
+            StatCollector.translateToLocalFormatted(
+                "gg.scanner.info.neutron_activator.input",
+                EnumChatFormatting.GREEN + GTUtility.formatNumbers(currentNKEInput) + EnumChatFormatting.RESET),
             StatCollector.translateToLocal("scanner.info.NA") + " "
                 + EnumChatFormatting.LIGHT_PURPLE
                 + GTUtility.formatNumbers(getCurrentNeutronKineticEnergy())
@@ -426,14 +429,22 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection facing,
         int colorIndex, boolean aActive, boolean aRedstone) {
         if (side == facing) {
-            if (aActive) return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(49),
-                TextureFactory.of(textureFontOn), TextureFactory.builder()
+            if (aActive) return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(49), TextureFactory.builder()
+                .addIcon(textureFontOn)
+                .extFacing()
+                .build(),
+                TextureFactory.builder()
                     .addIcon(textureFontOn_Glow)
+                    .extFacing()
                     .glow()
                     .build() };
-            else return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(49),
-                TextureFactory.of(textureFontOff), TextureFactory.builder()
+            else return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(49), TextureFactory.builder()
+                .addIcon(textureFontOff)
+                .extFacing()
+                .build(),
+                TextureFactory.builder()
                     .addIcon(textureFontOff_Glow)
+                    .extFacing()
                     .glow()
                     .build() };
         }
@@ -444,14 +455,14 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
 
-        int built = survivialBuildPiece(NA_BOTTOM, stackSize, 2, 0, 0, elementBudget, env, false, true);
+        int built = survivalBuildPiece(NA_BOTTOM, stackSize, 2, 0, 0, elementBudget, env, false, true);
         if (built >= 0) return built;
         int heights = stackSize.stackSize + 3;
         for (int i = 1; i <= heights; i++) {
-            built = survivialBuildPiece(NA_MID, stackSize, 2, i, 0, elementBudget, env, false, true);
+            built = survivalBuildPiece(NA_MID, stackSize, 2, i, 0, elementBudget, env, false, true);
             if (built >= 0) return built;
         }
-        return survivialBuildPiece(NA_TOP, stackSize, 2, heights + 1, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(NA_TOP, stackSize, 2, heights + 1, 0, elementBudget, env, false, true);
     }
 
     protected void onCasingFound() {
@@ -465,11 +476,14 @@ public class MTENeutronActivator extends MTETooltipMultiBlockBaseEM implements I
         screenElements
             .widget(
                 new TextWidget(StatCollector.translateToLocal("gui.NeutronActivator.0"))
-                    .setDefaultColor(COLOR_TEXT_WHITE.get()))
+                    .setTextAlignment(Alignment.CenterLeft)
+                    .setDefaultColor(COLOR_TEXT_WHITE.get())
+                    .setEnabled(widget -> getErrorDisplayID() == 0))
             .widget(
                 new TextWidget().setStringSupplier(() -> numberFormat.format(eV / 1_000_000d) + " MeV")
+                    .setTextAlignment(Alignment.CenterLeft)
                     .setDefaultColor(COLOR_TEXT_WHITE.get())
-                    .setEnabled(widget -> getBaseMetaTileEntity().getErrorDisplayID() == 0))
+                    .setEnabled(widget -> getErrorDisplayID() == 0))
             .widget(new FakeSyncWidget.IntegerSyncer(() -> eV, val -> eV = val));
     }
 

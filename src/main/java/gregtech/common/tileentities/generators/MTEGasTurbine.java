@@ -35,9 +35,9 @@ import gregtech.api.render.TextureFactory;
 
 public class MTEGasTurbine extends MTEBasicGenerator {
 
-    public int mEfficiency;
+    private final int efficiency;
 
-    public MTEGasTurbine(int aID, String aName, String aNameRegional, int aTier, int mEfficiency) {
+    public MTEGasTurbine(int aID, String aName, String aNameRegional, int aTier, int efficiency) {
         super(
             aID,
             aName,
@@ -45,15 +45,15 @@ public class MTEGasTurbine extends MTEBasicGenerator {
             aTier,
             new String[] { "Requires flammable Gasses",
                 "Causes "
-                    + (int) (GTMod.gregtechproxy.mPollutionBaseGasTurbinePerSecond
-                        * GTMod.gregtechproxy.mPollutionGasTurbineReleasedByTier[aTier])
+                    + (int) (GTMod.proxy.mPollutionBaseGasTurbinePerSecond
+                        * GTMod.proxy.mPollutionGasTurbineReleasedByTier[aTier])
                     + " Pollution per second" });
-        this.mEfficiency = mEfficiency;
+        this.efficiency = efficiency;
     }
 
-    public MTEGasTurbine(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures, int mEfficiency) {
+    public MTEGasTurbine(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures, int efficiency) {
         super(aName, aTier, aDescription, aTextures);
-        this.mEfficiency = mEfficiency;
+        this.efficiency = efficiency;
     }
 
     @Override
@@ -63,7 +63,7 @@ public class MTEGasTurbine extends MTEBasicGenerator {
 
     @Override
     public MetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
-        return new MTEGasTurbine(this.mName, this.mTier, this.mDescriptionArray, this.mTextures, this.mEfficiency);
+        return new MTEGasTurbine(this.mName, this.mTier, this.mDescriptionArray, this.mTextures, this.efficiency);
     }
 
     @Override
@@ -72,13 +72,8 @@ public class MTEGasTurbine extends MTEBasicGenerator {
     }
 
     @Override
-    public int getCapacity() {
-        return 16000;
-    }
-
-    @Override
     public int getEfficiency() {
-        return this.mEfficiency;
+        return this.efficiency;
     }
 
     @Override
@@ -90,7 +85,7 @@ public class MTEGasTurbine extends MTEBasicGenerator {
                     .addIcon(GAS_TURBINE_FRONT_GLOW)
                     .glow()
                     .build()),
-            OVERLAYS_ENERGY_OUT[this.mTier] };
+            OVERLAYS_ENERGY_OUT[this.mTier + 1] };
     }
 
     @Override
@@ -146,7 +141,7 @@ public class MTEGasTurbine extends MTEBasicGenerator {
                     .addIcon(GAS_TURBINE_FRONT_ACTIVE_GLOW)
                     .glow()
                     .build()),
-            OVERLAYS_ENERGY_OUT[this.mTier] };
+            OVERLAYS_ENERGY_OUT[this.mTier + 1] };
     }
 
     @Override
@@ -195,7 +190,7 @@ public class MTEGasTurbine extends MTEBasicGenerator {
 
     @Override
     public int getPollution() {
-        return (int) (GTMod.gregtechproxy.mPollutionBaseGasTurbinePerSecond
-            * GTMod.gregtechproxy.mPollutionGasTurbineReleasedByTier[mTier]);
+        return (int) (GTMod.proxy.mPollutionBaseGasTurbinePerSecond
+            * GTMod.proxy.mPollutionGasTurbineReleasedByTier[mTier]);
     }
 }

@@ -75,7 +75,7 @@ public abstract class MTELongDistancePipelineBase extends MTEBasicHullNonElectri
         super(aID, aName, aNameRegional, aTier, aDescription);
     }
 
-    public MTELongDistancePipelineBase(String aName, int aTier, String aDescription, ITexture[][][] aTextures) {
+    public MTELongDistancePipelineBase(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
         super(aName, aTier, aDescription, aTextures);
     }
 
@@ -118,7 +118,7 @@ public abstract class MTELongDistancePipelineBase extends MTEBasicHullNonElectri
         if (aBaseMetaTileEntity.isClientSide()) return true;
         ItemStack tCurrentItem = aPlayer.inventory.getCurrentItem();
         if (tCurrentItem != null) {
-            if (GTUtility.isStackInList(tCurrentItem, GregTechAPI.sSoftHammerList)) {
+            if (GTUtility.isStackInList(tCurrentItem, GregTechAPI.sSoftMalletList)) {
                 scanPipes();
                 return true;
             }
@@ -215,7 +215,7 @@ public abstract class MTELongDistancePipelineBase extends MTEBasicHullNonElectri
         Block aBlock = gtTile.getBlockAtSide(gtTile.getBackFacing());
 
         if (aBlock instanceof BlockLongDistancePipe) {
-            byte aMetaData = gtTile.getMetaIDAtSide(gtTile.getBackFacing());
+            int aMetaData = gtTile.getMetaIDAtSide(gtTile.getBackFacing());
             if (aMetaData != getPipeMeta()) return;
 
             HashSet<ChunkCoordinates> tVisited = new HashSet<>(Collections.singletonList(getCoords())),
@@ -285,7 +285,7 @@ public abstract class MTELongDistancePipelineBase extends MTEBasicHullNonElectri
 
     protected int getDistanceToSelf(ChunkCoordinates aCoords) {
         return Math.abs(getBaseMetaTileEntity().getXCoord() - aCoords.posX)
-            + Math.abs(getBaseMetaTileEntity().getYCoord() - aCoords.posY) / 2
+            + Math.abs(getBaseMetaTileEntity().getYCoord() - aCoords.posY)
             + Math.abs(getBaseMetaTileEntity().getZCoord() - aCoords.posZ);
     }
 

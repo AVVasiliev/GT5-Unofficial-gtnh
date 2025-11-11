@@ -1,9 +1,8 @@
 package gregtech.common.tileentities.machines.multi;
 
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_ROCK_BREAKER;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_ROCK_BREAKER_ACTIVE;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_ROCK_BREAKER_ACTIVE_GLOW;
-import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_ROCK_BREAKER_GLOW;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_CHARCOAL_PIT;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_CHARCOAL_PIT_ACTIVE;
+import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_CHARCOAL_PIT_ACTIVE_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
 import static gregtech.api.objects.XSTR.XSTR_INSTANCE;
 
@@ -12,6 +11,7 @@ import java.util.ArrayList;
 import javax.annotation.Nonnull;
 
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockLog;
 import net.minecraft.block.material.Material;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
@@ -29,7 +29,6 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTETooltipMultiBlockBase;
-import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.render.TextureFactory;
@@ -58,11 +57,6 @@ public class MTECharcoalPit extends MTETooltipMultiBlockBase implements ISeconda
     public boolean onRightclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
         // No GUI, do not capture right-click so it does not interfere when placing logs
         return false;
-    }
-
-    @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return true;
     }
 
     @Nonnull
@@ -131,6 +125,7 @@ public class MTECharcoalPit extends MTETooltipMultiBlockBase implements ISeconda
     }
 
     private boolean isWoodLog(Block log, int meta) {
+        if (log instanceof BlockLog) return true;
         for (int id : OreDictionary.getOreIDs(new ItemStack(log, 1, meta))) {
             if (OreDictionary.getOreName(id)
                 .equals("logWood")) return true;
@@ -213,28 +208,8 @@ public class MTECharcoalPit extends MTETooltipMultiBlockBase implements ISeconda
     }
 
     @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
     public int getPollutionPerSecond(ItemStack aStack) {
-        return GTMod.gregtechproxy.mPollutionCharcoalPitPerSecond;
-    }
-
-    @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
-        return false;
-    }
-
-    @Override
-    public RecipeMap<?> getRecipeMap() {
-        return null;
+        return GTMod.proxy.mPollutionCharcoalPitPerSecond;
     }
 
     @Override
@@ -244,9 +219,9 @@ public class MTECharcoalPit extends MTETooltipMultiBlockBase implements ISeconda
 
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Charcoal Pile Igniter")
+        tt.addMachineType("Charcoal Pile Igniter, CPI")
             .addInfo("Converts Logs into Brittle Charcoal blocks")
-            .addInfo("Will automatically start when valid")
+            .addInfo("Automatically starts when formed")
             .addPollutionAmount(getPollutionPerSecond(null))
             .beginVariableStructureBlock(3, 13, 3, 7, 3, 13, false)
             .addStructureInfo("Can be up to 13x7x13 in size, including the dirt; shape doesn't matter")
@@ -266,15 +241,11 @@ public class MTECharcoalPit extends MTETooltipMultiBlockBase implements ISeconda
         int colorIndex, boolean aActive, boolean redstoneLevel) {
         if (side == ForgeDirection.UP) {
             if (aActive) return new ITexture[] { casingTexturePages[0][10],
-                TextureFactory.of(OVERLAY_FRONT_ROCK_BREAKER_ACTIVE), TextureFactory.builder()
-                    .addIcon(OVERLAY_FRONT_ROCK_BREAKER_ACTIVE_GLOW)
+                TextureFactory.of(OVERLAY_CHARCOAL_PIT_ACTIVE), TextureFactory.builder()
+                    .addIcon(OVERLAY_CHARCOAL_PIT_ACTIVE_GLOW)
                     .glow()
                     .build() };
-            return new ITexture[] { casingTexturePages[0][10], TextureFactory.of(OVERLAY_FRONT_ROCK_BREAKER),
-                TextureFactory.builder()
-                    .addIcon(OVERLAY_FRONT_ROCK_BREAKER_GLOW)
-                    .glow()
-                    .build(), };
+            return new ITexture[] { casingTexturePages[0][10], TextureFactory.of(OVERLAY_CHARCOAL_PIT) };
         }
         return new ITexture[] { casingTexturePages[0][10] };
     }

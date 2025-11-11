@@ -54,11 +54,6 @@ public class MTELargerTurbinePlasma extends MTELargerTurbineBase {
     }
 
     @Override
-    public int getPollutionPerSecond(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
     public int getFuelValue(FluidStack aLiquid) {
         if (aLiquid == null) {
             return 0;
@@ -216,6 +211,10 @@ public class MTELargerTurbinePlasma extends MTELargerTurbineBase {
             FluidStack firstFuelType = new FluidStack(aFluids.get(0), 0); // Identify a SINGLE type of fluid to process.
             // Doesn't matter which one. Ignore the rest!
             int fuelValue = getFuelValue(firstFuelType);
+            if (fuelValue <= 0) {
+                return 0;
+            }
+
             actualOptimalFlow = GTUtility.safeInt(
                 (long) ((getSpeedMultiplier()
                     * (isLooseMode() ? turbine.getOptimalLoosePlasmaFlow() : turbine.getOptimalPlasmaFlow())
@@ -267,13 +266,8 @@ public class MTELargerTurbinePlasma extends MTELargerTurbineBase {
     }
 
     @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 1;
-    }
-
-    @Override
     public String getMachineType() {
-        return "Large Plasma Turbine";
+        return "Large Plasma Turbine, XLPT";
     }
 
     @Override
@@ -284,5 +278,10 @@ public class MTELargerTurbinePlasma extends MTELargerTurbineBase {
     @Override
     protected String getCasingName() {
         return "Reinforced Plasma Turbine Casing";
+    }
+
+    @Override
+    protected boolean isDenseSteam() {
+        return false;
     }
 }

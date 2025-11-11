@@ -16,6 +16,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.event.world.BlockEvent;
 
 import gregtech.api.damagesources.GTDamageSources;
+import gregtech.api.enums.GTValues;
 import gregtech.api.enums.SoundResource;
 import gregtech.api.interfaces.IToolStats;
 import gregtech.api.items.MetaGeneratedTool;
@@ -25,7 +26,6 @@ public abstract class GTTool implements IToolStats {
     public static final Enchantment[] FORTUNE_ENCHANTMENT = { Enchantment.fortune };
     public static final Enchantment[] LOOTING_ENCHANTMENT = { Enchantment.looting };
     public static final Enchantment[] ZERO_ENCHANTMENTS = new Enchantment[0];
-    public static final int[] ZERO_ENCHANTMENT_LEVELS = new int[0];
 
     @Override
     public int getToolDamagePerBlockBreak() {
@@ -142,7 +142,7 @@ public abstract class GTTool implements IToolStats {
 
     @Override
     public int convertBlockDrops(List<ItemStack> aDrops, ItemStack aStack, EntityPlayer aPlayer, Block aBlock, int aX,
-        int aY, int aZ, byte aMetaData, int aFortune, boolean aSilkTouch, BlockEvent.HarvestDropsEvent aEvent) {
+        int aY, int aZ, int aMetaData, int aFortune, boolean aSilkTouch, BlockEvent.HarvestDropsEvent aEvent) {
         return 0;
     }
 
@@ -158,7 +158,7 @@ public abstract class GTTool implements IToolStats {
 
     @Override
     public int[] getEnchantmentLevels(ItemStack aStack) {
-        return ZERO_ENCHANTMENT_LEVELS;
+        return GTValues.emptyIntArray;
     }
 
     @Override
@@ -184,7 +184,7 @@ public abstract class GTTool implements IToolStats {
     }
 
     @Override
-    public float getMiningSpeed(Block aBlock, byte aMetaData, float aDefault, EntityPlayer aPlayer, World worldObj,
+    public float getMiningSpeed(Block aBlock, int aMetaData, float aDefault, EntityPlayer aPlayer, World worldObj,
         int aX, int aY, int aZ) {
         return aDefault;
     }

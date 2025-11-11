@@ -11,15 +11,16 @@ import com.gtnewhorizons.modularui.api.screen.UIBuildContext;
 import com.gtnewhorizons.modularui.common.widget.SlotWidget;
 
 import gregtech.GTMod;
-import gregtech.api.gui.modularui.GTUIInfos;
 import gregtech.api.gui.modularui.GUITextureSet;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.modularui.IAddGregtechLogo;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
 import gregtech.api.metatileentity.implementations.MTEHatchMuffler;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
-import gregtech.api.objects.GTRenderedTexture;
+import gregtech.api.render.TextureFactory;
+import gregtech.api.util.GTUtility;
 import gregtech.common.pollution.Pollution;
 import gtPlusPlus.core.item.general.ItemAirFilter;
 import gtPlusPlus.core.lib.GTPPCore;
@@ -43,8 +44,7 @@ public class MTEHatchMufflerAdvanced extends MTEHatchMuffler implements IAddGreg
         mTier < 5 ? "Requires an Air Filter"
             : "Requires an Air Filter " + EnumChatFormatting.WHITE + "[Tier 2]" + EnumChatFormatting.GRAY,
         "Can take Air Filters from an input bus of the multiblock",
-        "Reduces Pollution to " + calculatePollutionReduction(100, true) + "%",
-        "Recovers " + (100 - calculatePollutionReduction(100, true)) + "% of CO2/CO/SO2", GTPPCore.GT_Tooltip.get() };
+        "Reduces Pollution to " + calculatePollutionReduction(100, true) + "%", GTPPCore.GT_Tooltip.get() };
 
     @Override
     public String[] getDescription() {
@@ -53,12 +53,12 @@ public class MTEHatchMufflerAdvanced extends MTEHatchMuffler implements IAddGreg
 
     @Override
     public ITexture[] getTexturesActive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture, new GTRenderedTexture(TexturesGtBlock.Overlay_Hatch_Muffler_Adv) };
+        return new ITexture[] { aBaseTexture, TextureFactory.of(TexturesGtBlock.Overlay_Hatch_Muffler_Adv) };
     }
 
     @Override
     public ITexture[] getTexturesInactive(ITexture aBaseTexture) {
-        return new ITexture[] { aBaseTexture, new GTRenderedTexture(TexturesGtBlock.Overlay_Hatch_Muffler_Adv) };
+        return new ITexture[] { aBaseTexture, TextureFactory.of(TexturesGtBlock.Overlay_Hatch_Muffler_Adv) };
     }
 
     @Override
@@ -79,23 +79,26 @@ public class MTEHatchMufflerAdvanced extends MTEHatchMuffler implements IAddGreg
 
     @Override
     public boolean onRightclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
-        GTUIInfos.openGTTileEntityUI(aBaseMetaTileEntity, aPlayer);
+        openGui(aPlayer);
         return true;
     }
 
     @Override
-    public boolean polluteEnvironment(MetaTileEntity parentTileEntity) {
+    public boolean polluteEnvironment(MetaTileEntity parentTileEntity, int pollutionAmount) {
         if (!airCheck()) return false; // Muffler obstructed.
-
-        int emission = 10000;
-        if (damageAirFilter(parentTileEntity)) {
+        if (pollutionAmount < 10000 && pollutionAmount <= parentTileEntity.getBaseMetaTileEntity()
+            .getRandomNumber(10000)) {
+            // If we are venting less than the maximum amount of pollution, damage filter with a lower chance.
+            // This happens if a multiblock has more than one muffler.
+            pollutionAmount = calculatePollutionReduction(pollutionAmount, true);
+        } else if (damageAirFilter(parentTileEntity)) {
             // damageAirFilter already checks that we have a valid filter.
-            emission = calculatePollutionReduction(emission, true);
+            pollutionAmount = calculatePollutionReduction(pollutionAmount, true);
         } else {
             // Revert to reduction of the basic muffler.
-            emission = super.calculatePollutionReduction(emission);
+            pollutionAmount = super.calculatePollutionReduction(pollutionAmount);
         }
-        Pollution.addPollution(getBaseMetaTileEntity(), emission);
+        Pollution.addPollution(getBaseMetaTileEntity(), pollutionAmount);
         return true;
     }
 
@@ -123,7 +126,7 @@ public class MTEHatchMufflerAdvanced extends MTEHatchMuffler implements IAddGreg
         if (mTier < 2) return (int) (aPollution * 0.95);
         if (mTier > 8) return 0;
 
-        return (int) (aPollution * Math.pow(0.64D, mTier - 1));
+        return (int) (aPollution * GTUtility.powInt(0.64D, mTier - 1));
     }
 
     /**
@@ -178,24 +181,23 @@ public class MTEHatchMufflerAdvanced extends MTEHatchMuffler implements IAddGreg
      *         parent multiblock.
      */
     private boolean findAirFilter(MetaTileEntity parentTileEntity) {
-        if (hasAirFilter()) return true; // Has a filter in inventory.
-        if (mInventory[SLOT_FILTER] != null) return false; // Has a non-filter item in inventory.
-        if (parentTileEntity == null) return false; // Unknown parent multiblock.
-
-        if (parentTileEntity instanceof MTEMultiBlockBase GTMultiBase) {
-            for (var inputBus : GTMultiBase.mInputBusses) {
-                for (ItemStack stack : inputBus.mInventory) {
-                    if (isAirFilter(stack)) {
-                        ItemStack stackCopy = stack.copy();
-                        if (GTMultiBase.depleteInput(stack)) {
-                            mInventory[SLOT_FILTER] = stackCopy;
-                            return true;
-                        }
+        if (hasAirFilter()) return true;
+        if (mInventory[SLOT_FILTER] != null) return false;
+        if (!(parentTileEntity instanceof MTEMultiBlockBase multiBase)) return false;
+        multiBase.startRecipeProcessing();
+        for (MTEHatchInputBus inputBus : multiBase.mInputBusses) {
+            for (ItemStack stack : inputBus.mInventory) {
+                if (isAirFilter(stack)) {
+                    ItemStack stackCopy = stack.copy();
+                    if (multiBase.depleteInput(stack)) {
+                        mInventory[SLOT_FILTER] = stackCopy;
+                        multiBase.endRecipeProcessing();
+                        return true;
                     }
                 }
             }
         }
-
+        multiBase.endRecipeProcessing();
         return false;
     }
 
@@ -256,7 +258,7 @@ public class MTEHatchMufflerAdvanced extends MTEHatchMuffler implements IAddGreg
         boolean chk2;
         boolean chk3;
         int aPollutionAmount = Pollution.getPollution(getBaseMetaTileEntity());
-        if (aPollutionAmount >= GTMod.gregtechproxy.mPollutionSmogLimit) {
+        if (aPollutionAmount >= GTMod.proxy.mPollutionSmogLimit) {
             ran2 = GTPPCore.RANDOM.nextFloat();
             ran3 = GTPPCore.RANDOM.nextFloat();
             chk2 = ran2 * 100.0F < (float) this.calculatePollutionReduction(100);
@@ -323,9 +325,6 @@ public class MTEHatchMufflerAdvanced extends MTEHatchMuffler implements IAddGreg
                 zSpd);
         }
     }
-
-    @Override
-    public void addGregTechLogo(ModularWindow.Builder builder) {}
 
     @Override
     public GUITextureSet getGUITextureSet() {

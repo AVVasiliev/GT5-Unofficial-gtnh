@@ -14,6 +14,7 @@ import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_ASSEMBLY_LINE
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_ASSEMBLY_LINE_ACTIVE_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_ASSEMBLY_LINE_GLOW;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
+import static gregtech.api.util.GTStructureUtility.chainAllGlasses;
 import static gregtech.api.util.GTStructureUtility.ofHatchAdder;
 import static gregtech.api.util.GTUtility.validMTEList;
 
@@ -23,12 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
-
-import org.jetbrains.annotations.NotNull;
 
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
@@ -37,7 +39,6 @@ import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.GTValues;
-import gregtech.api.enums.ItemList;
 import gregtech.api.enums.Textures;
 import gregtech.api.enums.Textures.BlockIcons;
 import gregtech.api.enums.VoidingMode;
@@ -48,7 +49,6 @@ import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
 import gregtech.api.metatileentity.implementations.MTEHatch;
 import gregtech.api.metatileentity.implementations.MTEHatchDataAccess;
-import gregtech.api.multitileentity.multiblock.casing.Glasses;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.recipe.check.CheckRecipeResult;
@@ -61,7 +61,9 @@ import gregtech.api.util.GTUtility;
 import gregtech.api.util.IGTHatchAdder;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.OverclockCalculator;
+import gregtech.api.util.ParallelHelper;
 import gregtech.api.util.VoidProtectionHelper;
+import gregtech.common.misc.GTStructureChannels;
 
 public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyLine> implements ISurvivalConstructable {
 
@@ -83,7 +85,7 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
         .addElement('G', ofBlock(GregTechAPI.sBlockCasings3, 10)) // grate machine casing
         .addElement('l', ofBlock(GregTechAPI.sBlockCasings2, 9)) // assembler machine casing
         .addElement('m', ofBlock(GregTechAPI.sBlockCasings2, 5)) // assembling line casing
-        .addElement('g', Glasses.chainAllGlasses())
+        .addElement('g', chainAllGlasses())
         .addElement(
             'e',
             ofChain(
@@ -109,10 +111,10 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
             'I',
             ofChain(
                 // all blocks nearby use solid steel casing, so let's use the texture of that
-                InputBus.newAny(16, 5, ForgeDirection.DOWN),
-                ofHatchAdder(MTEAssemblyLine::addOutputToMachineList, 16, 4)))
-        .addElement('i', InputBus.newAny(16, 5, ForgeDirection.DOWN))
-        .addElement('o', OutputBus.newAny(16, 4, ForgeDirection.DOWN))
+                InputBus.newAny(16, 4, ForgeDirection.DOWN),
+                ofHatchAdder(MTEAssemblyLine::addOutputToMachineList, 16, 3)))
+        .addElement('i', InputBus.newAny(16, 4, ForgeDirection.DOWN))
+        .addElement('o', OutputBus.newAny(16, 3, ForgeDirection.DOWN))
         .build();
 
     public MTEAssemblyLine(int aID, String aName, String aNameRegional) {
@@ -131,26 +133,29 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Assembling Line")
-            .addInfo("Used to make complex machine parts (LuV+)")
-            .addInfo("Does not make Assembler items")
-            .addInfo("Recipe tier is at most Energy Hatch tier + 1.")
+        tt.addMachineType("Assembly Line, Assline, AL")
+            .addInfo("Used to craft complex machine parts (LuV+)")
+            .addInfo("Items & Fluids are inserted in NEI order, one per slice")
+            .addInfo("Does not run Assembler recipes")
+            .addMaxTierSkips(1)
             .beginVariableStructureBlock(5, 16, 4, 4, 3, 3, false) // ?
             .addStructureInfo("From Bottom to Top, Left to Right")
-            .addStructureInfo(
-                "Layer 1 - Solid Steel Machine Casing, Input Bus (last can be Output Bus), Solid Steel Machine Casing")
-            .addStructureInfo(
-                "Layer 2 - Borosilicate Glass(any)/Warded Glass/Reinforced Glass, Assembling Line Casing, Reinforced Glass")
+            .addStructureInfo("Layer 1 - Solid Steel Machine Casing, Input Bus, Solid Steel Machine Casing")
+            .addStructureInfo("Layer 2 - Glass, Assembly Line Casing, Glass")
             .addStructureInfo("Layer 3 - Grate Machine Casing, Assembler Machine Casing, Grate Machine Casing")
             .addStructureInfo("Layer 4 - Empty, Solid Steel Machine Casing, Empty")
             .addStructureInfo("Up to 16 repeating slices, each one allows for 1 more item in recipes")
-            .addController("Either Grate on layer 3 of the first slice")
+            .addController("Either Grate Machine Casing on the first slice")
             .addEnergyHatch("Any layer 4 casing", 1)
             .addMaintenanceHatch("Any layer 1 casing", 3)
-            .addInputBus("As specified on layer 1", 4, 5)
+            .addInputBus("As specified on layer 1", 4)
             .addInputHatch("Any layer 1 casing", 3)
-            .addOutputBus("Replaces Input Bus on final slice or on any solid steel casing on layer 1", 4)
-            .addOtherStructurePart("Data Access Hatch", "Optional, next to controller", 2)
+            .addOutputBus("Replaces Input Bus or Solid Steel Machine casing on layer 1 of last slice", 3)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GT5U.tooltip.structure.data_access_hatch"),
+                "Any Grate Machine Casing NOT on the first slice",
+                2)
+            .addSubChannelUsage(GTStructureChannels.BOROGLASS)
             .toolTipFinisher();
         return tt;
     }
@@ -187,54 +192,39 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
     }
 
     @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return true;
-    }
-
-    @Override
-    @NotNull
-    public CheckRecipeResult checkProcessing() {
+    public @Nonnull CheckRecipeResult checkProcessing() {
         if (GTValues.D1) {
             GT_FML_LOGGER.info("Start ALine recipe check");
         }
         CheckRecipeResult result = CheckRecipeResultRegistry.NO_DATA_STICKS;
 
-        ArrayList<ItemStack> tDataStickList = getDataItems(2);
-        if (tDataStickList.isEmpty()) {
-            return result;
-        }
-        if (GTValues.D1) {
-            GT_FML_LOGGER.info("Stick accepted, " + tDataStickList.size() + " Data Sticks found");
+        ArrayList<RecipeAssemblyLine> availableRecipes = new ArrayList<>();
+
+        if (AssemblyLineUtils.isItemDataStick(mInventory[1])) {
+            availableRecipes.addAll(AssemblyLineUtils.findALRecipeFromDataStick(mInventory[1]));
         }
 
-        int[] tStacks = new int[0];
-        FluidStack[] tFluids = new FluidStack[0];
+        for (MTEHatchDataAccess dataAccess : validMTEList(mDataAccessHatches)) {
+            availableRecipes.addAll(dataAccess.getAssemblyLineRecipes());
+        }
+
+        if (availableRecipes.isEmpty()) {
+            return result;
+        }
+
+        if (GTValues.D1) {
+            GT_FML_LOGGER.info("Stick accepted, " + availableRecipes.size() + " Data Sticks found");
+        }
+
+        int[] tStacks = GTValues.emptyIntArray;
+        FluidStack[] tFluids = GTValues.emptyFluidStackArray;
         long averageVoltage = getAverageInputVoltage();
         int maxParallel = 1;
         long maxAmp = getMaxInputAmps();
         Map<GTUtility.ItemId, ItemStack> inputsFromME = getStoredInputsFromME();
         Map<Fluid, FluidStack> fluidsFromME = getStoredFluidsFromME();
 
-        for (ItemStack tDataStick : tDataStickList) {
-            AssemblyLineUtils.LookupResult tLookupResult = AssemblyLineUtils
-                .findAssemblyLineRecipeFromDataStick(tDataStick, false);
-
-            if (tLookupResult.getType() == AssemblyLineUtils.LookupResultType.INVALID_STICK) {
-                result = CheckRecipeResultRegistry.NO_RECIPE;
-                continue;
-            }
-
-            GTRecipe.RecipeAssemblyLine tRecipe = tLookupResult.getRecipe();
-            // Check if the recipe on the data stick is the current recipe for it's given output, if not we update it
-            // and continue to next.
-            if (tLookupResult.getType() != AssemblyLineUtils.LookupResultType.VALID_STACK_AND_VALID_HASH) {
-                tRecipe = AssemblyLineUtils.processDataStick(tDataStick);
-                if (tRecipe == null) {
-                    result = CheckRecipeResultRegistry.NO_RECIPE;
-                    continue;
-                }
-            }
-
+        for (RecipeAssemblyLine tRecipe : availableRecipes) {
             // Recipe tier is limited to hatch tier + 1.
             if (tRecipe.mEUt > averageVoltage * 4) {
                 result = CheckRecipeResultRegistry.insufficientPower(tRecipe.mEUt);
@@ -260,7 +250,7 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
                         mInputHatches.size(),
                         tRecipe.mFluidInputs.length);
                 }
-                result = CheckRecipeResultRegistry.NO_RECIPE;
+                if (result == CheckRecipeResultRegistry.NO_DATA_STICKS) result = CheckRecipeResultRegistry.NO_RECIPE;
                 continue;
             }
 
@@ -272,12 +262,7 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
                 .setAmperageOC(mEnergyHatches.size() != 1)
                 .setDuration(tRecipe.mDuration)
                 .setParallel(originalMaxParallel);
-
-            double tickTimeAfterOC = calculator.calculateDurationUnderOneTick();
-            if (tickTimeAfterOC < 1) {
-                maxParallel = GTUtility.safeInt((long) (maxParallel / tickTimeAfterOC), 0);
-            }
-
+            maxParallel = GTUtility.safeInt((long) (maxParallel * calculator.calculateMultiplierUnderOneTick()), 0);
             int maxParallelBeforeBatchMode = maxParallel;
             if (isBatchModeEnabled()) {
                 maxParallel = GTUtility.safeInt((long) maxParallel * getMaxBatchSize(), 0);
@@ -296,19 +281,23 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
                 }
             }
 
-            int currentParallel = maxParallel;
             // Check Inputs allign
             int[] itemConsumptions = GTRecipe.RecipeAssemblyLine.getItemConsumptionAmountArray(mInputBusses, tRecipe);
             if (itemConsumptions == null || itemConsumptions.length == 0) {
-                result = CheckRecipeResultRegistry.NO_RECIPE;
+                if (result == CheckRecipeResultRegistry.NO_DATA_STICKS) result = CheckRecipeResultRegistry.NO_RECIPE;
                 continue;
             }
+
+            int currentParallel = maxParallel;
+
             currentParallel = (int) GTRecipe.RecipeAssemblyLine
                 .maxParallelCalculatedByInputItems(mInputBusses, currentParallel, itemConsumptions, inputsFromME);
+
             if (currentParallel <= 0) {
-                result = CheckRecipeResultRegistry.NO_RECIPE;
+                if (result == CheckRecipeResultRegistry.NO_DATA_STICKS) result = CheckRecipeResultRegistry.NO_RECIPE;
                 continue;
             }
+
             tStacks = itemConsumptions;
 
             if (GTValues.D1) {
@@ -323,7 +312,8 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
                     tRecipe.mFluidInputs,
                     fluidsFromME);
                 if (currentParallel <= 0) {
-                    result = CheckRecipeResultRegistry.NO_RECIPE;
+                    if (result == CheckRecipeResultRegistry.NO_DATA_STICKS)
+                        result = CheckRecipeResultRegistry.NO_RECIPE;
                     continue;
                 }
                 tFluids = tRecipe.mFluidInputs;
@@ -349,7 +339,7 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
                 batchMultiplierMax = Math
                     .min(batchMultiplierMax, (double) currentParallel / maxParallelBeforeBatchMode);
             }
-            int finalParallel = (int) (batchMultiplierMax * maxParallelBeforeBatchMode);
+            int finalParallel = (int) (batchMultiplierMax * currentParallelBeforeBatchMode);
 
             lEUt = calculator.getConsumption();
             mMaxProgresstime = (int) (calculator.getDuration() * batchMultiplierMax);
@@ -358,8 +348,9 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
                 GT_FML_LOGGER.info("Find available recipe");
             }
             result = CheckRecipeResultRegistry.SUCCESSFUL;
-            mOutputItems = new ItemStack[] { tRecipe.mOutput.copy() };
-            mOutputItems[0].stackSize *= maxParallelBeforeBatchMode * batchMultiplierMax;
+            ArrayList<ItemStack> outputs = new ArrayList<>();
+            ParallelHelper.addItemsLong(outputs, tRecipe.mOutput, (long) tRecipe.mOutput.stackSize * maxParallel);
+            mOutputItems = outputs.toArray(new ItemStack[0]);
             break;
         }
 
@@ -420,29 +411,6 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
         return false;
     }
 
-    /**
-     * @param state using bitmask, 1 for IntegratedCircuit, 2 for DataStick, 4 for DataOrb
-     */
-    private static boolean isCorrectDataItem(ItemStack aStack, int state) {
-        if ((state & 1) != 0 && ItemList.Circuit_Integrated.isStackEqual(aStack, true, true)) return true;
-        if ((state & 2) != 0 && ItemList.Tool_DataStick.isStackEqual(aStack, false, true)) return true;
-        return (state & 4) != 0 && ItemList.Tool_DataOrb.isStackEqual(aStack, false, true);
-    }
-
-    /**
-     * @param state using bitmask, 1 for IntegratedCircuit, 2 for DataStick, 4 for DataOrb
-     */
-    public ArrayList<ItemStack> getDataItems(int state) {
-        ArrayList<ItemStack> rList = new ArrayList<>();
-        if (GTUtility.isStackValid(mInventory[1]) && isCorrectDataItem(mInventory[1], state)) {
-            rList.add(mInventory[1]);
-        }
-        for (MTEHatchDataAccess tHatch : validMTEList(mDataAccessHatches)) {
-            rList.addAll(tHatch.getInventoryItems(stack -> isCorrectDataItem(stack, state)));
-        }
-        return rList;
-    }
-
     public boolean addDataAccessToMachineList(IGregTechTileEntity aTileEntity, int aBaseCasingIndex) {
         if (aTileEntity == null) return false;
         IMetaTileEntity aMetaTileEntity = aTileEntity.getMetaTileEntity();
@@ -455,24 +423,9 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
     }
 
     @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
-        return false;
-    }
-
-    @Override
     public void construct(ItemStack stackSize, boolean hintsOnly) {
         buildPiece(STRUCTURE_PIECE_FIRST, stackSize, hintsOnly, 0, 1, 0);
-        int tLength = Math.min(stackSize.stackSize + 1, 16);
+        int tLength = GTStructureChannels.STRUCTURE_LENGTH.getValueClamped(stackSize, 5, 16);
         for (int i = 1; i < tLength; i++) {
             buildPiece(STRUCTURE_PIECE_LATER, stackSize, hintsOnly, -i, 1, 0);
         }
@@ -481,14 +434,14 @@ public class MTEAssemblyLine extends MTEExtendedPowerMultiBlockBase<MTEAssemblyL
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        int build = survivialBuildPiece(STRUCTURE_PIECE_FIRST, stackSize, 0, 1, 0, elementBudget, env, false, true);
+        int build = survivalBuildPiece(STRUCTURE_PIECE_FIRST, stackSize, 0, 1, 0, elementBudget, env, false, true);
         if (build >= 0) return build;
-        int tLength = Math.min(stackSize.stackSize + 1, 16);
-        for (int i = 1; i < tLength - 1; i++) {
-            build = survivialBuildPiece(STRUCTURE_PIECE_LATER, stackSize, -i, 1, 0, elementBudget, env, false, true);
+        int tLength = GTStructureChannels.STRUCTURE_LENGTH.getValueClamped(stackSize, 5, 16);
+        for (int i = 1; i < tLength; i++) {
+            build = survivalBuildPiece(STRUCTURE_PIECE_LATER, stackSize, -i, 1, 0, elementBudget, env, false, true);
             if (build >= 0) return build;
         }
-        return survivialBuildPiece(STRUCTURE_PIECE_LAST, stackSize, 1 - tLength, 1, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(STRUCTURE_PIECE_LAST, stackSize, 1 - tLength, 1, 0, elementBudget, env, false, true);
     }
 
     @Override

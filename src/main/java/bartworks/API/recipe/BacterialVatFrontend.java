@@ -1,6 +1,8 @@
 package bartworks.API.recipe;
 
-import java.util.Arrays;
+import static gregtech.api.util.GTRecipeConstants.GLASS;
+import static gregtech.api.util.GTUtility.getTierNameWithParentheses;
+
 import java.util.List;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -10,14 +12,16 @@ import net.minecraft.util.StatCollector;
 
 import com.gtnewhorizons.modularui.api.math.Alignment;
 
-import bartworks.common.tileentities.multis.MTEBioVat;
+import gregtech.api.enums.GTValues;
 import gregtech.api.recipe.BasicUIPropertiesBuilder;
 import gregtech.api.recipe.NEIRecipePropertiesBuilder;
 import gregtech.api.recipe.RecipeMapFrontend;
+import gregtech.api.util.GTRecipeConstants;
+import gregtech.api.util.GTUtility;
 import gregtech.api.util.MethodsReturnNonnullByDefault;
+import gregtech.api.util.recipe.Sievert;
 import gregtech.nei.GTNEIDefaultHandler;
 import gregtech.nei.RecipeDisplayInfo;
-import gregtech.nei.formatter.INEISpecialInfoFormatter;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
@@ -25,9 +29,7 @@ public class BacterialVatFrontend extends RecipeMapFrontend {
 
     public BacterialVatFrontend(BasicUIPropertiesBuilder uiPropertiesBuilder,
         NEIRecipePropertiesBuilder neiPropertiesBuilder) {
-        super(
-            uiPropertiesBuilder,
-            neiPropertiesBuilder.neiSpecialInfoFormatter(new BacterialVatSpecialValueFormatter()));
+        super(uiPropertiesBuilder, neiPropertiesBuilder);
     }
 
     @Override
@@ -74,19 +76,29 @@ public class BacterialVatFrontend extends RecipeMapFrontend {
         super.drawNEIOverlayForOutput(stack);
     }
 
-    private static class BacterialVatSpecialValueFormatter implements INEISpecialInfoFormatter {
+    @Override
+    protected void drawEnergyInfo(RecipeDisplayInfo recipeInfo) {
+        long eut = recipeInfo.recipe.mEUt;
+        long duration = recipeInfo.recipe.mDuration;
+        int glassTier = recipeInfo.recipe.getMetadataOrDefault(GLASS, 3);
+        Sievert data = recipeInfo.recipe.getMetadataOrDefault(GTRecipeConstants.SIEVERT, new Sievert(0, false));
+        int sievert = data.sievert;
+        boolean isExact = data.isExact;
+        recipeInfo.drawText(
+            StatCollector.translateToLocalFormatted("GT5U.nei.display.total", GTUtility.formatNumbers(eut * duration)));
+        recipeInfo.drawText(
+            StatCollector.translateToLocalFormatted(
+                "GT5U.nei.display.usage",
+                GTUtility.formatNumbers(eut),
+                getTierNameWithParentheses(eut)));
 
-        @Override
-        public List<String> format(RecipeDisplayInfo recipeInfo) {
-            int[] tSpecialA = MTEBioVat.specialValueUnpack(recipeInfo.recipe.mSpecialValue);
-            String glassTier = StatCollector.translateToLocalFormatted("nei.biovat.0.name", tSpecialA[0]);
-            String sievert;
-            if (tSpecialA[2] == 1) {
-                sievert = StatCollector.translateToLocalFormatted("nei.biovat.1.name", tSpecialA[3]);
+        recipeInfo.drawText(StatCollector.translateToLocalFormatted("nei.biovat.0.name", GTValues.VN[glassTier]));
+        if (sievert != 0) {
+            if (isExact) {
+                recipeInfo.drawText(StatCollector.translateToLocalFormatted("nei.biovat.1.name", sievert));
             } else {
-                sievert = StatCollector.translateToLocalFormatted("nei.biovat.2.name", tSpecialA[3]);
+                recipeInfo.drawText(StatCollector.translateToLocalFormatted("nei.biovat.2.name", sievert));
             }
-            return Arrays.asList(glassTier, sievert);
         }
     }
 }

@@ -12,18 +12,22 @@ import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_A
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_OIL_CRACKER_GLOW;
 import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
+import static gregtech.api.util.GTStructureUtility.chainAllGlasses;
 import static gtnhlanth.util.DescTextLocalization.addDotText;
 
 import java.util.ArrayList;
 import java.util.Objects;
+
+import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.Fluid;
-import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
+
+import org.jetbrains.annotations.NotNull;
 
 import com.gtnewhorizon.structurelib.StructureLib;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
@@ -31,20 +35,23 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 
-import bartworks.API.BorosilicateGlass;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.TickTime;
+import gregtech.api.enums.VoltageIndex;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEEnhancedMultiBlockBase;
 import gregtech.api.metatileentity.implementations.MTEHatchEnergy;
+import gregtech.api.recipe.check.CheckRecipeResult;
+import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.shutdown.ShutDownReason;
 import gregtech.api.util.shutdown.SimpleShutDownReason;
+import gregtech.common.misc.GTStructureChannels;
 import gtnhlanth.common.beamline.BeamInformation;
 import gtnhlanth.common.beamline.BeamLinePacket;
 import gtnhlanth.common.beamline.Particle;
@@ -61,20 +68,21 @@ public class MTELINAC extends MTEEnhancedMultiBlockBase<MTELINAC> implements ISu
 
     protected static final String STRUCTURE_PIECE_BASE = "base";
     protected static final String STRUCTURE_PIECE_LAYER = "layer";
-    protected static final String STRUCTURE_PIECE_END = "end";
-
-    private byte glassTier;
-
-    private boolean onEndInnerLayer = false;
-
-    private int machineTemp = 0; // Coolant temperature
+    protected static final String STRUCTURE_PIECE_END = "end"; // Coolant temperature
 
     private final ArrayList<MTEHatchInputBeamline> mInputBeamline = new ArrayList<>();
     private final ArrayList<MTEHatchOutputBeamline> mOutputBeamline = new ArrayList<>();
 
-    private static final int CASING_INDEX = GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings5, 14);
+    private static final int CASING_INDEX = 1662;
 
-    private static final byte MIN_GLASS_TIER = 6;
+    private int glassTier = -1;
+    private int machineTemp = 0;
+    private int length;
+
+    private float outputEnergy;
+    private int outputParticleID;
+    private int outputRate;
+    private float outputFocus;
 
     /*
      * g: Grate Machine Casing b: Borosilicate glass c: Shielded accelerator casing v: Vacuum k: Shielded glass d:
@@ -110,14 +118,7 @@ public class MTELINAC extends MTEEnhancedMultiBlockBase<MTELINAC> implements ISu
                     { "ccccccc", "cbbbbbc", "cbbbbbc", "cbbobbc", "cbbbbbc", "cbbbbbc", "ccccccc" } })
             .addElement('c', ofBlock(LanthItemList.SHIELDED_ACCELERATOR_CASING, 0))
             .addElement('g', ofBlock(GregTechAPI.sBlockCasings3, 10)) // Grate Machine Casing
-            .addElement(
-                'b',
-                BorosilicateGlass.ofBoroGlass(
-                    (byte) 0,
-                    MIN_GLASS_TIER,
-                    Byte.MAX_VALUE,
-                    (te, t) -> te.glassTier = t,
-                    te -> te.glassTier))
+            .addElement('b', chainAllGlasses(-1, (te, t) -> te.glassTier = t, te -> te.glassTier))
             .addElement(
                 'i',
                 buildHatchAdder(MTELINAC.class).hatchClass(MTEHatchInputBeamline.class)
@@ -142,23 +143,14 @@ public class MTELINAC extends MTEEnhancedMultiBlockBase<MTELINAC> implements ISu
                     .casingIndex(CASING_INDEX)
                     .dot(2)
                     .build())
-
             .addElement(
                 'j',
                 buildHatchAdder(MTELINAC.class).atLeast(Maintenance, Energy)
                     .casingIndex(CASING_INDEX)
                     .dot(1)
                     .buildAndChain(ofBlock(LanthItemList.SHIELDED_ACCELERATOR_CASING, 0)))
-
             .build();
     }
-
-    private float outputEnergy;
-    private int outputRate;
-    private int outputParticle;
-    private float outputFocus;
-
-    private int length;
 
     public MTELINAC(int id, String name, String nameRegional) {
         super(id, name, nameRegional);
@@ -176,26 +168,29 @@ public class MTELINAC extends MTEEnhancedMultiBlockBase<MTELINAC> implements ISu
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Particle Accelerator")
-            .addInfo("Controller block for the LINAC")
-            .addInfo("Accelerates charged particles to higher energies")
-            .addInfo("Increasing length increases output energy, but decreases focus")
-            .addInfo("Use a lower temperature coolant to improve output focus")
-            .addInfo("Output energy does not scale for input energies higher than 7500 keV")
-            // .addInfo("Extendable, with a minimum length of 18 blocks")
+        // spotless:off
+        tt.addMachineType("Particle Accelerator, LINAC")
+            .addInfo("Accelerates charged particles to higher energies by running them through an electric field")
+            .addInfo("Electrically neutral particles are therefore unaffected")
             .addInfo(DescTextLocalization.BEAMLINE_SCANNER_INFO)
-            .addInfo("Valid Coolants:");
-
-        // Valid coolant list
-        for (String fluidName : BeamlineRecipeLoader.coolantMap.keySet()) {
-
-            tt.addInfo(
-                "- " + FluidRegistry.getFluid(fluidName)
-                    .getLocalizedName(null));
-
-        }
-
-        tt.addInfo("Requires (length + 1)kL/s of coolant")
+            .addSeparator()
+            .addInfo("Increasing Structure Length increases output "+createEnergyText("Beam Energy")+" but decreases "+createFocusText("Beam Focus"))
+            .addInfo("Requires " + EnumChatFormatting.WHITE + "Length * kL/s " + EnumChatFormatting.GRAY + "of " + EnumChatFormatting.AQUA + "coolant" + EnumChatFormatting.GRAY + " for operation")
+            .addInfo(createFocusText("Beam Focus") + " loss can be mitigated more effectively with lower temperature " + EnumChatFormatting.AQUA+"coolant")
+            .addInfo("Valid coolants:")
+            .addInfo(coolantLine("Coolant",300))
+            .addInfo(coolantLine("Liquid Nitrogen",90))
+            .addInfo(coolantLine("Liquid Oxygen",90))
+            .addInfo(coolantLine("Super Coolant",1))
+            .addSeparator()
+            .addInfo(createEnergyText("Output Beam Energy") + EnumChatFormatting.WHITE + " = max("+EnumChatFormatting.YELLOW+"V"+EnumChatFormatting.WHITE+", 50) * 10^"+EnumChatFormatting.RED+"IE")
+            .addInfo("where " + EnumChatFormatting.YELLOW + "V" + EnumChatFormatting.WHITE + " = (Length - 1) * cbrt(" + EnumChatFormatting.DARK_GREEN + "Machine Voltage" + EnumChatFormatting.WHITE + ") / 4")
+            .addInfo("and " + EnumChatFormatting.RED + "IE " + EnumChatFormatting.WHITE + "= 1+min(" + EnumChatFormatting.LIGHT_PURPLE + "Input Beam Energy" + EnumChatFormatting.WHITE + ", 7500) / " + EnumChatFormatting.GREEN + "Maximum Source Energy")
+            .addInfo(EnumChatFormatting.RED + "Input Beam Energies" + EnumChatFormatting.GRAY + " higher than 7500keV are treated as if they are 7500keV")
+            .addInfo(EnumChatFormatting.GREEN +"Maximum Source Energy"+EnumChatFormatting.GRAY + " refers to values in the Source Chamber Tooltip")
+            .addSeparator()
+            .addInfo(createFocusText("Output Beam Focus") + EnumChatFormatting.WHITE + " = (" + EnumChatFormatting.YELLOW + "Input Beam Focus" + EnumChatFormatting.WHITE + " + " + EnumChatFormatting.DARK_AQUA + "Machine Focus" + EnumChatFormatting.WHITE + ")/2")
+            .addInfo("where " + EnumChatFormatting.DARK_AQUA + "Machine Focus" + EnumChatFormatting.WHITE + " = min(max((-0.9 * (Length-1) * 1.1^(0.2 * " + EnumChatFormatting.GOLD + "Coolant Temperature" + EnumChatFormatting.WHITE + ") + 110), 5), 90)")
             .beginVariableStructureBlock(7, 7, 7, 7, 19, 83, false)
             .addController("Front bottom")
             .addCasingInfoRange(LanthItemList.SHIELDED_ACCELERATOR_CASING.getLocalizedName(), 325, 1285, false)
@@ -204,23 +199,23 @@ public class MTELINAC extends MTEEnhancedMultiBlockBase<MTELINAC> implements ISu
             .addCasingInfoRange("Superconducting Coil Block", 56, 312, false)
             .addCasingInfoRange(LanthItemList.ELECTRODE_CASING.getLocalizedName(), 156, 732, false)
             .addCasingInfoExactly("Grate Machine Casing", 47, false)
-            .addCasingInfoExactly("Borosilicate Glass (LuV+)", 48, false)
+            .addCasingInfoExactly("Any Tiered Glass (LuV+)", 48, false)
             .addEnergyHatch(addDotText(1))
             .addMaintenanceHatch(addDotText(1))
             .addInputHatch(addDotText(2))
             .addOutputHatch(addDotText(2))
             .addOtherStructurePart("Beamline Input Hatch", addDotText(3))
             .addOtherStructurePart("Beamline Output Hatch", addDotText(4))
+            .addSubChannelUsage(GTStructureChannels.BOROGLASS)
             .toolTipFinisher();
+        //spotless:on
         return tt;
     }
 
     private boolean addBeamLineInputHatch(IGregTechTileEntity te, int casingIndex) {
-
         if (te == null) return false;
 
         IMetaTileEntity mte = te.getMetaTileEntity();
-
         if (mte == null) return false;
 
         if (mte instanceof MTEHatchInputBeamline) {
@@ -231,11 +226,9 @@ public class MTELINAC extends MTEEnhancedMultiBlockBase<MTELINAC> implements ISu
     }
 
     private boolean addBeamLineOutputHatch(IGregTechTileEntity te, int casingIndex) {
-
         if (te == null) return false;
 
         IMetaTileEntity mte = te.getMetaTileEntity();
-
         if (mte == null) return false;
 
         if (mte instanceof MTEHatchOutputBeamline) {
@@ -245,322 +238,101 @@ public class MTELINAC extends MTEEnhancedMultiBlockBase<MTELINAC> implements ISu
         return false;
     }
 
+    @NotNull
     @Override
-    public boolean checkRecipe(ItemStack itemStack) {
-
-        float tempFactor = 0;
-        // Focus as determined by multi properties
-        float machineFocus = 0;
-        // Input particle focus
-        float inputFocus = 0;
-
-        // Output focus to be set
-        outputFocus = 0;
-
-        float voltageFactor = 0;
-        float inputEnergy = 0;
-
-        machineTemp = 0;
-
-        // Energy quantity determined by multi
-        float machineEnergy = 0;
-        outputEnergy = 0;
-
-        int particleId = 0;
-        outputParticle = 0;
-
-        int inputRate = 0;
-        outputRate = 0;
-
+    public CheckRecipeResult checkProcessing() {
         ArrayList<FluidStack> tFluidInputs = this.getStoredFluids();
         if (tFluidInputs.isEmpty()) {
             this.doRandomMaintenanceDamage(); // Penalise letting coolant run dry
             this.stopMachine(SimpleShutDownReason.ofCritical("gtnhlanth.nocoolant"));
-            return false;
+            return CheckRecipeResultRegistry.NO_RECIPE;
         }
+        FluidStack fluidCoolant = tFluidInputs.get(0);
 
-        // Coolant input
-        FluidStack primFluid = tFluidInputs.get(0);
+        BeamInformation inputInfo = this.getInputInformation();
+        if (inputInfo == null) return CheckRecipeResultRegistry.NO_RECIPE;
 
-        // 1b (1000L)/m/operation
-        final int fluidConsumed = 1000 * length;
-
-        this.mEfficiency = (10000 - (this.getIdealStatus() - this.getRepairStatus()) * 1000);
-        this.mEfficiencyIncrease = 10000;
-
-        if (this.getInputInformation() == null) {
-            return false;
-        }
-
-        if (this.getInputInformation()
-            .getEnergy() == 0) {
-            return false;
-        }
-
-        particleId = this.getInputInformation()
-            .getParticleId();
-        Particle inputParticle = Particle.getParticleFromId(particleId);
+        float inputEnergy = inputInfo.getEnergy();
+        int inputParticleID = inputInfo.getParticleId();
+        Particle inputParticle = Particle.getParticleFromId(inputParticleID);
+        float inputFocus = inputInfo.getFocus();
+        int inputRate = inputInfo.getRate();
+        if (inputEnergy == 0) return CheckRecipeResultRegistry.NO_RECIPE;
 
         if (!inputParticle.canAccelerate()) {
             stopMachine(SimpleShutDownReason.ofCritical("gtnhlanth.noaccel"));
-            return false;
+            return CheckRecipeResultRegistry.NO_RECIPE;
         }
 
-        mMaxProgresstime = 1 * TickTime.SECOND;
-        // Consume the input tier's corresponding practical voltage instead of the maximum suggested by the logic
-        mEUt = (int) -GTValues.VP[(int) this.getInputVoltageTier()];
+        this.machineTemp = Util.coolantFluidTemperature(fluidCoolant); // Used for tricorder too
+        float tempFactor = calculateTemperatureFactor(this.machineTemp);
 
-        // Particle stays the same with this multiblock
-        outputParticle = particleId;
+        this.mEfficiency = (10000 - (this.getIdealStatus() - this.getRepairStatus()) * 1000);
+        this.mEfficiencyIncrease = 10000;
+        this.mMaxProgresstime = TickTime.SECOND;
+        this.mEUt = (int) ((this.mEnergyHatches.size() == 1) ? -GTValues.VP[(int) this.getInputVoltageTier()]
+            : (int) (-this.getMaxInputAmps() * GTValues.VP[(int) this.getInputVoltageTier()]));
 
-        if (primFluid.isFluidEqual(new FluidStack(FluidRegistry.getFluid("ic2coolant"), 1))) {
-            tempFactor = calculateTemperatureFactor(60); // Default temp of 300 is unreasonable
-            machineTemp = 60; // Solely for tricorder use
-        } else {
-            tempFactor = calculateTemperatureFactor(
-                primFluid.getFluid()
-                    .getTemperature());
-            machineTemp = primFluid.getFluid()
-                .getTemperature(); // Solely for tricorder use
-        }
-
-        machineFocus = Math.max(((-0.9f) * this.length * tempFactor) + 110, 5); // Min of 5
-        if (machineFocus > 90) { // Max of 90
-            machineFocus = 90;
-        }
-
-        inputFocus = this.getInputInformation()
-            .getFocus();
-
-        outputFocus = (inputFocus > machineFocus) ? ((inputFocus + machineFocus) / 2)
-            : inputFocus * (machineFocus / 100); // If input focus > machine focus, take the average of both, else
-                                                 // weigh the former by the latter
-
-        long voltage = this.getMaxInputVoltage();
-        // voltageFactor = calculateVoltageFactor(voltage);
-
-        // machineEnergy = Math.max(-((60) / this.length) * voltageFactor + 60_000, 2000); // Minimum of 2000keV
-
-        machineEnergy = (float) Math.max(length / 4 * Math.pow(voltage, 1.0 / 3.0), 50); // Minimum of 50keV
-
-        inputEnergy = this.getInputInformation()
-            .getEnergy();
-
+        // 1A of full power if one energy hatch, 4A if two
+        long voltage = (this.mEnergyHatches.size() == 1) ? this.getMaxInputVoltage() : this.getMaxInputPower();
+        float machineEnergy = (float) Math.max((this.length - 1) / 4.0 * Math.pow(voltage, 1.0 / 3.0), 50);
         inputEnergy = Math.min(inputEnergy, 7500); // Does not scale past 7500 keV, prevents double LINAC issue
-        /*
-         * outputEnergy = Math.min(
-         * (1 + inputEnergy / Particle.getParticleFromId(outputParticle)
-         * .maxSourceEnergy()) * machineEnergy,
-         * 120_000); // TODO more complex calculation than just
-         * // addition
-         */
+        this.outputEnergy = (float) Math.pow(10, 1 + inputEnergy / inputParticle.maxSourceEnergy()) * machineEnergy;
 
-        outputEnergy = (float) Math.pow(
-            10,
-            1 + inputEnergy / Particle.getParticleFromId(outputParticle)
-                .maxSourceEnergy())
-            * machineEnergy;
+        this.outputParticleID = inputParticleID;
 
-        inputRate = this.getInputInformation()
-            .getRate();
-        outputRate = inputRate; // Cannot increase rate with this multiblock
+        float machineFocus = ((-0.9f) * (this.length - 1) * tempFactor) + 110;
+        machineFocus = Math.min(Math.max(machineFocus, 5), 90);
+        this.outputFocus = (inputFocus > machineFocus) ? ((inputFocus + machineFocus) / 2)
+            : inputFocus * (machineFocus / 100);
 
-        if (Util.coolantFluidCheck(primFluid, fluidConsumed)) {
+        this.outputRate = inputRate;
 
+        final int fluidConsumed = 1000 * (length);
+        if (Util.coolantFluidCheck(fluidCoolant, fluidConsumed)) {
             this.stopMachine(SimpleShutDownReason.ofCritical("gtnhlanth.inscoolant"));
-            return false;
-
+            return CheckRecipeResultRegistry.NO_RECIPE;
         }
-
-        primFluid.amount -= fluidConsumed;
 
         Fluid fluidOutput = BeamlineRecipeLoader.coolantMap.get(
-            primFluid.getFluid()
+            fluidCoolant.getFluid()
                 .getName());
+        if (Objects.isNull(fluidOutput)) return CheckRecipeResultRegistry.NO_RECIPE;
 
-        if (Objects.isNull(fluidOutput)) return false;
-
+        fluidCoolant.amount -= fluidConsumed;
         FluidStack fluidOutputStack = new FluidStack(fluidOutput, fluidConsumed);
-
-        if (Objects.isNull(fluidOutputStack)) return false;
-
         this.addFluidOutputs(new FluidStack[] { fluidOutputStack });
 
-        outputAfterRecipe();
-
-        return true;
+        outputPacketAfterRecipe();
+        return CheckRecipeResultRegistry.SUCCESSFUL;
     }
 
-    private void outputAfterRecipe() {
-
+    private void outputPacketAfterRecipe() {
         if (!mOutputBeamline.isEmpty()) {
-
             BeamLinePacket packet = new BeamLinePacket(
-                new BeamInformation(outputEnergy, outputRate, outputParticle, outputFocus));
+                new BeamInformation(outputEnergy, outputRate, outputParticleID, outputFocus));
 
             for (MTEHatchOutputBeamline o : mOutputBeamline) {
-
-                o.q = packet;
+                o.dataPacket = packet;
             }
         }
     }
 
     @Override
-    public void stopMachine() {
-
-        // GTLog.out.print("Machine stopped");
+    public void stopMachine(@NotNull ShutDownReason reason) {
         outputFocus = 0;
         outputEnergy = 0;
-        outputParticle = 0;
-        outputRate = 0;
-        machineTemp = 0;
-        super.stopMachine();
-    }
-
-    @Override
-    public void stopMachine(ShutDownReason reason) {
-
-        outputFocus = 0;
-        outputEnergy = 0;
-        outputParticle = 0;
+        outputParticleID = 0;
         outputRate = 0;
         machineTemp = 0;
         super.stopMachine(reason);
-
     }
 
-    @Override
-    public String[] getInfoData() {
-
-        long storedEnergy = 0;
-        long maxEnergy = 0;
-        for (MTEHatchEnergy tHatch : mEnergyHatches) {
-            if (tHatch.isValid()) {
-                storedEnergy += tHatch.getBaseMetaTileEntity()
-                    .getStoredEU();
-                maxEnergy += tHatch.getBaseMetaTileEntity()
-                    .getEUCapacity();
-            }
-        }
-
-        BeamInformation information = this.getInputInformation();
-
-        return new String[] {
-            /* 1 */ StatCollector.translateToLocal("GT5U.multiblock.Progress") + ": "
-                + EnumChatFormatting.GREEN
-                + GTUtility.formatNumbers(mProgresstime / 20)
-                + EnumChatFormatting.RESET
-                + " s / "
-                + EnumChatFormatting.YELLOW
-                + GTUtility.formatNumbers(mMaxProgresstime / 20)
-                + EnumChatFormatting.RESET
-                + " s",
-            /* 2 */ StatCollector.translateToLocal("GT5U.multiblock.energy") + ": "
-                + EnumChatFormatting.GREEN
-                + GTUtility.formatNumbers(storedEnergy)
-                + EnumChatFormatting.RESET
-                + " EU / "
-                + EnumChatFormatting.YELLOW
-                + GTUtility.formatNumbers(maxEnergy)
-                + EnumChatFormatting.RESET
-                + " EU",
-            /* 3 */ StatCollector.translateToLocal("GT5U.multiblock.usage") + ": "
-                + EnumChatFormatting.RED
-                + GTUtility.formatNumbers(getActualEnergyUsage())
-                + EnumChatFormatting.RESET
-                + " EU/t",
-            /* 4 */ StatCollector.translateToLocal("GT5U.multiblock.mei") + ": "
-                + EnumChatFormatting.YELLOW
-                + GTUtility.formatNumbers(getMaxInputVoltage())
-                + EnumChatFormatting.RESET
-                + " EU/t(*2A) "
-                + StatCollector.translateToLocal("GT5U.machines.tier")
-                + ": "
-                + EnumChatFormatting.YELLOW
-                + VN[GTUtility.getTier(getMaxInputVoltage())]
-                + EnumChatFormatting.RESET,
-            /* 5 */ StatCollector.translateToLocal("GT5U.multiblock.problems") + ": "
-                + EnumChatFormatting.RED
-                + (getIdealStatus() - getRepairStatus())
-                + EnumChatFormatting.RESET
-                + " "
-                + StatCollector.translateToLocal("GT5U.multiblock.efficiency")
-                + ": "
-                + EnumChatFormatting.YELLOW
-                + mEfficiency / 100.0F
-                + EnumChatFormatting.RESET
-                + " %",
-
-            /* 7 */ EnumChatFormatting.BOLD + StatCollector.translateToLocal("beamline.info")
-                + ": "
-                + EnumChatFormatting.RESET,
-
-            StatCollector.translateToLocal("beamline.temperature") + ": " // Temperature:
-                + EnumChatFormatting.DARK_RED
-                + machineTemp
-                + EnumChatFormatting.RESET
-                + " K", // e.g. "137 K"
-
-            StatCollector.translateToLocal("beamline.coolusage") + ": " // Coolant usage:
-                + EnumChatFormatting.AQUA
-                + length
-                + EnumChatFormatting.RESET
-                + " kL/s", // e.g. "24 kL/s
-
-            /* 8 */ EnumChatFormatting.BOLD + StatCollector.translateToLocal("beamline.in_pre")
-                + ": "
-                + EnumChatFormatting.RESET,
-            StatCollector.translateToLocal("beamline.particle") + ": " // "Multiblock Beamline Input:"
-                + EnumChatFormatting.GOLD
-                + Particle.getParticleFromId(information.getParticleId())
-                    .getLocalisedName() // e.g. "Electron
-                                        // (e-)"
-                + " "
-                + EnumChatFormatting.RESET,
-            StatCollector.translateToLocal("beamline.energy") + ": " // "Energy:"
-                + EnumChatFormatting.DARK_RED
-                + information.getEnergy()
-                + EnumChatFormatting.RESET
-                + " keV", // e.g. "10240 keV"
-            StatCollector.translateToLocal("beamline.focus") + ": " // "Focus:"
-                + EnumChatFormatting.BLUE
-                + information.getFocus()
-                + " "
-                + EnumChatFormatting.RESET,
-            StatCollector.translateToLocal("beamline.amount") + ": " // "Amount:"
-                + EnumChatFormatting.LIGHT_PURPLE
-                + information.getRate(),
-            EnumChatFormatting.BOLD + StatCollector.translateToLocal("beamline.out_pre") // "Multiblock Beamline
-                                                                                         // Output:"
-                + ": "
-                + EnumChatFormatting.RESET,
-            StatCollector.translateToLocal("beamline.particle") + ": "
-                + EnumChatFormatting.GOLD
-                + Particle.getParticleFromId(this.outputParticle)
-                    .getLocalisedName()
-                + " "
-                + EnumChatFormatting.RESET,
-            StatCollector.translateToLocal("beamline.energy") + ": "
-                + EnumChatFormatting.DARK_RED
-                + this.outputEnergy
-                + EnumChatFormatting.RESET
-                + " keV",
-            StatCollector.translateToLocal(
-                "beamline.focus") + ": " + EnumChatFormatting.BLUE + this.outputFocus + " " + EnumChatFormatting.RESET,
-            StatCollector.translateToLocal("beamline.amount") + ": "
-                + EnumChatFormatting.LIGHT_PURPLE
-                + this.outputRate, };
-    }
-
+    @Nullable
     private BeamInformation getInputInformation() {
-
-        for (MTEHatchInputBeamline in : this.mInputBeamline) { // Easy way to find the desired input. Efficient? No.
-                                                               // Will it matter? No :boubs_glasses:
-
-            if (in.q == null) return new BeamInformation(0, 0, 0, 0);
-            // if (in.q == null) return new BeamInformation(10000, 10, 0, 90); // temporary for testing purposes
-
-            return in.q.getContent();
+        for (MTEHatchInputBeamline in : this.mInputBeamline) {
+            if (in.dataPacket == null) return new BeamInformation(0, 0, 0, 0);
+            return in.dataPacket.getContent();
         }
         return null;
     }
@@ -569,75 +341,49 @@ public class MTELINAC extends MTEEnhancedMultiBlockBase<MTELINAC> implements ISu
         return (float) Math.pow(1.1, 0.2 * fluidTemp);
     }
 
-    /*
-     * private static float calculateVoltageFactor(long voltage) {
-     * float factor = (float) Math.pow(1.00009, -(0.1 * voltage - 114000));
-     * return factor;
-     * }
-     */
-
-    @Override
-    public String[] getStructureDescription(ItemStack arg0) {
-        return DescTextLocalization.addText("LINAC.hint", 11);
-    }
-
     @Override
     public boolean checkMachine(IGregTechTileEntity mte, ItemStack stack) {
-
         mInputBeamline.clear();
         mOutputBeamline.clear();
 
         this.outputEnergy = 0;
         this.outputRate = 0;
-        this.outputParticle = 0;
+        this.outputParticleID = 0;
         this.outputFocus = 0;
 
-        this.glassTier = 0;
-
-        this.onEndInnerLayer = false;
+        this.glassTier = -1;
 
         length = 8; // Base piece length
 
         if (!checkPiece(STRUCTURE_PIECE_BASE, 3, 6, 0)) return false;
 
         while (length < 128) {
-
             if (!checkPiece(STRUCTURE_PIECE_LAYER, 3, 6, -length)) {
                 if (!checkPiece(STRUCTURE_PIECE_END, 3, 6, -length)) {
                     return false;
                 }
                 break;
             }
-
             length += 2;
         }
 
-        // if (!checkPiece(STRUCTURE_PIECE_END, 3, 6, -length)) return false;
-
-        // Likely off by one or two, not visible to player however so doesn't particularly matter
-        length += 8;
+        length += 9;
 
         return this.mInputBeamline.size() == 1 && this.mOutputBeamline.size() == 1
-            && this.mMaintenanceHatches.size() == 1
             && this.mEnergyHatches.size() <= 2
-            && this.glassTier >= MIN_GLASS_TIER;
+            && this.glassTier >= VoltageIndex.LuV;
     }
 
     @Override
     public void construct(ItemStack stackSize, boolean hintsOnly) {
-
         buildPiece(STRUCTURE_PIECE_BASE, stackSize, hintsOnly, 3, 6, 0);
 
         int lLength = Math.max(stackSize.stackSize + 7, 8); // !!
-
         if (!(lLength % 2 == 0)) {
             lLength++; // Otherwise you get gaps at the end
         }
 
         for (int i = -8; i > -lLength - 1; i -= 2) {
-
-            // GTLog.out.print("Building inner piece! i = " + i);
-
             buildPiece(STRUCTURE_PIECE_LAYER, stackSize, hintsOnly, 3, 6, i);
         }
 
@@ -648,32 +394,24 @@ public class MTELINAC extends MTEEnhancedMultiBlockBase<MTELINAC> implements ISu
 
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
+        elementBudget = 200;
 
-        elementBudget = 200; // Maybe make a config
+        if (this.mMachine) return -1;
 
-        if (mMachine) return -1;
-
-        int build = 0;
-
-        build = survivialBuildPiece(STRUCTURE_PIECE_BASE, stackSize, 3, 6, 0, elementBudget, env, false, true);
-
+        int build = survivalBuildPiece(STRUCTURE_PIECE_BASE, stackSize, 3, 6, 0, elementBudget, env, false, true);
         if (build >= 0) return build; // Incomplete
 
         int lLength = Math.max(stackSize.stackSize + 7, 8); // !!
-
         if (!(lLength % 2 == 0)) {
             lLength++; // Otherwise you get gaps at the end
         }
 
         for (int i = -8; i > -lLength - 1; i -= 2) {
-
-            build = survivialBuildPiece(STRUCTURE_PIECE_LAYER, stackSize, 3, 6, i, elementBudget, env, false, true);
-
+            build = survivalBuildPiece(STRUCTURE_PIECE_LAYER, stackSize, 3, 6, i, elementBudget, env, false, true);
             if (build >= 0) return build;
-
         }
 
-        return survivialBuildPiece(
+        return survivalBuildPiece(
             STRUCTURE_PIECE_END,
             stackSize,
             3,
@@ -714,32 +452,166 @@ public class MTELINAC extends MTEEnhancedMultiBlockBase<MTELINAC> implements ISu
     }
 
     @Override
+    public String[] getStructureDescription(ItemStack arg0) {
+        return DescTextLocalization.addText("LINAC.hint", 11);
+    }
+
+    @Override
+    public String[] getInfoData() {
+        long storedEnergy = 0;
+        long maxEnergy = 0;
+        for (MTEHatchEnergy tHatch : mEnergyHatches) {
+            if (tHatch.isValid()) {
+                storedEnergy += tHatch.getBaseMetaTileEntity()
+                    .getStoredEU();
+                maxEnergy += tHatch.getBaseMetaTileEntity()
+                    .getEUCapacity();
+            }
+        }
+
+        BeamInformation information = this.getInputInformation();
+        if (information == null) {
+            information = new BeamInformation(0, 0, 0, 0);
+        }
+
+        return new String[] {
+            // from super()
+            /* 1 */ StatCollector.translateToLocal("GT5U.multiblock.Progress") + ": "
+                + EnumChatFormatting.GREEN
+                + GTUtility.formatNumbers(mProgresstime / 20)
+                + EnumChatFormatting.RESET
+                + " s / "
+                + EnumChatFormatting.YELLOW
+                + GTUtility.formatNumbers(mMaxProgresstime / 20)
+                + EnumChatFormatting.RESET
+                + " s",
+            /* 2 */ StatCollector.translateToLocal("GT5U.multiblock.energy") + ": "
+                + EnumChatFormatting.GREEN
+                + GTUtility.formatNumbers(storedEnergy)
+                + EnumChatFormatting.RESET
+                + " EU / "
+                + EnumChatFormatting.YELLOW
+                + GTUtility.formatNumbers(maxEnergy)
+                + EnumChatFormatting.RESET
+                + " EU",
+            /* 3 */ StatCollector.translateToLocal("GT5U.multiblock.usage") + ": "
+                + EnumChatFormatting.RED
+                + GTUtility.formatNumbers(getActualEnergyUsage())
+                + EnumChatFormatting.RESET
+                + " EU/t",
+            /* 4 */ StatCollector.translateToLocal("GT5U.multiblock.mei") + ": "
+                + EnumChatFormatting.YELLOW
+                + GTUtility.formatNumbers(getMaxInputVoltage())
+                + EnumChatFormatting.RESET
+                + " EU/t(*"
+                + getMaxInputAmps()
+                + "A)"
+                + StatCollector.translateToLocal("GT5U.machines.tier")
+                + ": "
+                + EnumChatFormatting.YELLOW
+                + VN[GTUtility.getTier(getMaxInputVoltage())]
+                + EnumChatFormatting.RESET,
+            /* 5 */ StatCollector.translateToLocal("GT5U.multiblock.problems") + ": "
+                + EnumChatFormatting.RED
+                + (getIdealStatus() - getRepairStatus())
+                + EnumChatFormatting.RESET
+                + " "
+                + StatCollector.translateToLocal("GT5U.multiblock.efficiency")
+                + ": "
+                + EnumChatFormatting.YELLOW
+                + mEfficiency / 100.0F
+                + EnumChatFormatting.RESET
+                + " %",
+            /* 6 Pollution not included */
+            // Beamline-specific
+            EnumChatFormatting.BOLD + StatCollector.translateToLocal("beamline.info") + ": " + EnumChatFormatting.RESET,
+            StatCollector.translateToLocal("beamline.temperature") + ": " // Temperature:
+                + EnumChatFormatting.DARK_RED
+                + machineTemp
+                + EnumChatFormatting.RESET
+                + " K", // e.g. "137 K"
+            StatCollector.translateToLocal("beamline.coolusage") + ": " // Coolant usage:
+                + EnumChatFormatting.AQUA
+                + (length)
+                + EnumChatFormatting.RESET
+                + " kL/s", // e.g. "24 kL/s
+            EnumChatFormatting.BOLD + StatCollector.translateToLocal("beamline.in_pre")
+                + ": "
+                + EnumChatFormatting.RESET,
+            StatCollector.translateToLocal("beamline.particle") + ": " // "Multiblock Beamline Input:"
+                + EnumChatFormatting.GOLD
+                + Particle.getParticleFromId(information.getParticleId())
+                    .getLocalisedName() // e.g. "Electron
+                                        // (e-)"
+                + " "
+                + EnumChatFormatting.RESET,
+            StatCollector.translateToLocal("beamline.energy") + ": " // "Energy:"
+                + EnumChatFormatting.DARK_RED
+                + information.getEnergy()
+                + EnumChatFormatting.RESET
+                + " keV", // e.g. "10240 keV"
+            StatCollector.translateToLocal("beamline.focus") + ": " // "Focus:"
+                + EnumChatFormatting.BLUE
+                + information.getFocus()
+                + " "
+                + EnumChatFormatting.RESET,
+            StatCollector.translateToLocal("beamline.amount") + ": " // "Amount:"
+                + EnumChatFormatting.LIGHT_PURPLE
+                + information.getRate(),
+
+            EnumChatFormatting.BOLD + StatCollector.translateToLocal("beamline.out_pre")
+                + ": "
+                + EnumChatFormatting.RESET,
+            StatCollector.translateToLocal("beamline.particle") + ": " // "Multiblock Beamline Output:"
+                + EnumChatFormatting.GOLD
+                + Particle.getParticleFromId(this.outputParticleID)
+                    .getLocalisedName()
+                + " "
+                + EnumChatFormatting.RESET,
+            StatCollector.translateToLocal("beamline.energy") + ": " // "Energy:"
+                + EnumChatFormatting.DARK_RED
+                + this.outputEnergy
+                + EnumChatFormatting.RESET
+                + " keV",
+            StatCollector.translateToLocal("beamline.focus") + ": " // "Focus:"
+                + EnumChatFormatting.BLUE
+                + this.outputFocus
+                + " "
+                + EnumChatFormatting.RESET,
+            StatCollector.translateToLocal("beamline.amount") + ": " // "Amount:"
+                + EnumChatFormatting.LIGHT_PURPLE
+                + this.outputRate };
+    }
+
+    @Override
     public IStructureDefinition<MTELINAC> getStructureDefinition() {
         return STRUCTURE_DEFINITION;
     }
 
     public boolean addInputHatchToMachineList(IGregTechTileEntity aTileEntity, int aBaseCasingIndex) {
-        this.onEndInnerLayer = true;
         return super.addInputHatchToMachineList(aTileEntity, aBaseCasingIndex);
     }
 
     @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return true;
-    }
-
-    @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
+    public boolean supportsPowerPanel() {
         return false;
+    }
+
+    private String createFocusText(String text) {
+        return String.format("%s%s%s", EnumChatFormatting.RED, text, EnumChatFormatting.GRAY);
+    }
+
+    private String createEnergyText(String text) {
+        return String.format("%s%s%s", EnumChatFormatting.BLUE, text, EnumChatFormatting.GRAY);
+    }
+
+    private String coolantLine(String coolant, int kelvin) {
+        return "  " + EnumChatFormatting.AQUA
+            + coolant
+            + EnumChatFormatting.GRAY
+            + " : "
+            + EnumChatFormatting.GOLD
+            + kelvin
+            + "K";
     }
 }

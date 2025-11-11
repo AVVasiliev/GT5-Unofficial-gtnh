@@ -37,13 +37,13 @@ public class BehaviourCrowbar extends BehaviourNone {
         if (aBlock == null) {
             return false;
         }
-        byte aMeta = (byte) aWorld.getBlockMetadata(aX, aY, aZ);
+        int aMeta = aWorld.getBlockMetadata(aX, aY, aZ);
         if (aBlock == Blocks.rail) {
             if (GTModHandler.damageOrDechargeItem(aStack, this.mVanillaCosts, this.mEUCosts, aPlayer)) {
                 aWorld.isRemote = true;
                 aWorld.setBlock(aX, aY, aZ, aBlock, (aMeta + 1) % 10, 0);
                 aWorld.isRemote = false;
-                GTUtility.sendSoundToPlayers(aWorld, SoundResource.RANDOM_BREAK, 1.0F, -1.0F, aX, aY, aZ);
+                GTUtility.sendSoundToPlayers(aWorld, SoundResource.RANDOM_BREAK, 1.0F, -1.0F, hitX, hitY, hitZ);
             }
             return true;
         }
@@ -52,7 +52,7 @@ public class BehaviourCrowbar extends BehaviourNone {
                 aWorld.isRemote = true;
                 aWorld.setBlock(aX, aY, aZ, aBlock, aMeta / 8 * 8 + (aMeta % 8 + 1) % 6, 0);
                 aWorld.isRemote = false;
-                GTUtility.sendSoundToPlayers(aWorld, SoundResource.RANDOM_BREAK, 1.0F, -1.0F, aX, aY, aZ);
+                GTUtility.sendSoundToPlayers(aWorld, SoundResource.RANDOM_BREAK, 1.0F, -1.0F, hitX, hitY, hitZ);
             }
             return true;
         }

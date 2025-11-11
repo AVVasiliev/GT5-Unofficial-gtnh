@@ -1,7 +1,6 @@
 package ggfab.mte;
 
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
-import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlockUnlocalizedName;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofChain;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
 import static ggfab.BlockIcons.OVERLAY_FRONT_ADV_ASSLINE;
@@ -20,8 +19,9 @@ import static gregtech.api.enums.HatchElement.Maintenance;
 import static gregtech.api.enums.HatchElement.OutputBus;
 import static gregtech.api.enums.Textures.BlockIcons.casingTexturePages;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
+import static gregtech.api.util.GTStructureUtility.chainAllGlasses;
 import static gregtech.api.util.GTStructureUtility.ofHatchAdder;
-import static gregtech.api.util.GTUtility.formatNumbers;
+import static gregtech.api.util.GTUtility.getTier;
 import static gregtech.api.util.GTUtility.validMTEList;
 
 import java.util.ArrayList;
@@ -32,10 +32,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagInt;
@@ -43,6 +44,7 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraft.util.StringUtils;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.Constants;
@@ -69,7 +71,6 @@ import ggfab.ConfigurationHandler;
 import ggfab.mui.ClickableTextWidget;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.GTValues;
-import gregtech.api.enums.ItemList;
 import gregtech.api.enums.VoidingMode;
 import gregtech.api.interfaces.IHatchElement;
 import gregtech.api.interfaces.ITexture;
@@ -88,6 +89,7 @@ import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.util.AssemblyLineUtils;
 import gregtech.api.util.GTRecipe;
+import gregtech.api.util.GTRecipe.RecipeAssemblyLine;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.GTWaila;
 import gregtech.api.util.IGTHatchAdder;
@@ -95,6 +97,8 @@ import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.OverclockCalculator;
 import gregtech.api.util.VoidProtectionHelper;
 import gregtech.api.util.shutdown.ShutDownReason;
+import gregtech.api.util.shutdown.ShutDownReasonRegistry;
+import gregtech.common.misc.GTStructureChannels;
 import gregtech.common.tileentities.machines.MTEHatchInputBusME;
 import gregtech.common.tileentities.machines.MTEHatchInputME;
 import mcp.mobius.waila.api.IWailaConfigHandler;
@@ -105,13 +109,15 @@ import mcp.mobius.waila.api.IWailaDataAccessor;
  */
 public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine> implements ISurvivalConstructable {
 
-    private static final ItemStack NOT_CHECKED = new ItemStack(Blocks.dirt);
     public static final double LASER_OVERCLOCK_PENALTY_FACTOR = ConfigurationHandler.laserOCPenaltyFactor;
     private static final String STRUCTURE_PIECE_FIRST = "first";
     private static final String STRUCTURE_PIECE_LATER = "later";
     private static final String STRUCTURE_PIECE_LAST = "last";
     public static final String TAG_KEY_CURRENT_STICK = "mCurrentStick";
+    public static final String TAG_KEY_CURRENT_RECIPE = "mCurrentRecipe";
+    public static final String TAG_KEY_RECIPE_HASH = "mRecipeHash";
     public static final String TAG_KEY_PROGRESS_TIMES = "mProgressTimeArray";
+
     private static final IStructureDefinition<MTEAdvAssLine> STRUCTURE_DEFINITION = StructureDefinition
         .<MTEAdvAssLine>builder()
         // @formatter:off
@@ -143,13 +149,7 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
         .addElement('G', ofBlock(GregTechAPI.sBlockCasings3, 10)) // grate machine casing
         .addElement('l', ofBlock(GregTechAPI.sBlockCasings2, 9)) // assembler machine casing
         .addElement('m', ofBlock(GregTechAPI.sBlockCasings2, 5)) // assembling line casing
-        .addElement(
-            'g',
-            ofChain(
-                ofBlockUnlocalizedName("IC2", "blockAlloyGlass", 0, true),
-                ofBlockUnlocalizedName("bartworks", "BW_GlasBlocks", 0, true),
-                // warded glass
-                ofBlockUnlocalizedName("Thaumcraft", "blockCosmeticOpaque", 2, false)))
+        .addElement('g', chainAllGlasses())
         .addElement(
             'e',
             buildHatchAdder(MTEAdvAssLine.class).anyOf(Energy, ExoticEnergy)
@@ -177,12 +177,11 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
             'I',
             ofChain(
                 // all blocks nearby use solid steel casing, so let's use the texture of that
-                InputBus.newAny(16, 5, ForgeDirection.DOWN),
-                ofHatchAdder(MTEAdvAssLine::addOutputToMachineList, 16, 4)))
-        .addElement('i', InputBus.newAny(16, 5, ForgeDirection.DOWN))
-        .addElement('o', OutputBus.newAny(16, 4, ForgeDirection.DOWN))
+                InputBus.newAny(16, 4, ForgeDirection.DOWN),
+                ofHatchAdder(MTEAdvAssLine::addOutputToMachineList, 16, 3)))
+        .addElement('i', InputBus.newAny(16, 4, ForgeDirection.DOWN))
+        .addElement('o', OutputBus.newAny(16, 3, ForgeDirection.DOWN))
         .build();
-    private ItemStack currentStick;
     private GTRecipe.RecipeAssemblyLine currentRecipe;
     private final Slice[] slices = IntStream.range(0, 16)
         .mapToObj(Slice::new)
@@ -226,12 +225,12 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
     }
 
     private boolean checkMachine() {
+        mDataAccessHatches.clear();
+        if (!checkPiece(STRUCTURE_PIECE_FIRST, 0, 1, 0)) return false;
         return checkMachine(true) || checkMachine(false);
     }
 
     private boolean checkMachine(boolean leftToRight) {
-        clearHatches();
-        if (!checkPiece(STRUCTURE_PIECE_FIRST, 0, 1, 0)) return false;
         for (int i = 1; i < 16; i++) {
             if (!checkPiece(STRUCTURE_PIECE_LATER, leftToRight ? -i : i, 1, 0)) return false;
             if (!mOutputBusses.isEmpty())
@@ -244,7 +243,8 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
     @Override
     public void construct(ItemStack stackSize, boolean hintsOnly) {
         buildPiece(STRUCTURE_PIECE_FIRST, stackSize, hintsOnly, 0, 1, 0);
-        int tLength = Math.min(stackSize.stackSize + 3, 16); // render 4 slices at minimal
+        int tLength = GTStructureChannels.STRUCTURE_LENGTH.getValueClamped(stackSize, 5, 16); // render 5 slices at
+                                                                                              // minimal
         for (int i = 1; i < tLength; i++) {
             buildPiece(STRUCTURE_PIECE_LATER, stackSize, hintsOnly, -i, 1, 0);
         }
@@ -253,14 +253,15 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        int build = survivialBuildPiece(STRUCTURE_PIECE_FIRST, stackSize, 0, 1, 0, elementBudget, env, false, true);
+        int build = survivalBuildPiece(STRUCTURE_PIECE_FIRST, stackSize, 0, 1, 0, elementBudget, env, false, true);
         if (build >= 0) return build;
-        int tLength = Math.min(stackSize.stackSize + 3, 16); // render 4 slices at minimal
-        for (int i = 1; i < tLength - 1; i++) {
-            build = survivialBuildPiece(STRUCTURE_PIECE_LATER, stackSize, -i, 1, 0, elementBudget, env, false, true);
+        int tLength = GTStructureChannels.STRUCTURE_LENGTH.getValueClamped(stackSize, 5, 16); // render 5 slices at
+                                                                                              // minimal
+        for (int i = 1; i < tLength; i++) {
+            build = survivalBuildPiece(STRUCTURE_PIECE_LATER, stackSize, -i, 1, 0, elementBudget, env, false, true);
             if (build >= 0) return build;
         }
-        return survivialBuildPiece(STRUCTURE_PIECE_LAST, stackSize, 1 - tLength, 1, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(STRUCTURE_PIECE_LAST, stackSize, 1 - tLength, 1, 0, elementBudget, env, false, true);
     }
 
     @Override
@@ -303,48 +304,54 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Assembling Line")
-            .addInfo("Built exactly the same as standard Assembling Line")
-            .addInfo("Assembling Line with item pipelining")
-            .addInfo("All fluids are however consumed at start")
-            .addInfo("Use voltage of worst energy hatch for overclocking")
-            .addInfo("Perform normal overclock with given voltage")
-            .addInfo("Perform laser overclock with extra amperages from multi-amp energy hatches")
-            .addInfo("Each laser overclock reduces recipe time by 50%")
+        tt.addMachineType("Assembly Line, AAL")
+            .addInfo("Assembly Line with item pipelining")
+            .addInfo("All fluids are consumed at the start of the recipe")
+            .addInfo("Recipe tier is limited by the lowest Energy Hatch tier")
+            .addSeparator(EnumChatFormatting.GOLD, 67)
+            .addInfo("Runs imperfect overclocks until Energy Hatch tier")
+            .addInfo("Additional overclocks are increasingly more expensive")
             .addInfo(
-                "and multiplies power by (4 + " + formatNumbers(LASER_OVERCLOCK_PENALTY_FACTOR)
-                    + " * total laser overclock count)")
-            .addInfo(EnumChatFormatting.BOLD + "Will not overclock beyond 1 tick.")
-            .addInfo("EU/t is (number of slices working) * (overclocked EU/t)")
+                EnumChatFormatting.AQUA
+                    + "Multiplier = 4^(Regular Overclocks) × 4.3 × 4.6 × … × (4 + 0.3 × Extra Overclocks)"
+                    + EnumChatFormatting.GRAY)
+            .addInfo(
+                EnumChatFormatting.AQUA + "Power usage = Multiplier × (Active Slices) × (Recipe EU/t)"
+                    + EnumChatFormatting.GRAY)
+            .addInfo("Overclocking assumes all recipe slices are active")
+            .addInfo(EnumChatFormatting.BOLD + "Does not overclock beyond 1 tick")
+            .addSeparator(EnumChatFormatting.GOLD, 67)
+            .addInfo("Constructed identically to the Assembly Line")
+            .addTecTechHatchInfo()
             .beginVariableStructureBlock(5, 16, 4, 4, 3, 3, false)
             .addStructureInfo("From Bottom to Top, Left to Right")
-            .addStructureInfo(
-                "Layer 1 - Solid Steel Machine Casing, Input Bus (last can be Output Bus), Solid Steel Machine Casing")
-            .addStructureInfo(
-                "Layer 2 - Borosilicate Glass(any)/Warded Glass/Reinforced Glass, Assembling Line Casing, Reinforced Glass")
+            .addStructureInfo("Layer 1 - Solid Steel Machine Casing, Input Bus, Solid Steel Machine Casing")
+            .addStructureInfo("Layer 2 - Glass, Assembly Line Casing, Glass")
             .addStructureInfo("Layer 3 - Grate Machine Casing, Assembler Machine Casing, Grate Machine Casing")
             .addStructureInfo("Layer 4 - Empty, Solid Steel Machine Casing, Empty")
             .addStructureInfo("Up to 16 repeating slices, each one allows for 1 more item in recipes")
             .addController("Either Grate on layer 3 of the first slice")
             .addEnergyHatch("Any layer 4 casing", 1)
             .addMaintenanceHatch("Any layer 1 casing", 3)
-            .addInputBus("As specified on layer 1", 4, 5)
+            .addInputBus("As specified on layer 1", 4)
             .addInputHatch("Any layer 1 casing", 3)
-            .addOutputBus("Replaces Input Bus on final slice or on any solid steel casing on layer 1", 4)
-            .addOtherStructurePart("Data Access Hatch", "Optional, next to controller", 2)
-            .toolTipFinisher();
+            .addOutputBus("Replaces Input Bus or Solid Steel Machine casing on layer 1 of last slice", 3)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GT5U.tooltip.structure.data_access_hatch"),
+                "Any Grate Machine Casing NOT on the first slice",
+                2)
+            .addSubChannelUsage(GTStructureChannels.BOROGLASS)
+            .toolTipFinisher(EnumChatFormatting.GRAY, 67);
         return tt;
     }
 
-    private void setCurrentRecipe(ItemStack stick, GTRecipe.RecipeAssemblyLine recipe) {
+    private void setCurrentRecipe(RecipeAssemblyLine recipe) {
         currentRecipe = recipe;
-        currentStick = stick;
         currentInputLength = recipe.mInputs.length;
     }
 
     private void clearCurrentRecipe() {
         currentRecipe = null;
-        currentStick = null;
         currentInputLength = -1;
         currentRecipeParallel = 1;
         stuck = false;
@@ -363,9 +370,9 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
         // we need to check for active here.
         // if machine was turned off via soft mallet it will not call checkRecipe() on recipe end
         // in that case we don't have a current recipe, so this should be ignored
-        if (getBaseMetaTileEntity().isActive() && GTUtility.isStackValid(currentStick)) {
-            aNBT.setTag(TAG_KEY_CURRENT_STICK, currentStick.writeToNBT(new NBTTagCompound()));
-            aNBT.setInteger("mRecipeHash", currentRecipe.getPersistentHash());
+        if (getBaseMetaTileEntity().isActive() && currentRecipe != null) {
+            aNBT.setTag(TAG_KEY_CURRENT_RECIPE, AssemblyLineUtils.saveRecipe(currentRecipe));
+            aNBT.setInteger(TAG_KEY_RECIPE_HASH, currentRecipe.getPersistentHash());
             aNBT.setIntArray(
                 TAG_KEY_PROGRESS_TIMES,
                 Arrays.stream(slices)
@@ -384,58 +391,65 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
     public void loadNBTData(NBTTagCompound aNBT) {
         super.loadNBTData(aNBT);
         lastStopReason = aNBT.getString("lastStop");
-        ItemStack loadedStack = null;
-        GTRecipe.RecipeAssemblyLine recipe = null;
+
         if (aNBT.hasKey(TAG_KEY_PROGRESS_TIMES, Constants.NBT.TAG_INT_ARRAY)) {
             int[] arr = aNBT.getIntArray(TAG_KEY_PROGRESS_TIMES);
             for (int i = 0; i < slices.length; i++) {
                 if (i < arr.length) {
                     slices[i].progress = arr[i];
-                    if (arr[i] == 0)
+                    if (arr[i] == 0) {
                         // this will be synced to client by first MTE packet to client
                         stuck = true;
-                } else slices[i].reset();
-            }
-        }
-        if (aNBT.hasKey(TAG_KEY_CURRENT_STICK, Constants.NBT.TAG_COMPOUND)) {
-            loadedStack = ItemStack.loadItemStackFromNBT(aNBT.getCompoundTag(TAG_KEY_CURRENT_STICK));
-            AssemblyLineUtils.LookupResult lookupResult = AssemblyLineUtils
-                .findAssemblyLineRecipeFromDataStick(loadedStack, false);
-            switch (lookupResult.getType()) {
-                case VALID_STACK_AND_VALID_HASH:
-                    recipe = lookupResult.getRecipe();
-                    stuck = aNBT.getBoolean("stuck");
-                    inputVoltage = aNBT.getLong("inputV");
-                    inputEUt = aNBT.getLong("inputEU");
-                    baseEUt = aNBT.getLong("baseEU");
-                    currentRecipeParallel = aNBT.getInteger("currentParallel");
-                    if (inputVoltage <= 0 || inputEUt <= 0 || baseEUt >= 0) {
-                        criticalStopMachine("ggfab.gui.advassline.shutdown.load.energy");
-                        loadedStack = null;
-                        recipe = null;
                     }
-                    break;
-                case VALID_STACK_AND_VALID_RECIPE:
-                    // recipe is there, but it has been changed. to prevent issues, abort the current recipe
-                    // TODO finish the last recipe instead of aborting
-                default:
-                    // recipe is gone. to prevent issues, abort the current recipe
-                    criticalStopMachine("ggfab.gui.advassline.shutdown.load.recipe");
-                    loadedStack = null;
-                    break;
+                } else {
+                    slices[i].reset();
+                }
             }
         }
-        if (loadedStack == null || recipe == null) clearCurrentRecipe();
-        else setCurrentRecipe(loadedStack, recipe);
+
+        RecipeAssemblyLine recipe = null;
+
+        if (aNBT.hasKey(TAG_KEY_CURRENT_RECIPE, Constants.NBT.TAG_COMPOUND)) {
+            recipe = AssemblyLineUtils
+                .assertSingleRecipe(AssemblyLineUtils.loadRecipe(aNBT.getCompoundTag(TAG_KEY_CURRENT_RECIPE)));
+        } else if (aNBT.hasKey(TAG_KEY_CURRENT_STICK, Constants.NBT.TAG_COMPOUND)) {
+            recipe = AssemblyLineUtils.assertSingleRecipe(
+                AssemblyLineUtils.findALRecipeFromDataStick(
+                    ItemStack.loadItemStackFromNBT(aNBT.getCompoundTag(TAG_KEY_CURRENT_STICK))));
+        }
+
+        if (recipe != null) {
+            stuck = aNBT.getBoolean("stuck");
+            inputVoltage = aNBT.getLong("inputV");
+            inputEUt = aNBT.getLong("inputEU");
+            baseEUt = aNBT.getLong("baseEU");
+            currentRecipeParallel = aNBT.getInteger("currentParallel");
+            if (inputVoltage <= 0 || inputEUt <= 0 || baseEUt >= 0) {
+                criticalStopMachine("ggfab.gui.advassline.shutdown.load.energy");
+                recipe = null;
+            }
+            if (recipe != null && aNBT.hasKey(TAG_KEY_RECIPE_HASH, Constants.NBT.TAG_INT)) {
+                if (aNBT.getInteger(TAG_KEY_RECIPE_HASH) != recipe.getPersistentHash()) {
+                    criticalStopMachine("ggfab.gui.advassline.shutdown.load.recipe");
+                    recipe = null;
+                }
+            }
+        }
+
+        if (recipe == null) {
+            clearCurrentRecipe();
+        } else {
+            setCurrentRecipe(recipe);
+        }
     }
 
     /**
-     * roughly the same as {@link #criticalStopMachine()}, but does not attempt to send a halting sound if world is not
-     * loaded. also supports setting a stop reason
+     * Does a critical shutdown of the machine, but does not attempt to send a halting sound if world is not loaded.
+     * also supports setting a stop reason
      */
     private void criticalStopMachine(String reason) {
         int oMaxProgresstime = mMaxProgresstime;
-        stopMachine();
+        stopMachine(ShutDownReasonRegistry.NONE);
         // don't do these at all if the machine wasn't working before anyway
         if (oMaxProgresstime > 0) {
             if (getBaseMetaTileEntity().getWorld() != null) sendSound(INTERRUPT_SOUND_INDEX);
@@ -482,7 +496,7 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
     }
 
     @Override
-    protected void startRecipeProcessing() {
+    public void startRecipeProcessing() {
         if (!processing) {
             super.startRecipeProcessing();
             curBatchItemsFromME = getStoredInputsFromME();
@@ -492,7 +506,7 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
     }
 
     @Override
-    protected void endRecipeProcessing() {
+    public void endRecipeProcessing() {
         if (!processing) return;
         super.endRecipeProcessing();
         processing = false;
@@ -511,6 +525,11 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
     }
 
     @Override
+    protected boolean useMui2() {
+        return false;
+    }
+
+    @Override
     protected void drawTexts(DynamicPositionedColumn screenElements, SlotWidget inventorySlot) {
         super.drawTexts(screenElements, inventorySlot);
         /*
@@ -520,9 +539,11 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
          * l -> { currentInputLength = l; for (SliceStatusWidget w : arr) { w.updateText(); } }));
          */
         screenElements.widget(
-            new TextWidget(Text.localised("ggfab.gui.advassline.shutdown")).setEnabled(this::hasAbnormalStopReason));
+            new TextWidget(Text.localised("ggfab.gui.advassline.shutdown")).setTextAlignment(Alignment.CenterLeft)
+                .setEnabled(this::hasAbnormalStopReason));
         screenElements.widget(
             new TextWidget().setTextSupplier(() -> Text.localised(lastStopReason))
+                .setTextAlignment(Alignment.CenterLeft)
                 .attachSyncer(
                     new FakeSyncWidget.StringSyncer(() -> lastStopReason, r -> this.lastStopReason = r),
                     screenElements)
@@ -616,13 +637,13 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
         MTEHatchInputBus inputBus = mInputBusses.get(index);
         if (!inputBus.isValid()) return null;
         if (inputBus instanceof MTEHatchInputBusME meBus) {
-            ItemStack item = meBus.getShadowItemStack(0);
+            ItemStack item = meBus.getFirstValidStack(true);
             if (item == null) return null;
             GTUtility.ItemId id = GTUtility.ItemId.createNoCopy(item);
             if (!curBatchItemsFromME.containsKey(id)) return null;
             return curBatchItemsFromME.get(id);
         }
-        return inputBus.getStackInSlot(0);
+        return inputBus.getFirstStack();
 
     }
 
@@ -631,51 +652,15 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
         MTEHatchInput inputHatch = mInputHatches.get(index);
         if (!inputHatch.isValid()) return null;
         if (inputHatch instanceof MTEHatchInputME meHatch) {
-            FluidStack fluid = meHatch.getShadowFluidStack(0);
+            FluidStack fluid = meHatch.getFirstValidStack(true);
             if (fluid == null) return null;
             if (!curBatchFluidsFromME.containsKey(fluid.getFluid())) return null;
             return curBatchFluidsFromME.get(fluid.getFluid());
         }
         if (inputHatch instanceof MTEHatchMultiInput multiHatch) {
-            return multiHatch.getFluid(0);
+            return multiHatch.getFluid();
         }
         return inputHatch.getFillableStack();
-    }
-
-    private GTRecipe.RecipeAssemblyLine findRecipe(ItemStack tDataStick) {
-        AssemblyLineUtils.LookupResult tLookupResult = AssemblyLineUtils
-            .findAssemblyLineRecipeFromDataStick(tDataStick, false);
-
-        if (tLookupResult.getType() == AssemblyLineUtils.LookupResultType.INVALID_STICK) return null;
-
-        GTRecipe.RecipeAssemblyLine tRecipe = tLookupResult.getRecipe();
-        // Check if the recipe on the data stick is the current recipe for it's given output, if not we update it
-        // and continue to next.
-        if (tLookupResult.getType() != AssemblyLineUtils.LookupResultType.VALID_STACK_AND_VALID_HASH) {
-            tRecipe = AssemblyLineUtils.processDataStick(tDataStick);
-            if (tRecipe == null) {
-                return null;
-            }
-        }
-
-        // So here we check against the recipe found on the data stick.
-        // If we run into missing buses/hatches or bad inputs, we go to the next data stick.
-        // This check only happens if we have a valid up-to-date data stick.
-
-        // Check item Inputs align. For this we do not need to consider batch mode parallels yet, this will be done
-        // later on during recipe start.
-        if (!hasAllItems(tRecipe, 1)) return null;
-
-        // Check Fluid Inputs align. Again, do not consider parallels
-        if (!hasAllFluids(tRecipe, 1)) return null;
-
-        if (GTValues.D1) {
-            GT_FML_LOGGER.info("Check overclock");
-        }
-        if (GTValues.D1) {
-            GT_FML_LOGGER.info("Find available recipe");
-        }
-        return tRecipe;
     }
 
     private int maxParallelCalculatedByInputItems(GTRecipe.RecipeAssemblyLine tRecipe, int maxParallel) {
@@ -704,91 +689,79 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
         return maxParallelCalculatedByInputFluids(tRecipe, parallel) >= parallel;
     }
 
-    /**
-     * @param state using bitmask, 1 for IntegratedCircuit, 2 for DataStick, 4 for DataOrb
-     */
-    private boolean isCorrectDataItem(ItemStack aStack, int state) {
-        if ((state & 1) != 0 && ItemList.Circuit_Integrated.isStackEqual(aStack, true, true)) return true;
-        if ((state & 2) != 0 && ItemList.Tool_DataStick.isStackEqual(aStack, false, true)) return true;
-        return (state & 4) != 0 && ItemList.Tool_DataOrb.isStackEqual(aStack, false, true);
-    }
-
-    /**
-     * @param state using bitmask, 1 for IntegratedCircuit, 2 for DataStick, 4 for DataOrb
-     */
-    public ArrayList<ItemStack> getDataItems(int state) {
-        ArrayList<ItemStack> rList = new ArrayList<>();
-        if (GTUtility.isStackValid(mInventory[1]) && isCorrectDataItem(mInventory[1], state)) {
-            rList.add(mInventory[1]);
-        }
-        for (MTEHatchDataAccess tHatch : validMTEList(mDataAccessHatches)) {
-            rList.addAll(tHatch.getInventoryItems(stack -> isCorrectDataItem(stack, state)));
-        }
-        return rList;
-    }
-
     // this is only called when all slices have finished their work
     // and the first slice cannot find a input/fluid cannot be found
     // so we are safe to assume the old recipe no longer works
     @Override
-    @NotNull
-    public CheckRecipeResult checkProcessing() {
+    public @Nonnull CheckRecipeResult checkProcessing() {
         if (GTValues.D1) {
             GT_FML_LOGGER.info("Start Adv ALine recipe check");
         }
         clearCurrentRecipe();
         CheckRecipeResult result = CheckRecipeResultRegistry.NO_DATA_STICKS;
-        ArrayList<ItemStack> tDataStickList = getDataItems(2);
-        if (tDataStickList.isEmpty()) {
-            return result;
-        }
-        if (GTValues.D1) {
-            GT_FML_LOGGER.info("Stick accepted, " + tDataStickList.size() + " Data Sticks found");
+
+        ArrayList<RecipeAssemblyLine> availableRecipes = new ArrayList<>();
+
+        if (AssemblyLineUtils.isItemDataStick(mInventory[1])) {
+            availableRecipes.addAll(AssemblyLineUtils.findALRecipeFromDataStick(mInventory[1]));
         }
 
-        for (ItemStack stack : tDataStickList) {
-            GTRecipe.RecipeAssemblyLine recipe = findRecipe(stack);
-            if (recipe == null) {
-                result = CheckRecipeResultRegistry.NO_RECIPE;
+        for (MTEHatchDataAccess dataAccess : validMTEList(mDataAccessHatches)) {
+            availableRecipes.addAll(dataAccess.getAssemblyLineRecipes());
+        }
+
+        if (availableRecipes.isEmpty()) {
+            return result;
+        }
+
+        if (GTValues.D1) {
+            GT_FML_LOGGER.info("Stick accepted, " + availableRecipes.size() + " Data Sticks found");
+        }
+
+        for (RecipeAssemblyLine recipe : availableRecipes) {
+            // Check item Inputs align. For this we do not need to consider batch mode parallels yet, this will be done
+            // later on during recipe start.
+            if (!hasAllItems(recipe, 1)) {
+                if (result == CheckRecipeResultRegistry.NO_DATA_STICKS) result = CheckRecipeResultRegistry.NO_RECIPE;
                 continue;
             }
+
+            // Check Fluid Inputs align. Again, do not consider parallels
+            if (!hasAllFluids(recipe, 1)) {
+                if (result == CheckRecipeResultRegistry.NO_DATA_STICKS) result = CheckRecipeResultRegistry.NO_RECIPE;
+                continue;
+            }
+
+            // Check voltage tier is at least recipe tier.
             if (recipe.mEUt > inputVoltage) {
-                result = CheckRecipeResultRegistry.insufficientPower(recipe.mEUt);
+                result = CheckRecipeResultRegistry.insufficientVoltage(recipe.mEUt);
+                continue;
+            }
+
+            // Check all slices can run with provided power.
+            if ((long) recipe.mInputs.length * recipe.mEUt > inputEUt) {
+                result = CheckRecipeResultRegistry.insufficientPower((long) recipe.mInputs.length * recipe.mEUt);
                 continue;
             }
 
             int originalMaxParallel = 1;
             int maxParallel = originalMaxParallel;
 
-            OverclockCalculator calculator;
+            int maxRegularOverclock = getTier(inputVoltage) - getTier(recipe.mEUt);
 
-            OverclockCalculator normalOCCalculator = new OverclockCalculator().setRecipeEUt(recipe.mEUt)
+            // Delete this one before enable overclocking under one tick.
+            int maxOverclockTo1Tick = GTUtility.log2(recipe.mDuration / recipe.mInputs.length);
+
+            OverclockCalculator calculator = new OverclockCalculator().setRecipeEUt(recipe.mEUt)
                 .setDurationUnderOneTickSupplier(() -> ((double) (recipe.mDuration) / recipe.mInputs.length))
                 .setParallel(originalMaxParallel)
-                .setEUt(inputVoltage);
-
-            if (!mExoticEnergyHatches.isEmpty()) {
-                normalOCCalculator
-                    .setCurrentParallel((int) Math.max(1 / normalOCCalculator.calculateDurationUnderOneTick(), 1))
-                    .calculate();
-                int normalOverclockCount = normalOCCalculator.getPerformedOverclocks();
-
-                calculator = new OverclockCalculator().setRecipeEUt(recipe.mEUt)
-                    .setDurationUnderOneTickSupplier(() -> ((double) (recipe.mDuration) / recipe.mInputs.length))
-                    .setEutIncreasePerOCSupplier(
-                        overclock -> 4 + LASER_OVERCLOCK_PENALTY_FACTOR * Math.max(overclock - normalOverclockCount, 0))
-                    .setParallel(originalMaxParallel)
-                    .setEUt(inputEUt / recipe.mInputs.length);
-            } else {
-                calculator = normalOCCalculator;
-            }
+                .setEUt(inputEUt / recipe.mInputs.length)
+                .setLaserOC(true)
+                .setMaxRegularOverclocks(Math.min(maxRegularOverclock, maxOverclockTo1Tick));
 
             // Disabled to disable overclocking under one tick.
             /*
-             * double tickTimeAfterOC = calculator.calculateDurationUnderOneTick();
-             * if (tickTimeAfterOC < 1) {
-             * maxParallel = GTUtility.safeInt((long) (maxParallel / tickTimeAfterOC), 0);
-             * }
+             * maxParallel = GTUtility.safeInt((long) (maxParallel * calculator.calculateMultiplierUnderOneTick()), 0);
              */
 
             int maxParallelBeforeBatchMode = maxParallel;
@@ -845,10 +818,11 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
                 batchMultiplierMax = Math
                     .min(batchMultiplierMax, (double) currentParallel / maxParallelBeforeBatchMode);
             }
-            currentRecipeParallel = (int) (currentParallelBeforeBatchMode * batchMultiplierMax);
+            int batchMultiplierMaxInt = (int) batchMultiplierMax;
+            currentRecipeParallel = (int) (currentParallelBeforeBatchMode * batchMultiplierMaxInt);
             lEUt = calculator.getConsumption();
-            mMaxProgresstime = (int) (calculator.getDuration() * batchMultiplierMax) * recipe.mInputs.length;
-            setCurrentRecipe(stack, recipe);
+            mMaxProgresstime = (int) (calculator.getDuration() * batchMultiplierMaxInt) * recipe.mInputs.length;
+            setCurrentRecipe(recipe);
             result = CheckRecipeResultRegistry.SUCCESSFUL;
             break;
         }
@@ -895,26 +869,6 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
     }
 
     @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return true;
-    }
-
-    @Override
-    public int getMaxEfficiency(ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
-    public int getDamageToComponent(ItemStack aStack) {
-        return 0;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(ItemStack aStack) {
-        return false;
-    }
-
-    @Override
     protected boolean supportsSlotAutomation(int aSlot) {
         return aSlot == getControllerSlotIndex();
     }
@@ -926,6 +880,7 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
         NBTTagCompound tag = accessor.getNBTData();
         String machineProgressString = GTWaila.getMachineProgressString(
             tag.getBoolean("isActive"),
+            tag.getBoolean("isAllowedToWork"),
             tag.getInteger("maxProgress"),
             tag.getInteger("progress"));
         currentTip.remove(machineProgressString);
@@ -989,16 +944,17 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
 
     @Override
     public boolean onWireCutterRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer aPlayer,
-        float aX, float aY, float aZ) {
+        float aX, float aY, float aZ, ItemStack aTool) {
         if (aPlayer.isSneaking()) {
             batchMode = !batchMode;
             if (batchMode) {
-                GTUtility.sendChatToPlayer(aPlayer, "Batch mode enabled");
+                GTUtility.sendChatToPlayer(aPlayer, StatCollector.translateToLocal("misc.BatchModeTextOn"));
             } else {
-                GTUtility.sendChatToPlayer(aPlayer, "Batch mode disabled");
+                GTUtility.sendChatToPlayer(aPlayer, StatCollector.translateToLocal("misc.BatchModeTextOff"));
             }
+            return true;
         }
-        return true;
+        return false;
     }
 
     private class SliceStatusWidget extends TextWidget implements ISyncedWidget {
@@ -1079,11 +1035,17 @@ public class MTEAdvAssLine extends MTEExtendedPowerMultiBlockBase<MTEAdvAssLine>
                 if (id + 1 >= currentInputLength) {
                     // use previously calculated parallel output
                     ItemStack output = mOutputItems[0];
-                    if (addOutput(output) || !voidingMode.protectItem) reset();
-                    else stuck = true;
+                    if (addOutputAtomic(GTUtility.copy(output)) || !voidingMode.protectItem) {
+                        reset();
+                    } else {
+                        stuck = true;
+                    }
                 } else {
-                    if (slices[id + 1].start()) reset();
-                    else stuck = true;
+                    if (slices[id + 1].start()) {
+                        reset();
+                    } else {
+                        stuck = true;
+                    }
                 }
             }
         }

@@ -30,9 +30,12 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import bartworks.MainMod;
 import bartworks.system.oredict.OreDictHandler;
@@ -40,7 +43,6 @@ import bartworks.util.BWColorUtil;
 import bartworks.util.BWUtil;
 import bartworks.util.MurmurHash3;
 import bartworks.util.NonNullWrappedHashMap;
-import bartworks.util.Pair;
 import bwcrossmod.BartWorksCrossmod;
 import bwcrossmod.tgregworks.MaterialsInjector;
 import cpw.mods.fml.common.Loader;
@@ -49,20 +51,26 @@ import gregtech.api.enums.FluidState;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.Mods;
 import gregtech.api.enums.OrePrefixes;
+import gregtech.api.enums.StoneType;
 import gregtech.api.enums.SubTag;
 import gregtech.api.enums.TCAspects;
 import gregtech.api.enums.TextureSet;
 import gregtech.api.interfaces.IColorModulationContainer;
+import gregtech.api.interfaces.IOreMaterial;
+import gregtech.api.interfaces.IStoneType;
 import gregtech.api.interfaces.ISubTagContainer;
 import gregtech.api.util.GTLanguageManager;
 import gregtech.api.util.GTOreDictUnificator;
+import it.unimi.dsi.fastutil.shorts.Short2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import thaumcraft.api.aspects.Aspect;
 
-public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
+public class Werkstoff implements IColorModulationContainer, ISubTagContainer, IOreMaterial {
 
     public static final LinkedHashSet<Werkstoff> werkstoffHashSet = new LinkedHashSet<>();
-    public static final LinkedHashMap<Short, Werkstoff> werkstoffHashMap = new LinkedHashMap<>();
+    public static final Short2ObjectMap<Werkstoff> werkstoffHashMap = new Short2ObjectLinkedOpenHashMap<>();
     public static final LinkedHashMap<String, Werkstoff> werkstoffNameHashMap = new LinkedHashMap<>();
+    public static final LinkedHashMap<String, Werkstoff> werkstoffVarNameHashMap = new LinkedHashMap<>();
 
     public static final Map<String, String> modNameOverrides = new HashMap<>() {
 
@@ -83,7 +91,7 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
         .disable();
     public static Werkstoff default_null_Werkstoff;
 
-    private final HashSet<String> ADDITIONAL_OREDICT = new HashSet<>();
+    private final HashSet<String> additionalOredict = new HashSet<>();
     private final List<ISubTagContainer> mOreByProducts = new ArrayList<>();
     private final LinkedHashSet<Pair<ISubTagContainer, Integer>> CONTENTS = new LinkedHashSet<>();
     private final HashSet<SubTag> SUBTAGS = new HashSet<>();
@@ -131,13 +139,13 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
         this(
             materials.mRGBa,
             materials.mDefaultLocalName,
-            materials.getToolTip(),
+            materials.getChemicalTooltip(),
             type == null ? materials.mElement != null ? Types.ELEMENT : Types.UNDEFINED : type,
             generationFeatures,
             mID,
             materials.mIconSet,
             (List) materials.mOreByProducts,
-            new Pair<>(materials, 1));
+            Pair.of(materials, 1));
         if (mID <= 31_766 || mID > 32_767) throw new IllegalArgumentException();
         this.stats.mass = materials.getMass();
         this.stats.protons = materials.getProtons();
@@ -378,6 +386,7 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
         Werkstoff.werkstoffHashSet.add(this);
         Werkstoff.werkstoffHashMap.put(this.mID, this);
         Werkstoff.werkstoffNameHashMap.put(this.defaultName, this);
+        Werkstoff.werkstoffVarNameHashMap.put(this.getVarName(), this);
 
         this.owner = this.getMaterialOwner();
     }
@@ -391,12 +400,12 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
     }
 
     public Werkstoff addAdditionalOreDict(String s) {
-        this.ADDITIONAL_OREDICT.add(s);
+        this.additionalOredict.add(s);
         return this;
     }
 
-    public HashSet<String> getADDITIONAL_OREDICT() {
-        return this.ADDITIONAL_OREDICT;
+    public Set<String> getAdditionalOredict() {
+        return this.additionalOredict;
     }
 
     public void setTCAspects(Pair<Object, Integer>... pAspectsArr) {
@@ -414,12 +423,12 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
                 if (p.getKey() instanceof Werkstoff) set.addAll(Arrays.asList(((Werkstoff) p.getKey()).getTCAspects()));
             }
             tc_aspectStacks.forEach(
-                tc_aspectStack -> set.add(new Pair<>(tc_aspectStack.mAspect.mAspect, (int) tc_aspectStack.mAmount)));
+                tc_aspectStack -> set.add(Pair.of(tc_aspectStack.mAspect.mAspect, (int) tc_aspectStack.mAmount)));
             this.stats.mTC_Aspects = set.toArray(new Pair[0]);
         }
         Pair<Object, Integer>[] ret = this.stats.mTC_Aspects.clone();
         for (int i = 0; i < ret.length; i++) {
-            ret[i] = ret[i].copyWithNewValue(ret[i].getValue() * ratio);
+            ret[i] = Pair.of(ret[i].getKey(), ret[i].getValue() * ratio);
         }
         return ret;
     }
@@ -467,7 +476,7 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
                 ret = 1;
                 break;
         }
-        return new Pair<>(ret, this.CONTENTS);
+        return Pair.of(ret, this.CONTENTS);
     }
 
     public int getNoOfByProducts() {
@@ -499,6 +508,7 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
         return this.defaultName;
     }
 
+    @Override
     public String getLocalizedName() {
         return GTLanguageManager.addStringLocalization(
             String.format("bw.werkstoff.%05d.name", this.mID),
@@ -529,6 +539,21 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
         return this.mID;
     }
 
+    @Override
+    public int getId() {
+        return mID;
+    }
+
+    @Override
+    public List<IStoneType> getValidStones() {
+        return StoneType.STONE_ONLY;
+    }
+
+    @Override
+    public String getInternalName() {
+        return getVarName();
+    }
+
     public short getMixCircuit() {
         return this.getGenerationFeatures().mixCircuit;
     }
@@ -548,6 +573,11 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
     @Override
     public short[] getRGBA() {
         return new short[] { (short) (this.rgb[0] + 128), (short) (this.rgb[1] + 128), (short) (this.rgb[2] + 128), 0 };
+    }
+
+    @Override
+    public TextureSet getTextureSet() {
+        return texSet;
     }
 
     @Override
@@ -695,7 +725,7 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
         /*
          * dust 1 metal 10 (ingot, nugget) gem 100 ore 1000 cell 10000 plasma 100000 molten 1000000 crafting metal
          * 10000000 (sticks, plates) meta crafting metal 100000000 (gears, screws, bolts, springs) multiple ingotWorth
-         * stuff 1000000000 (double, triple, quadruple, ingot/plates)
+         * stuff 1000000000 (double and dense plates) 1000000000 (triple, quadruple and quintuple plates)
          */
         private boolean isExtension;
         private static final NonNullWrappedHashMap<OrePrefixes, Integer> prefixLogic = new NonNullWrappedHashMap<>(0);
@@ -703,7 +733,7 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
         public GenerationFeatures() {}
 
         public static void initPrefixLogic() {
-            Arrays.stream(OrePrefixes.values())
+            Arrays.stream(OrePrefixes.VALUES)
                 .forEach(e -> prefixLogic.put(e, 0));
             Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.dust, 0b1);
             Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.dustTiny, 0b1);
@@ -759,14 +789,11 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
             Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.wireFine, 0b100000000);
 
             Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.plateDouble, 0x200);
-            Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.plateTriple, 0x200);
-            Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.plateQuadruple, 0x200);
-            Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.plateQuintuple, 0x200);
             Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.plateDense, 0x200);
-            Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.ingotDouble, 0x200);
-            Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.ingotTriple, 0x200);
-            Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.ingotQuadruple, 0x200);
-            Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.ingotQuintuple, 0x200);
+
+            Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.plateTriple, 0x400);
+            Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.plateQuadruple, 0x400);
+            Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.plateQuintuple, 0x400);
 
             Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.blockCasing, 0x380);
             Werkstoff.GenerationFeatures.prefixLogic.put(OrePrefixes.blockCasingAdvanced, 0x380);
@@ -810,41 +837,8 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
             return this;
         }
 
-        @Deprecated
-        public boolean hasDusts() {
-            return (this.toGenerate & 0b1) != 0;
-        }
-
-        @Deprecated
-        public boolean hasGems() {
-            return (this.toGenerate & 0b100) != 0;
-        }
-
-        @Deprecated
-        public boolean hasOres() {
-            return (this.toGenerate & 0b1000) != 0;
-        }
-
         public Werkstoff.GenerationFeatures enforceUnification() {
             this.enforceUnification = true;
-            return this;
-        }
-
-        @Deprecated
-        public Werkstoff.GenerationFeatures removeGems() {
-            if (this.hasGems()) this.toGenerate = this.toGenerate ^ 0b100;
-            return this;
-        }
-
-        @Deprecated
-        public Werkstoff.GenerationFeatures removeDusts() {
-            if (this.hasDusts()) this.toGenerate = this.toGenerate ^ 0b1;
-            return this;
-        }
-
-        @Deprecated
-        public Werkstoff.GenerationFeatures removeOres() {
-            if (this.hasOres()) this.toGenerate = this.toGenerate ^ 0b1000;
             return this;
         }
 
@@ -931,16 +925,6 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
             return this;
         }
 
-        @Deprecated
-        public boolean hasCells() {
-            return (this.toGenerate & 0b10000) != 0;
-        }
-
-        @Deprecated
-        public boolean hasMolten() {
-            return (this.toGenerate & 0b1000000) != 0;
-        }
-
         public Werkstoff.GenerationFeatures addMolten() {
             this.toGenerate = this.toGenerate | 0b1000000;
             return this;
@@ -964,18 +948,21 @@ public class Werkstoff implements IColorModulationContainer, ISubTagContainer {
             return this;
         }
 
-        @Deprecated
-        public boolean hasSimpleMetalWorkingItems() {
-            return (this.toGenerate & 0b10000000) != 0;
-        }
-
         public Werkstoff.GenerationFeatures addCraftingMetalWorkingItems() {
             this.toGenerate = this.toGenerate | 0x100;
             return this;
         }
 
-        public Werkstoff.GenerationFeatures addMultipleIngotMetalWorkingItems() {
+        public Werkstoff.GenerationFeatures addDoubleAndDensePlates() {
             this.toGenerate = this.toGenerate | 0x200;
+            return this;
+        }
+
+        /**
+         * Due to rebolted casings, double plates had to be excluded from this
+         */
+        public Werkstoff.GenerationFeatures addMultiPlates() {
+            this.toGenerate = this.toGenerate | 0x400;
             return this;
         }
 

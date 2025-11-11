@@ -11,10 +11,10 @@ import static gregtech.api.enums.HatchElement.Muffler;
 import static gregtech.api.enums.HatchElement.OutputBus;
 import static gregtech.api.enums.HatchElement.OutputHatch;
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
+import static net.minecraft.util.StatCollector.translateToLocal;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
@@ -25,8 +25,6 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.StatCollector;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
@@ -38,6 +36,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 
+import gregtech.api.enums.ItemList;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.TAE;
 import gregtech.api.enums.TierEU;
@@ -58,12 +57,8 @@ import gregtech.common.config.MachineStats;
 import gregtech.common.pollution.PollutionConfig;
 import gtPlusPlus.api.recipe.GTPPRecipeMaps;
 import gtPlusPlus.core.block.ModBlocks;
-import gtPlusPlus.core.util.minecraft.ItemUtils;
-import gtPlusPlus.core.util.minecraft.PlayerUtils;
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.GTPPMultiBlockBase;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
-import mcp.mobius.waila.api.IWailaConfigHandler;
-import mcp.mobius.waila.api.IWailaDataAccessor;
 
 public class MTEMassFabricator extends GTPPMultiBlockBase<MTEMassFabricator> implements ISurvivalConstructable {
 
@@ -97,17 +92,19 @@ public class MTEMassFabricator extends GTPPMultiBlockBase<MTEMassFabricator> imp
 
     @Override
     public String getMachineType() {
-        return "Mass Fabricator / Recycler";
+        return "Mass Fabricator, Recycler";
     }
 
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType(getMachineType())
-            .addInfo("Speed: +0% | EU Usage: 80%")
             .addInfo("Parallel: Scrap = 64 | UU = 8 * Tier")
+            .addStaticSpeedInfo(1f)
+            .addStaticEuEffInfo(0.8f)
             .addInfo("Produces UU-A, UU-M & Scrap")
             .addInfo("Change mode with screwdriver")
+            .addPerfectOCInfo()
             .addPollutionAmount(getPollutionPerSecond(null))
             .beginStructureBlock(5, 4, 5, true)
             .addController("Front Center")
@@ -131,8 +128,18 @@ public class MTEMassFabricator extends GTPPMultiBlockBase<MTEMassFabricator> imp
     }
 
     @Override
+    protected IIconContainer getActiveGlowOverlay() {
+        return TexturesGtBlock.Overlay_MatterFab_Active_Animated_Glow;
+    }
+
+    @Override
     protected IIconContainer getInactiveOverlay() {
         return TexturesGtBlock.Overlay_MatterFab_Animated;
+    }
+
+    @Override
+    protected IIconContainer getInactiveGlowOverlay() {
+        return TexturesGtBlock.Overlay_MatterFab_Animated_Glow;
     }
 
     @Override
@@ -154,10 +161,10 @@ public class MTEMassFabricator extends GTPPMultiBlockBase<MTEMassFabricator> imp
     public static void init() {
         if (!sInit) {
             if (mScrap[0] == null) {
-                mScrap[0] = ItemUtils.getSimpleStack(ItemUtils.getItemFromFQRN("IC2:itemScrap"));
+                mScrap[0] = ItemList.IC2_Scrap.get(1L);
             }
             if (mScrap[1] == null) {
-                mScrap[1] = ItemUtils.getSimpleStack(ItemUtils.getItemFromFQRN("IC2:itemScrapbox"));
+                mScrap[1] = ItemList.IC2_Scrapbox.get(1L);
             }
             if (mUU[0] == null) {
                 mUU[0] = Materials.UUAmplifier.getFluid(100);
@@ -202,7 +209,7 @@ public class MTEMassFabricator extends GTPPMultiBlockBase<MTEMassFabricator> imp
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return survivialBuildPiece(mName, stackSize, 2, 3, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(mName, stackSize, 2, 3, 0, elementBudget, env, false, true);
     }
 
     @Override
@@ -212,18 +219,8 @@ public class MTEMassFabricator extends GTPPMultiBlockBase<MTEMassFabricator> imp
     }
 
     @Override
-    public int getMaxEfficiency(final ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
     public int getPollutionPerSecond(final ItemStack aStack) {
         return PollutionConfig.pollutionPerSecondMultiMassFabricator;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(final ItemStack aStack) {
-        return false;
     }
 
     @Override
@@ -295,7 +292,7 @@ public class MTEMassFabricator extends GTPPMultiBlockBase<MTEMassFabricator> imp
                 return super.findRecipeMatches(map);
             }
         }.setEuModifier(0.8F)
-            .setMaxParallelSupplier(this::getMaxParallelRecipes);
+            .setMaxParallelSupplier(this::getTrueParallel);
     }
 
     @Override
@@ -314,13 +311,13 @@ public class MTEMassFabricator extends GTPPMultiBlockBase<MTEMassFabricator> imp
         int aMode = this.mMode + 1;
         if (aMode > 1) {
             this.mMode = MODE_UU;
-            PlayerUtils.messagePlayer(aPlayer, "Mode [" + this.mMode + "]: Matter/AmpliFabricator");
+            GTUtility.sendChatToPlayer(aPlayer, "Mode [" + this.mMode + "]: Matter/AmpliFabricator");
         } else if (aMode == 1) {
             this.mMode = MODE_SCRAP;
-            PlayerUtils.messagePlayer(aPlayer, "Mode [" + this.mMode + "]: Recycler");
+            GTUtility.sendChatToPlayer(aPlayer, "Mode [" + this.mMode + "]: Recycler");
         } else {
             this.mMode = MODE_SCRAP;
-            PlayerUtils.messagePlayer(aPlayer, "Mode [" + this.mMode + "]: Recycler");
+            GTUtility.sendChatToPlayer(aPlayer, "Mode [" + this.mMode + "]: Recycler");
         }
         mLastRecipe = null;
     }
@@ -341,18 +338,11 @@ public class MTEMassFabricator extends GTPPMultiBlockBase<MTEMassFabricator> imp
     public void getWailaNBTData(EntityPlayerMP player, TileEntity tile, NBTTagCompound tag, World world, int x, int y,
         int z) {
         super.getWailaNBTData(player, tile, tag, world, x, y, z);
-        tag.setInteger("mode", mMode);
+        tag.setString("mode", getMachineModeName());
     }
 
     @Override
-    public void getWailaBody(ItemStack itemStack, List<String> currentTip, IWailaDataAccessor accessor,
-        IWailaConfigHandler config) {
-        super.getWailaBody(itemStack, currentTip, accessor, config);
-        final NBTTagCompound tag = accessor.getNBTData();
-        currentTip.add(
-            StatCollector.translateToLocal("GT5U.machines.oreprocessor1") + " "
-                + EnumChatFormatting.WHITE
-                + StatCollector.translateToLocal("GT5U.GTPP_MULTI_MASS_FABRICATOR.mode." + tag.getInteger("mode"))
-                + EnumChatFormatting.RESET);
+    public String getMachineModeName() {
+        return translateToLocal("GT5U.GTPP_MULTI_MASS_FABRICATOR.mode." + mMode);
     }
 }

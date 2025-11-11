@@ -3,7 +3,6 @@ package gregtech.api.metatileentity.implementations;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_MUFFLER;
 import static gregtech.api.objects.XSTR.XSTR_INSTANCE;
 
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -26,8 +25,7 @@ public class MTEHatchMuffler extends MTEHatch {
     private static final String localizedDescFormat = GTLanguageManager.addStringLocalization(
         "gt.blockmachines.hatch.muffler.desc.format",
         "Outputs the Pollution (Might cause ... things)%n" + "DO NOT OBSTRUCT THE OUTPUT!%n"
-            + "Reduces Pollution to %d%%%n"
-            + "Recovers %d%% of CO2/CO/SO2");
+            + "Reduces Pollution to %d%%%n");
     private final int pollutionReduction = calculatePollutionReduction(100);
     private final int pollutionRecover = 100 - pollutionReduction;
     private final String[] description = String.format(localizedDescFormat, pollutionReduction, pollutionRecover)
@@ -40,10 +38,6 @@ public class MTEHatchMuffler extends MTEHatch {
     public MTEHatchMuffler(int aID, String aName, String aNameRegional, int aTier, int aInvSlotCount,
         String[] aDescription, ITexture... aTextures) {
         super(aID, aName, aNameRegional, aTier, aInvSlotCount, aDescription, aTextures);
-    }
-
-    public MTEHatchMuffler(String aName, int aTier, String aDescription, ITexture[][][] aTextures) {
-        this(aName, aTier, new String[] { aDescription }, aTextures);
     }
 
     public MTEHatchMuffler(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
@@ -68,11 +62,6 @@ public class MTEHatchMuffler extends MTEHatch {
     @Override
     public ITexture[] getTexturesInactive(ITexture aBaseTexture) {
         return new ITexture[] { aBaseTexture, TextureFactory.of(OVERLAY_MUFFLER) };
-    }
-
-    @Override
-    public boolean isSimpleMachine() {
-        return true;
     }
 
     @Override
@@ -114,17 +103,12 @@ public class MTEHatchMuffler extends MTEHatch {
         return true;
     }
 
-    @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
-        return true;
-    }
-
     @SideOnly(Side.CLIENT)
     public void pollutionParticles(World aWorld, String name) {
         boolean chk1, chk2, chk3;
         float ran1 = XSTR_INSTANCE.nextFloat(), ran2, ran3;
         chk1 = ran1 * 100 < calculatePollutionReduction(100);
-        if (Pollution.getPollution(getBaseMetaTileEntity()) >= GTMod.gregtechproxy.mPollutionSmogLimit) {
+        if (Pollution.getPollution(getBaseMetaTileEntity()) >= GTMod.proxy.mPollutionSmogLimit) {
             ran2 = XSTR_INSTANCE.nextFloat();
             ran3 = XSTR_INSTANCE.nextFloat();
             chk2 = ran2 * 100 < calculatePollutionReduction(100);
@@ -194,13 +178,14 @@ public class MTEHatchMuffler extends MTEHatch {
     }
 
     /**
-     * @param mte The multi-block controller's {@link MetaTileEntity} MetaTileEntity is passed so newer muffler hatches
-     *            can do wacky things with the multis
+     * @param mte             The multi-block controller's {@link MetaTileEntity} MetaTileEntity is passed so newer
+     *                        muffler hatches can do wacky things with the multis
+     * @param pollutionAmount How much pollution to output. Reduced by muffler efficiency.
      * @return pollution success
      */
-    public boolean polluteEnvironment(MetaTileEntity mte) {
+    public boolean polluteEnvironment(MetaTileEntity mte, int pollutionAmount) {
         if (getBaseMetaTileEntity().getAirAtSide(getBaseMetaTileEntity().getFrontFacing())) {
-            Pollution.addPollution(getBaseMetaTileEntity(), calculatePollutionReduction(10000));
+            Pollution.addPollution(getBaseMetaTileEntity(), calculatePollutionReduction(pollutionAmount));
             return true;
         }
         return false;

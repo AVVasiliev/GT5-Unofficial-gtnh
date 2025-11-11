@@ -55,11 +55,8 @@ public class MTELargeTurbineGas extends MTELargeTurbine {
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         final MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType("Gas Turbine")
+        tt.addMachineType("Gas Turbine, LGT")
             .addInfo("Needs a Turbine, place inside controller")
-            .addInfo("Warning: Will be capped at 8192 EU/t in a future update")
-            .addInfo("See the Advanced Large Gas Turbine as the next, uncapped, option")
-            // .addInfo("The excess fuel that gets consumed will be voided!")
             .addPollutionAmount(getPollutionPerSecond(null))
             .beginStructureBlock(3, 3, 4, true)
             .addController("Front center")
@@ -123,7 +120,7 @@ public class MTELargeTurbineGas extends MTELargeTurbine {
 
     @Override
     public int getPollutionPerSecond(ItemStack aStack) {
-        return GTMod.gregtechproxy.mPollutionLargeGasTurbinePerSecond;
+        return GTMod.proxy.mPollutionLargeGasTurbinePerSecond;
     }
 
     @Override
@@ -135,6 +132,9 @@ public class MTELargeTurbineGas extends MTELargeTurbine {
             FluidStack firstFuelType = new FluidStack(aFluids.get(0), 0); // Identify a SINGLE type of fluid to process.
                                                                           // Doesn't matter which one. Ignore the rest!
             int fuelValue = getFuelValue(firstFuelType);
+            if (fuelValue <= 0) {
+                return 0;
+            }
 
             if (turbine.getOptimalGasEUt() < fuelValue) {
                 // turbine too weak and/or fuel too powerful

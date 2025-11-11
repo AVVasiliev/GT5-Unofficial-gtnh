@@ -12,7 +12,6 @@ import java.util.List;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.EnumAction;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.IIcon;
@@ -32,7 +31,6 @@ import gregtech.api.util.GTLanguageManager;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTUtility;
 import gtPlusPlus.core.creative.AddToCreativeTab;
-import gtPlusPlus.xmod.gregtech.api.interfaces.internal.IItemBehaviour;
 
 public abstract class GTMetaItem extends GTMetaItemBase {
 
@@ -114,10 +112,6 @@ public abstract class GTMetaItem extends GTMetaItemBase {
                 if (tRandomData != null) {
                     boolean tUseOreDict = true;
 
-                    if (tRandomData instanceof IItemBehaviour) {
-                        this.addItemBehavior(this.mOffset + aID, (IItemBehaviour<GTMetaItemBase>) tRandomData);
-                        tUseOreDict = false;
-                    }
                     if (tRandomData instanceof IItemContainer) {
                         ((IItemContainer) tRandomData).set(rStack);
                         tUseOreDict = false;
@@ -247,25 +241,13 @@ public abstract class GTMetaItem extends GTMetaItemBase {
     /* ---------- INTERNAL OVERRIDES ---------- */
 
     @Override
-    public ItemStack onItemRightClick(final ItemStack aStack, final World aWorld, final EntityPlayer aPlayer) {
-        return super.onItemRightClick(aStack, aWorld, aPlayer);
-    }
-
-    @Override
     public int getMaxItemUseDuration(final ItemStack aStack) {
         return this.mFoodStats.get((short) this.getDamage(aStack)) == null ? 0 : 32;
     }
 
     @Override
-    public EnumAction getItemUseAction(final ItemStack aStack) {
-        return EnumAction.none;
-    }
-
-    @Override
     public final ItemStack onEaten(final ItemStack aStack, final World aWorld, final EntityPlayer aPlayer) {
         final IFoodStat tStat = this.mFoodStats.get((short) this.getDamage(aStack));
-        if (tStat != null) {}
-
         return aStack;
     }
 
@@ -313,21 +295,6 @@ public abstract class GTMetaItem extends GTMetaItemBase {
     @Override
     public final Long[] getFluidContainerStats(final ItemStack aStack) {
         return this.mFluidContainerStats.get((short) aStack.getItemDamage());
-    }
-
-    @Override
-    public int getItemEnchantability() {
-        return 0;
-    }
-
-    @Override
-    public boolean isBookEnchantable(final ItemStack aStack, final ItemStack aBook) {
-        return false;
-    }
-
-    @Override
-    public boolean getIsRepairable(final ItemStack aStack, final ItemStack aMaterial) {
-        return false;
     }
 
     @Override

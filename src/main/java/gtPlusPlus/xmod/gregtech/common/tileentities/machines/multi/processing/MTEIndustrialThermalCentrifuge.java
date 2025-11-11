@@ -58,25 +58,23 @@ public class MTEIndustrialThermalCentrifuge extends GTPPMultiBlockBase<MTEIndust
 
     @Override
     public String getMachineType() {
-        return "Thermal Centrifuge";
+        return "Thermal Centrifuge, LTR";
     }
 
     @Override
     protected MultiblockTooltipBuilder createTooltip() {
         MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType(getMachineType())
-            .addInfo("150% faster than using single block machines of the same voltage")
-            .addInfo("Only uses 80% of the EU/t normally required")
-            .addInfo("Processes eight items per voltage tier")
+            .addBulkMachineInfo(8, 2.5f, 0.8f)
             .addPollutionAmount(getPollutionPerSecond(null))
             .beginStructureBlock(3, 2, 3, false)
             .addController("Front Center")
             .addCasingInfoMin("Thermal Processing Casings/Noise Hazard Sign Blocks", 8, false)
-            .addInputBus("Bottom Casing", 1)
-            .addOutputBus("Bottom Casing", 1)
-            .addEnergyHatch("Bottom Casing", 1)
-            .addMaintenanceHatch("Bottom Casing", 1)
-            .addMufflerHatch("Bottom Casing", 1)
+            .addInputBus("Any Casing", 1)
+            .addOutputBus("Any Casing", 1)
+            .addEnergyHatch("Any Casing", 1)
+            .addMaintenanceHatch("Any Casing", 1)
+            .addMufflerHatch("Any Casing", 1)
             .toolTipFinisher();
         return tt;
     }
@@ -85,7 +83,7 @@ public class MTEIndustrialThermalCentrifuge extends GTPPMultiBlockBase<MTEIndust
     public IStructureDefinition<MTEIndustrialThermalCentrifuge> getStructureDefinition() {
         if (STRUCTURE_DEFINITION == null) {
             STRUCTURE_DEFINITION = StructureDefinition.<MTEIndustrialThermalCentrifuge>builder()
-                .addShape(mName, transpose(new String[][] { { "X~X", "XXX", "XXX" }, { "CCC", "CCC", "CCC" }, }))
+                .addShape(mName, transpose(new String[][] { { "C~C", "CCC", "CCC" }, { "CCC", "CCC", "CCC" }, }))
                 .addElement(
                     'C',
                     ofChain(
@@ -94,11 +92,6 @@ public class MTEIndustrialThermalCentrifuge extends GTPPMultiBlockBase<MTEIndust
                             .casingIndex(getCasingTextureIndex())
                             .dot(1)
                             .build(),
-                        onElementPass(x -> ++x.mCasing, ofBlock(ModBlocks.blockCasings2Misc, 0)),
-                        onElementPass(x -> ++x.mCasing, ofBlock(GregTechAPI.sBlockCasings3, 9))))
-                .addElement(
-                    'X',
-                    ofChain(
                         onElementPass(x -> ++x.mCasing, ofBlock(ModBlocks.blockCasings2Misc, 0)),
                         onElementPass(x -> ++x.mCasing, ofBlock(GregTechAPI.sBlockCasings3, 9))))
                 .build();
@@ -114,7 +107,7 @@ public class MTEIndustrialThermalCentrifuge extends GTPPMultiBlockBase<MTEIndust
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return survivialBuildPiece(mName, stackSize, 1, 0, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(mName, stackSize, 1, 0, 0, elementBudget, env, false, true);
     }
 
     @Override
@@ -129,8 +122,18 @@ public class MTEIndustrialThermalCentrifuge extends GTPPMultiBlockBase<MTEIndust
     }
 
     @Override
+    protected IIconContainer getActiveGlowOverlay() {
+        return TexturesGtBlock.oMCDIndustrialThermalCentrifugeActiveGlow;
+    }
+
+    @Override
     protected IIconContainer getInactiveOverlay() {
         return TexturesGtBlock.oMCDIndustrialThermalCentrifuge;
+    }
+
+    @Override
+    protected IIconContainer getInactiveGlowOverlay() {
+        return TexturesGtBlock.oMCDIndustrialThermalCentrifugeGlow;
     }
 
     @Override
@@ -145,9 +148,10 @@ public class MTEIndustrialThermalCentrifuge extends GTPPMultiBlockBase<MTEIndust
 
     @Override
     protected ProcessingLogic createProcessingLogic() {
-        return new ProcessingLogic().setSpeedBonus(1F / 2.5F)
+        return new ProcessingLogic().noRecipeCaching()
+            .setSpeedBonus(1F / 2.5F)
             .setEuModifier(0.8F)
-            .setMaxParallelSupplier(this::getMaxParallelRecipes);
+            .setMaxParallelSupplier(this::getTrueParallel);
     }
 
     @Override
@@ -156,18 +160,8 @@ public class MTEIndustrialThermalCentrifuge extends GTPPMultiBlockBase<MTEIndust
     }
 
     @Override
-    public int getMaxEfficiency(final ItemStack aStack) {
-        return 10000;
-    }
-
-    @Override
     public int getPollutionPerSecond(final ItemStack aStack) {
         return PollutionConfig.pollutionPerSecondMultiIndustrialThermalCentrifuge;
-    }
-
-    @Override
-    public boolean explodesOnComponentBreak(final ItemStack aStack) {
-        return false;
     }
 
     public Block getCasingBlock() {

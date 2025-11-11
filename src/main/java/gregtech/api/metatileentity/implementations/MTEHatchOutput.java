@@ -27,7 +27,6 @@ import com.gtnewhorizons.modularui.common.widget.FakeSyncWidget;
 import com.gtnewhorizons.modularui.common.widget.TextWidget;
 
 import gregtech.GTMod;
-import gregtech.api.gui.modularui.GTUIInfos;
 import gregtech.api.gui.modularui.GTUITextures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.fluid.IFluidStore;
@@ -42,7 +41,7 @@ import gregtech.common.gui.modularui.widget.FluidLockWidget;
 
 public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLockable, IAddUIWidgets {
 
-    private String lockedFluidName = null;
+    protected String lockedFluidName = null;
     private WeakReference<EntityPlayer> playerThatLockedfluid = null;
     public byte mMode = 0;
 
@@ -60,10 +59,6 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
                 "Restricted Output Hatches are given priority for Multiblock Fluid output" });
     }
 
-    public MTEHatchOutput(String aName, int aTier, String aDescription, ITexture[][][] aTextures) {
-        super(aName, aTier, 4, aDescription, aTextures);
-    }
-
     public MTEHatchOutput(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
         super(aName, aTier, 4, aDescription, aTextures);
     }
@@ -79,30 +74,20 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
 
     @Override
     public ITexture[] getTexturesActive(ITexture aBaseTexture) {
-        return GTMod.gregtechproxy.mRenderIndicatorsOnHatch
+        return GTMod.proxy.mRenderIndicatorsOnHatch
             ? new ITexture[] { aBaseTexture, TextureFactory.of(OVERLAY_PIPE_OUT), TextureFactory.of(FLUID_OUT_SIGN) }
             : new ITexture[] { aBaseTexture, TextureFactory.of(OVERLAY_PIPE_OUT) };
     }
 
     @Override
     public ITexture[] getTexturesInactive(ITexture aBaseTexture) {
-        return GTMod.gregtechproxy.mRenderIndicatorsOnHatch
+        return GTMod.proxy.mRenderIndicatorsOnHatch
             ? new ITexture[] { aBaseTexture, TextureFactory.of(OVERLAY_PIPE_OUT), TextureFactory.of(FLUID_OUT_SIGN) }
             : new ITexture[] { aBaseTexture, TextureFactory.of(OVERLAY_PIPE_OUT) };
     }
 
     @Override
-    public boolean isSimpleMachine() {
-        return true;
-    }
-
-    @Override
     public boolean isFacingValid(ForgeDirection facing) {
-        return true;
-    }
-
-    @Override
-    public boolean isAccessAllowed(EntityPlayer aPlayer) {
         return true;
     }
 
@@ -118,7 +103,7 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
 
     @Override
     public boolean onRightclick(IGregTechTileEntity aBaseMetaTileEntity, EntityPlayer aPlayer) {
-        GTUIInfos.openGTTileEntityUI(aBaseMetaTileEntity, aPlayer);
+        openGui(aPlayer);
         return true;
     }
 
@@ -164,11 +149,6 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
     }
 
     @Override
-    public boolean doesEmptyContainers() {
-        return false;
-    }
-
-    @Override
     public boolean canTankBeFilled() {
         return true;
     }
@@ -176,16 +156,6 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
     @Override
     public boolean canTankBeEmptied() {
         return true;
-    }
-
-    @Override
-    public boolean displaysItemStack() {
-        return true;
-    }
-
-    @Override
-    public boolean displaysStackSize() {
-        return false;
     }
 
     public int getLockedDisplaySlot() {
@@ -216,8 +186,9 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
     }
 
     @Override
-    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ) {
-        if (!getBaseMetaTileEntity().getCoverInfoAtSide(side)
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer aPlayer, float aX, float aY, float aZ,
+        ItemStack aTool) {
+        if (!getBaseMetaTileEntity().getCoverAtSide(side)
             .isGUIClickable()) return;
         if (aPlayer.isSneaking()) {
             mMode = (byte) ((mMode + 9) % 10);
@@ -301,7 +272,7 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
     }
 
     private boolean tryToLockHatch(EntityPlayer aPlayer, ForgeDirection side) {
-        if (!getBaseMetaTileEntity().getCoverInfoAtSide(side)
+        if (!getBaseMetaTileEntity().getCoverAtSide(side)
             .isGUIClickable()) return false;
         if (!isFluidLocked()) return false;
         final ItemStack tCurrentItem = aPlayer.inventory.getCurrentItem();
@@ -426,11 +397,6 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
     }
 
     @Override
-    public int getTankPressure() {
-        return +100;
-    }
-
-    @Override
     protected void onEmptyingContainerWhenEmpty() {
         if (this.lockedFluidName == null && this.mFluid != null && isFluidLocked()) {
             this.setLockedFluidName(
@@ -452,9 +418,15 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
 
     @Override
     public String[] getInfoData() {
-        return new String[] { EnumChatFormatting.BLUE + "Output Hatch" + EnumChatFormatting.RESET, "Stored Fluid:",
-            EnumChatFormatting.GOLD + (mFluid == null ? "No Fluid" : mFluid.getLocalizedName())
+        return new String[] {
+            EnumChatFormatting.BLUE + StatCollector.translateToLocal("GT5U.infodata.hatch.output")
                 + EnumChatFormatting.RESET,
+            StatCollector.translateToLocalFormatted(
+                "GT5U.infodata.hatch.output.fluid",
+                EnumChatFormatting.GOLD
+                    + (mFluid == null ? StatCollector.translateToLocal("GT5U.infodata.hatch.output.fluid.none")
+                        : mFluid.getLocalizedName())
+                    + EnumChatFormatting.RESET),
             EnumChatFormatting.GREEN + GTUtility.formatNumbers(mFluid == null ? 0 : mFluid.amount)
                 + " L"
                 + EnumChatFormatting.RESET
@@ -463,10 +435,13 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
                 + GTUtility.formatNumbers(getCapacity())
                 + " L"
                 + EnumChatFormatting.RESET,
-            (!isFluidLocked() || lockedFluidName == null) ? "Not Locked"
-                : ("Locked to " + StatCollector.translateToLocal(
-                    FluidRegistry.getFluidStack(lockedFluidName, 1)
-                        .getUnlocalizedName())) };
+            (!isFluidLocked() || lockedFluidName == null)
+                ? StatCollector.translateToLocal("GT5U.infodata.hatch.output.fluid.locked_to.none")
+                : (StatCollector.translateToLocalFormatted(
+                    "GT5U.infodata.hatch.output.fluid.locked_to",
+                    StatCollector.translateToLocal(
+                        FluidRegistry.getFluidStack(lockedFluidName, 1)
+                            .getUnlocalizedName()))) };
     }
 
     @Override
@@ -478,11 +453,13 @@ public class MTEHatchOutput extends MTEHatch implements IFluidStore, IFluidLocka
                 .setSize(71, 45))
             .widget(new FluidLockWidget(this).setPos(149, 41))
             .widget(
-                new TextWidget("Locked Fluid").setDefaultColor(COLOR_TEXT_WHITE.get())
+                new TextWidget(StatCollector.translateToLocal("GT5U.machines.hatch_output.lockfluid.label"))
+                    .setDefaultColor(COLOR_TEXT_WHITE.get())
                     .setPos(101, 20))
             .widget(TextWidget.dynamicString(() -> {
                 FluidStack fluidStack = FluidRegistry.getFluidStack(lockedFluidName, 1);
-                return fluidStack != null ? fluidStack.getLocalizedName() : "None";
+                return fluidStack != null ? fluidStack.getLocalizedName()
+                    : StatCollector.translateToLocal("GT5U.machines.hatch_output.lockfluid.empty");
             })
                 .setDefaultColor(COLOR_TEXT_WHITE.get())
                 .setTextAlignment(Alignment.CenterLeft)

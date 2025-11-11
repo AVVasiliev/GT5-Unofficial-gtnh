@@ -67,8 +67,8 @@ public class MTELargeSemifluidGenerator extends GTPPMultiBlockBase<MTELargeSemif
         MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
         tt.addMachineType(getMachineType())
             .addInfo("Engine Intake Casings must not be obstructed in front (only air blocks)")
-            .addInfo("Supply Semifluid Fuels and 2000L of Lubricant per hour to run.")
-            .addInfo("Supply 80L of Oxygen per second to boost output (optional).")
+            .addInfo("Supply Semifluid Fuels and 2000L of Lubricant per hour to run")
+            .addInfo("Supply 80L of Oxygen per second to boost output (optional)")
             .addInfo("Default: Produces 2048EU/t at 100% efficiency")
             .addInfo("Boosted: Produces 6144EU/t at 150% efficiency")
             .addPollutionAmount(getPollutionPerSecond(null))
@@ -91,8 +91,23 @@ public class MTELargeSemifluidGenerator extends GTPPMultiBlockBase<MTELargeSemif
     }
 
     @Override
+    protected IIconContainer getActiveGlowOverlay() {
+        return Textures.BlockIcons.OVERLAY_FRONT_DIESEL_ENGINE_ACTIVE_GLOW;
+    }
+
+    @Override
     protected IIconContainer getInactiveOverlay() {
         return Textures.BlockIcons.OVERLAY_FRONT_DIESEL_ENGINE;
+    }
+
+    @Override
+    protected IIconContainer getInactiveGlowOverlay() {
+        return Textures.BlockIcons.OVERLAY_FRONT_DIESEL_ENGINE_GLOW;
+    }
+
+    @Override
+    public boolean supportsPowerPanel() {
+        return false;
     }
 
     @Override
@@ -131,7 +146,7 @@ public class MTELargeSemifluidGenerator extends GTPPMultiBlockBase<MTELargeSemif
             GTRecipe aFuel = GTPPRecipeMaps.semiFluidFuels.getBackend()
                 .findFuel(hatchFluid);
             if (aFuel == null) {
-                // Not a valid semi-fluid fuel.
+                // Not a valid semifluid fuel.
                 continue;
             }
 
@@ -202,7 +217,7 @@ public class MTELargeSemifluidGenerator extends GTPPMultiBlockBase<MTELargeSemif
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
         if (mMachine) return -1;
-        return survivialBuildPiece(mName, stackSize, 1, 1, 0, elementBudget, env, false, true);
+        return survivalBuildPiece(mName, stackSize, 1, 1, 0, elementBudget, env, false, true);
     }
 
     @Override
@@ -312,18 +327,18 @@ public class MTELargeSemifluidGenerator extends GTPPMultiBlockBase<MTELargeSemif
     }
 
     @Override
-    public boolean isGivingInformation() {
-        return true;
-    }
-
-    @Override
     public String getMachineType() {
-        return "Semifluid Generator";
+        return "Semifluid Generator, LSB";
     }
 
     @Override
     public int getMaxParallelRecipes() {
         return 0;
+    }
+
+    @Override
+    public boolean showRecipeTextInGUI() {
+        return false;
     }
 
 }

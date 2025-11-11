@@ -9,10 +9,10 @@ import net.minecraft.util.IIcon;
 
 import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTLanguageManager;
 import gregtech.common.blocks.MaterialCasings;
 import gtPlusPlus.xmod.gregtech.api.enums.GregtechItemList;
-import gtPlusPlus.xmod.gregtech.api.objects.GTPPCopiedBlockTexture;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 
 public class GregtechMetaCasingBlocks4 extends GregtechMetaCasingBlocksAbstract {
@@ -23,20 +23,14 @@ public class GregtechMetaCasingBlocks4 extends GregtechMetaCasingBlocksAbstract 
             if (i == 2 || i == 4 || i == 5 || i == 6 || i == 7 || i == 8 || i == 12 || i == 13 || i == 14 || i == 15) {
                 continue;
             }
-            TAE.registerTexture(3, i, new GTPPCopiedBlockTexture(this, 6, i));
+            TAE.registerTexture(3, i, TextureFactory.of(this, i));
         }
-        GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".0.name", "Naquadah Reactor Base");
-        GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".1.name", "Reactor Piping");
-        GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".2.name", "Naquadah Containment Chamber");
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".3.name", "Tempered Arc Furnace Casing");
         GTLanguageManager
             .addStringLocalization(this.getUnlocalizedName() + ".4.name", "Quantum Force Transformer Coil Casings");
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".10.name", "Vacuum Casing");
         GTLanguageManager.addStringLocalization(this.getUnlocalizedName() + ".11.name", "Turbodyne Casing");
 
-        GregtechItemList.Casing_Naq_Reactor_A.set(new ItemStack(this, 1, 0));
-        GregtechItemList.Casing_Naq_Reactor_B.set(new ItemStack(this, 1, 1));
-        GregtechItemList.Casing_Naq_Reactor_C.set(new ItemStack(this, 1, 2));
         GregtechItemList.Casing_Industrial_Arc_Furnace.set(new ItemStack(this, 1, 3));
         GregtechItemList.Casing_Coil_QuantumForceTransformer.set(new ItemStack(this, 1, 4));
         GregtechItemList.Casing_Vacuum_Furnace.set(new ItemStack(this, 1, 10));
@@ -45,10 +39,10 @@ public class GregtechMetaCasingBlocks4 extends GregtechMetaCasingBlocksAbstract 
 
     @Override
     public IIcon getIcon(final int ordinalSide, final int aMeta) {
-        return getStaticIcon((byte) ordinalSide, (byte) aMeta);
+        return getStaticIcon((byte) ordinalSide, aMeta);
     }
 
-    public static IIcon getStaticIcon(final byte aSide, final byte aMeta) {
+    public static IIcon getStaticIcon(final byte aSide, final int aMeta) {
         // Texture ID's. case 0 == ID[57]
         if ((aMeta >= 0) && (aMeta < 16)) {
             switch (aMeta) {
@@ -67,20 +61,8 @@ public class GregtechMetaCasingBlocks4 extends GregtechMetaCasingBlocksAbstract 
                 case 4 -> {
                     return TexturesGtBlock.Casing_Coil_QFT.getIcon();
                 }
-                case 5 -> {
+                case 5, 6, 7, 8, 12, 13, 14, 15 -> {
                     return Textures.BlockIcons.RENDERING_ERROR.getIcon();
-                }
-                case 6 -> {
-                    return Textures.BlockIcons.RENDERING_ERROR.getIcon();
-                }
-                case 7 -> {
-                    return Textures.BlockIcons.RENDERING_ERROR.getIcon();
-                }
-                case 8 -> {
-                    return Textures.BlockIcons.RENDERING_ERROR.getIcon();
-                }
-                case 9 -> {
-                    return TexturesGtBlock.Casing_Material_MaragingSteel.getIcon();
                 }
                 case 10 -> {
                     if (aSide < 2) {
@@ -91,18 +73,6 @@ public class GregtechMetaCasingBlocks4 extends GregtechMetaCasingBlocksAbstract 
                 }
                 case 11 -> {
                     return TexturesGtBlock.TEXTURE_CASING_ROCKETDYNE.getIcon();
-                }
-                case 12 -> {
-                    return Textures.BlockIcons.RENDERING_ERROR.getIcon();
-                }
-                case 13 -> {
-                    return Textures.BlockIcons.RENDERING_ERROR.getIcon();
-                }
-                case 14 -> {
-                    return Textures.BlockIcons.RENDERING_ERROR.getIcon();
-                }
-                case 15 -> {
-                    return Textures.BlockIcons.RENDERING_ERROR.getIcon();
                 }
                 default -> {
                     return TexturesGtBlock.Casing_Material_MaragingSteel.getIcon();

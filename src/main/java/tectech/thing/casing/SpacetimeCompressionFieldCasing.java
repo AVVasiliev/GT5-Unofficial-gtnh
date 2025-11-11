@@ -15,10 +15,11 @@ import net.minecraft.world.IBlockAccess;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import gregtech.api.enums.Textures;
-import gregtech.api.objects.GTCopiedBlockTexture;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTLanguageManager;
 import gregtech.common.blocks.BlockCasingsAbstract;
 import gregtech.common.blocks.MaterialCasings;
+import gregtech.common.misc.GTStructureChannels;
 import tectech.thing.CustomItemList;
 import tectech.util.CommonValues;
 
@@ -41,13 +42,14 @@ public class SpacetimeCompressionFieldCasing extends BlockCasingsAbstract {
     public SpacetimeCompressionFieldCasing() {
         super(ItemCasingsSpacetime.class, "gt.spacetime_compression_field_generator", MaterialCasings.INSTANCE);
         for (byte b = 0; b < 16; b = (byte) (b + 1)) {
-            Textures.BlockIcons.casingTexturePages[7][b + START_INDEX] = new GTCopiedBlockTexture(this, 6, b);
+            Textures.BlockIcons.casingTexturePages[7][b + START_INDEX] = TextureFactory.of(this, b);
         }
 
         for (int i = 0; i < MAX_BLOCK_TIER; i++) {
             GTLanguageManager.addStringLocalization(
                 getUnlocalizedName() + "." + i + ".name",
                 WHITE + CommonValues.EOH_TIER_FANCY_NAMES[i] + RESET + " Spacetime Compression Field Generator");
+            GTStructureChannels.EOH_COMPRESSION.registerAsIndicator(new ItemStack(this, 1, i), i + 1);
         }
 
         CustomItemList.SpacetimeCompressionFieldGeneratorTier0.set(new ItemStack(this, 1, 0));

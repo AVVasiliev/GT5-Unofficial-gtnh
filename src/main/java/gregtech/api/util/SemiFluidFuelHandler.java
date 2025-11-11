@@ -9,18 +9,19 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidContainerRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import gregtech.api.enums.GTValues;
+import gregtech.api.enums.Materials;
 import gregtech.api.recipe.RecipeMaps;
 import gtPlusPlus.api.objects.Logger;
-import gtPlusPlus.api.objects.data.Pair;
-import gtPlusPlus.core.util.minecraft.FluidUtils;
 
 public class SemiFluidFuelHandler {
 
     public static boolean generateFuels() {
-        final FluidStack aCreosote = FluidUtils.getFluidStack("creosote", 1000);
-        final FluidStack aHeavyFuel = FluidUtils.getFluidStack("liquid_heavy_fuel", 1000);
-        final FluidStack aHeavyOil = FluidUtils.getFluidStack("liquid_heavy_oil", 1000);
+        final FluidStack aCreosote = Materials.Creosote.getFluid(1_000);
+        final FluidStack aHeavyFuel = Materials.HeavyFuel.getFluid(1_000);
+        final FluidStack aHeavyOil = Materials.OilHeavy.getFluid(1_000);
         final HashMap<Integer, Pair<FluidStack, Integer>> aFoundFluidsFromItems = new HashMap<>();
         // Find Fluids From items
         for (final GTRecipe r : RecipeMaps.denseLiquidFuels.getAllRecipes()) {
@@ -31,7 +32,7 @@ public class SemiFluidFuelHandler {
                 for (ItemStack i : g.mInputs) {
                     FluidStack f = FluidContainerRegistry.getFluidForFilledItem(i);
                     if (f != null) {
-                        Pair<FluidStack, Integer> aData = new Pair<>(f, g.mSpecialValue);
+                        Pair<FluidStack, Integer> aData = Pair.of(f, g.mSpecialValue);
                         aFoundFluidsFromItems.put(aData.hashCode(), aData);
                     }
                 }
@@ -45,7 +46,7 @@ public class SemiFluidFuelHandler {
                 g.mSpecialValue *= aContainsCreosote ? 6 : 3;
                 Logger.INFO(
                     "Added " + g.mFluidInputs[0].getLocalizedName()
-                        + " to the Semi-Fluid Generator fuel map. Fuel Produces "
+                        + " to the Semifluid Generator fuel map. Fuel Produces "
                         + g.mSpecialValue
                         + "EU per 1000L.");
                 semiFluidFuels.add(g);
@@ -81,7 +82,7 @@ public class SemiFluidFuelHandler {
                 Logger.INFO(
                     "Added " + p.getKey()
                         .getLocalizedName()
-                        + " to the Semi-Fluid Generator fuel map. Fuel Produces "
+                        + " to the Semifluid Generator fuel map. Fuel Produces "
                         + (aFuelValue * 1000)
                         + "EU per 1000L.");
 

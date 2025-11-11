@@ -33,7 +33,7 @@ import bartworks.client.textures.PrefixTextureLinker;
 import bartworks.system.material.Werkstoff;
 import bartworks.system.material.WerkstoffLoader;
 import bartworks.system.material.werkstoff_loaders.IWerkstoffRunnable;
-import gregtech.api.GregTechAPI;
+import gregtech.api.covers.CoverRegistry;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.ItemList;
 import gregtech.api.enums.TextureSet;
@@ -42,7 +42,6 @@ import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTUtility;
-import gregtech.common.GTProxy;
 
 public class SimpleMetalLoader implements IWerkstoffRunnable {
 
@@ -64,11 +63,11 @@ public class SimpleMetalLoader implements IWerkstoffRunnable {
 
                 GTModHandler.addCraftingRecipe(
                     werkstoff.get(stick, 2),
-                    GTProxy.tBits,
+                    GTModHandler.RecipeBits.BITS_STD,
                     new Object[] { "s", "X", 'X', werkstoff.get(stickLong) });
                 GTModHandler.addCraftingRecipe(
                     werkstoff.get(stick),
-                    GTProxy.tBits,
+                    GTModHandler.RecipeBits.BITS_STD,
                     new Object[] { "f ", " X", 'X', werkstoff.get(gem) });
 
                 GTValues.RA.stdBuilder()
@@ -83,30 +82,33 @@ public class SimpleMetalLoader implements IWerkstoffRunnable {
                     .addTo(hammerRecipes);
 
                 TextureSet texSet = werkstoff.getTexSet();
-                ITexture texture = SideReference.Side.Client ? TextureFactory.of(
-                    texSet.mTextures[PrefixTextureLinker.blockTexMap.getOrDefault(texSet, block.mTextureIndex)],
-                    werkstoff.getRGBA(),
-                    false) : TextureFactory.of(texSet.mTextures[block.mTextureIndex], werkstoff.getRGBA(), false);
-                GregTechAPI.registerCover(werkstoff.get(plate), texture, null);
+                ITexture texture = SideReference.Side.Client
+                    ? TextureFactory.of(
+                        texSet.mTextures[PrefixTextureLinker.blockTexMap
+                            .getOrDefault(texSet, (short) block.getTextureIndex())],
+                        werkstoff.getRGBA(),
+                        false)
+                    : TextureFactory.of(texSet.mTextures[block.getTextureIndex()], werkstoff.getRGBA(), false);
+                CoverRegistry.registerDecorativeCover(werkstoff.get(plate), texture);
 
                 return;
             }
 
             GTModHandler.addCraftingRecipe(
                 werkstoff.get(stick, 2),
-                GTProxy.tBits,
+                GTModHandler.RecipeBits.BITS_STD,
                 new Object[] { "s", "X", 'X', werkstoff.get(stickLong) });
             GTModHandler.addCraftingRecipe(
                 werkstoff.get(stick),
-                GTProxy.tBits,
+                GTModHandler.RecipeBits.BITS_STD,
                 new Object[] { "f ", " X", 'X', werkstoff.get(ingot) });
             GTModHandler.addCraftingRecipe(
                 werkstoff.get(plate),
-                GTProxy.tBits,
+                GTModHandler.RecipeBits.BITS_STD,
                 new Object[] { "h", "X", "X", 'X', werkstoff.get(ingot) });
             GTModHandler.addCraftingRecipe(
                 werkstoff.get(foil, 2),
-                GTProxy.tBits,
+                GTModHandler.RecipeBits.BITS_STD,
                 new Object[] { "hX", 'X', werkstoff.get(plate) });
 
             benderRecipes.add(
@@ -136,10 +138,9 @@ public class SimpleMetalLoader implements IWerkstoffRunnable {
                 .eut(16)
                 .addTo(hammerRecipes);
 
-            GregTechAPI.registerCover(
+            CoverRegistry.registerDecorativeCover(
                 werkstoff.get(plate),
-                TextureFactory.of(werkstoff.getTexSet().mTextures[71], werkstoff.getRGBA(), false),
-                null);
+                TextureFactory.of(werkstoff.getTexSet().mTextures[71], werkstoff.getRGBA(), false));
 
             GTValues.RA.stdBuilder()
                 .itemInputs(werkstoff.get(ingot))

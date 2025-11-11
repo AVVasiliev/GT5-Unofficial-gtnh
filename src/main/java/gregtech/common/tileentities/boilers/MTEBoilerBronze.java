@@ -31,6 +31,8 @@ import gregtech.api.enums.ParticleFX;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.modularui2.GTGuiTheme;
+import gregtech.api.modularui2.GTGuiThemes;
 import gregtech.api.objects.XSTR;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTOreDictUnificator;
@@ -46,15 +48,11 @@ public class MTEBoilerBronze extends MTEBoiler {
             aName,
             aNameRegional,
             new String[] { "An early way to get Steam Power", "Produces 120L of Steam per second",
-                "Causes " + GTMod.gregtechproxy.mPollutionSmallCoalBoilerPerSecond + " Pollution per second" });
+                "Causes " + GTMod.proxy.mPollutionSmallCoalBoilerPerSecond + " Pollution per second" });
     }
 
     public MTEBoilerBronze(int aID, String aName, String aNameRegional, String[] aDescription) {
         super(aID, aName, aNameRegional, aDescription);
-    }
-
-    public MTEBoilerBronze(String aName, int aTier, String aDescription, ITexture[][][] aTextures) {
-        super(aName, aTier, aDescription, aTextures);
     }
 
     public MTEBoilerBronze(String aName, int aTier, String[] aDescription, ITexture[][][] aTextures) {
@@ -105,7 +103,7 @@ public class MTEBoilerBronze extends MTEBoiler {
             final ForgeDirection frontFacing = aBaseMetaTileEntity.getFrontFacing();
 
             if ((frontFacing.flag & (ForgeDirection.UP.flag | ForgeDirection.DOWN.flag)) == 0
-                && aBaseMetaTileEntity.getCoverIDAtSide(frontFacing) == 0
+                && !aBaseMetaTileEntity.hasCoverAtSide(frontFacing)
                 && !aBaseMetaTileEntity.getOpacityAtSide(frontFacing)) {
 
                 final double oX = aBaseMetaTileEntity.getOffsetX(frontFacing, 1) + 8D / 16D;
@@ -156,7 +154,7 @@ public class MTEBoilerBronze extends MTEBoiler {
 
     @Override
     protected int getPollution() {
-        return GTMod.gregtechproxy.mPollutionSmallCoalBoilerPerSecond;
+        return GTMod.proxy.mPollutionSmallCoalBoilerPerSecond;
     }
 
     @Override
@@ -201,7 +199,7 @@ public class MTEBoilerBronze extends MTEBoiler {
             .getUnlocalizedName()
             .toLowerCase();
         if (couldProduceDarkAshes(fuel, lowerCaseBlockName)) {
-            return Optional.of(Materials.DarkAsh);
+            return Optional.of(Materials.AshDark);
         }
         if (couldProduceRegularAshes(fuel, lowerCaseBlockName, burnTime)) {
             return Optional.of(Materials.Ash);
@@ -240,8 +238,7 @@ public class MTEBoilerBronze extends MTEBoiler {
     }
 
     /**
-     * The upper bound for the chance to get ash from combustion
-     * <br>
+     * The upper bound for the chance to get ash from combustion <br>
      * Ash chance scales based on burn time from 14% at 0 up to 50% at 2000
      *
      * @param burnTime number assumed to be positive
@@ -256,4 +253,8 @@ public class MTEBoilerBronze extends MTEBoiler {
         return getCombustionPotential(stack, TileEntityFurnace.getItemBurnTime(stack)).isPresent();
     }
 
+    @Override
+    protected GTGuiTheme getGuiTheme() {
+        return GTGuiThemes.BRONZE;
+    }
 }

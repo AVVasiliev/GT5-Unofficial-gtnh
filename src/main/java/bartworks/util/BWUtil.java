@@ -17,7 +17,7 @@ import static gregtech.api.enums.GTValues.D1;
 import static gregtech.api.enums.GTValues.E;
 import static gregtech.api.enums.GTValues.M;
 import static gregtech.api.enums.GTValues.VN;
-import static gregtech.api.enums.GTValues.W;
+import static gregtech.api.util.GTRecipeBuilder.WILDCARD;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,26 +44,23 @@ import com.gtnewhorizon.structurelib.structure.IStructureElement;
 
 import bartworks.API.BioVatLogicAdder;
 import bartworks.API.BorosilicateGlass;
-import bartworks.API.GlassTier;
 import bartworks.MainMod;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.OreDictNames;
 import gregtech.api.enums.ToolDictNames;
 import gregtech.api.interfaces.IItemContainer;
 import gregtech.api.objects.ItemData;
+import gregtech.api.util.CustomGlyphs;
 import gregtech.api.util.GTLanguageManager;
 import gregtech.api.util.GTLog;
 import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTShapedRecipe;
 import gregtech.api.util.GTUtility;
+import gregtech.api.util.GlassTier;
 
 public class BWUtil {
 
-    @Deprecated
-    public static final int STANDART = 0;
-    @Deprecated
-    public static final int LOWGRAVITY = -100;
     @Deprecated
     public static final int CLEANROOM = -200;
 
@@ -92,7 +89,7 @@ public class BWUtil {
         char[] nu = new char[chars.length];
         for (int i = 0; i < chars.length; i++) {
             nu[i] = switch (chars[i]) {
-                case '0' -> '\u2080';
+                case '0' -> CustomGlyphs.SUBSCRIPT0.charAt(0);
                 case '1' -> '\u2081';
                 case '2' -> '\u2082';
                 case '3' -> '\u2083';
@@ -102,6 +99,7 @@ public class BWUtil {
                 case '7' -> '\u2087';
                 case '8' -> '\u2088';
                 case '9' -> '\u2089';
+                case '?' -> CustomGlyphs.SUBSCRIPT_QUESTION_MARK.charAt(0);
                 default -> chars[i];
             };
         }
@@ -114,7 +112,7 @@ public class BWUtil {
         char[] nu = new char[chars.length];
         for (int i = 0; i < chars.length; i++) {
             nu[i] = switch (chars[i]) {
-                case '0' -> '\u2080';
+                case '0' -> CustomGlyphs.SUBSCRIPT0.charAt(0);
                 case '1' -> '\u2081';
                 case '2' -> '\u2082';
                 case '3' -> '\u2083';
@@ -124,6 +122,7 @@ public class BWUtil {
                 case '7' -> '\u2087';
                 case '8' -> '\u2088';
                 case '9' -> '\u2089';
+                case '?' -> CustomGlyphs.SUBSCRIPT_QUESTION_MARK.charAt(0);
                 default -> chars[i];
             };
         }
@@ -135,16 +134,16 @@ public class BWUtil {
         char[] nu = new char[chars.length];
         for (int i = 0; i < chars.length; i++) {
             nu[i] = switch (chars[i]) {
-                case '0' -> '\u2070';
-                case '1' -> '\u2071';
-                case '2' -> '\u00B2';
-                case '3' -> '\u00B3';
-                case '4' -> '\u2074';
-                case '5' -> '\u2075';
-                case '6' -> '\u2076';
-                case '7' -> '\u2077';
-                case '8' -> '\u2078';
-                case '9' -> '\u2079';
+                case '0' -> CustomGlyphs.SUPERSCRIPT0.charAt(0);
+                case '1' -> CustomGlyphs.SUPERSCRIPT1.charAt(0);
+                case '2' -> CustomGlyphs.SUPERSCRIPT2.charAt(0);
+                case '3' -> CustomGlyphs.SUPERSCRIPT3.charAt(0);
+                case '4' -> CustomGlyphs.SUPERSCRIPT4.charAt(0);
+                case '5' -> CustomGlyphs.SUPERSCRIPT5.charAt(0);
+                case '6' -> CustomGlyphs.SUPERSCRIPT6.charAt(0);
+                case '7' -> CustomGlyphs.SUPERSCRIPT7.charAt(0);
+                case '8' -> CustomGlyphs.SUPERSCRIPT8.charAt(0);
+                case '9' -> CustomGlyphs.SUPERSCRIPT9.charAt(0);
                 default -> chars[i];
             };
         }
@@ -176,7 +175,7 @@ public class BWUtil {
 
     @Deprecated
     public static int getMachineVoltageFromTier(int tier) {
-        return (int) (30 * Math.pow(4, tier - 1));
+        return (int) (30 * GTUtility.powInt(4, tier - 1));
     }
 
     public static byte getTier(long voltage) {
@@ -211,23 +210,6 @@ public class BWUtil {
         if (EnumRarity.epic.equals(rarity)) return 2;
         else if (EnumRarity.rare.equals(rarity)) return 3;
         return 0;
-    }
-
-    /**
-     * @deprecated Use stuff in {@link BorosilicateGlass} instead
-     */
-    @Deprecated
-    public static byte getTierFromGlasMeta(int meta) {
-        return switch (meta) {
-            case 1 -> 4;
-            case 2, 12 -> 5;
-            case 3 -> 6;
-            case 4 -> 7;
-            case 5 -> 8;
-            case 13 -> 9;
-            case 14 -> 10;
-            default -> 3;
-        };
     }
 
     public static EnumRarity getRarityFromByte(byte b) {
@@ -282,6 +264,10 @@ public class BWUtil {
         return ret;
     }
 
+    /**
+     * @deprecated use gregtech.api.util.GTStructureUtility.chainAllGlasses
+     */
+    @Deprecated
     public static <T> IStructureElement<T> ofGlassTiered(byte mintier, byte maxtier, byte notset,
         BiConsumer<T, Byte> setter, Function<T, Byte> getter, int aDots) {
         return new IStructureElement<>() {
@@ -295,13 +281,25 @@ public class BWUtil {
                 Block block = world.getBlock(x, y, z);
                 int meta = world.getBlockMetadata(x, y, z);
 
-                int glassTier = GlassTier.getGlassTier(block, meta);
+                int glassTier = GlassTier.getGlassBlockTier(block, meta);
 
                 // If it is not a glass, the tier will be 0.
                 if (glassTier == 0 || glassTier == notset || glassTier < mintier || glassTier > maxtier) return false;
 
                 if (getter.apply(te) == notset) setter.accept(te, (byte) glassTier);
                 return getter.apply(te) == glassTier;
+            }
+
+            @Override
+            public boolean couldBeValid(T te, World world, int x, int y, int z, ItemStack trigger) {
+                if (world.isAirBlock(x, y, z)) return false;
+                Block block = world.getBlock(x, y, z);
+                int meta = world.getBlockMetadata(x, y, z);
+
+                int glassTier = GlassTier.getGlassBlockTier(block, meta);
+
+                // If it is not a glass, the tier will be 0.
+                return glassTier != 0 && glassTier != notset && glassTier >= mintier && glassTier <= maxtier;
             }
 
             @Override
@@ -323,6 +321,7 @@ public class BWUtil {
         };
     }
 
+    @Deprecated
     public static <T> IStructureElement<T> ofGlassTieredMixed(byte mintier, byte maxtier, int aDots) {
         return new IStructureElement<>() {
 
@@ -334,10 +333,15 @@ public class BWUtil {
                 if (world.isAirBlock(x, y, z)) return false;
                 Block block = world.getBlock(x, y, z);
                 int meta = world.getBlockMetadata(x, y, z);
-                int glassTier = GlassTier.getGlassTier(block, meta);
+                int glassTier = GlassTier.getGlassBlockTier(block, meta);
 
                 if (glassTier == 0) return false; // Not a glass.
                 return glassTier >= mintier && glassTier <= maxtier;
+            }
+
+            @Override
+            public boolean couldBeValid(T te, World world, int x, int y, int z, ItemStack trigger) {
+                return check(te, world, x, y, z);
             }
 
             @Override
@@ -362,8 +366,8 @@ public class BWUtil {
     public static ShapedOreRecipe createGTCraftingRecipe(ItemStack aResult, long aBitMask, Object[] aRecipe) {
         return createGTCraftingRecipe(
             aResult,
-            new Enchantment[0],
-            new int[0],
+            null,
+            null,
             (aBitMask & GTModHandler.RecipeBits.MIRRORED) != 0L,
             (aBitMask & GTModHandler.RecipeBits.BUFFERED) != 0L,
             (aBitMask & GTModHandler.RecipeBits.KEEPNBT) != 0L,
@@ -388,8 +392,8 @@ public class BWUtil {
         boolean aOnlyAddIfThereIsAnyRecipeOutputtingThis, boolean aOnlyAddIfResultIsNotNull, Object[] aRecipe) {
         aResult = GTOreDictUnificator.get(true, aResult);
         if (aOnlyAddIfResultIsNotNull && aResult == null) return null;
-        if (aResult != null && Items.feather.getDamage(aResult) == W) Items.feather.setDamage(aResult, 0);
-        if (aRecipe == null || aRecipe.length <= 0) return null;
+        if (aResult != null && Items.feather.getDamage(aResult) == WILDCARD) Items.feather.setDamage(aResult, 0);
+        if (aRecipe == null || aRecipe.length == 0) return null;
 
         boolean tThereWasARecipe = false;
 
@@ -410,181 +414,176 @@ public class BWUtil {
             }
         }
 
-        try {
-            StringBuilder shape = new StringBuilder(E);
-            int idx = 0;
-            if (aRecipe[idx] instanceof Boolean) {
+        StringBuilder shape = new StringBuilder(E);
+        int idx = 0;
+        if (aRecipe[idx] instanceof Boolean) {
+            throw new IllegalArgumentException();
+        }
+
+        ArrayList<Object> tRecipeList = new ArrayList<>(Arrays.asList(aRecipe));
+
+        while (aRecipe[idx] instanceof String string) {
+            StringBuilder s = new StringBuilder(string);
+            idx++;
+            shape.append(s);
+            while (s.length() < 3) s.append(" ");
+            if (s.length() > 3) throw new IllegalArgumentException();
+
+            for (char c : s.toString()
+                .toCharArray()) {
+                switch (c) {
+                    case 'b':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolBlade.name());
+                        break;
+                    case 'c':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolCrowbar.name());
+                        break;
+                    case 'd':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolScrewdriver.name());
+                        break;
+                    case 'f':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolFile.name());
+                        break;
+                    case 'h':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolHardHammer.name());
+                        break;
+                    case 'i':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolSolderingIron.name());
+                        break;
+                    case 'j':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolSolderingMetal.name());
+                        break;
+                    case 'k':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolKnife.name());
+                        break;
+                    case 'm':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolMortar.name());
+                        break;
+                    case 'p':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolDrawplate.name());
+                        break;
+                    case 'r':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolSoftMallet.name());
+                        break;
+                    case 's':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolSaw.name());
+                        break;
+                    case 'w':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolWrench.name());
+                        break;
+                    case 'x':
+                        tRecipeList.add(c);
+                        tRecipeList.add(ToolDictNames.craftingToolWireCutter.name());
+                        break;
+                }
+            }
+        }
+
+        aRecipe = tRecipeList.toArray();
+
+        if (aRecipe[idx] instanceof Boolean) {
+            idx++;
+        }
+        Map<Character, ItemStack> tItemStackMap = new HashMap<>();
+        Map<Character, ItemData> tItemDataMap = new HashMap<>();
+        tItemStackMap.put(' ', null);
+
+        boolean tRemoveRecipe = true;
+
+        for (; idx < aRecipe.length; idx += 2) {
+            if (aRecipe[idx] == null || aRecipe[idx + 1] == null) {
+                if (D1) {
+                    GTLog.err.println(
+                        "WARNING: Missing Item for shaped Recipe: "
+                            + (aResult == null ? "null" : aResult.getDisplayName()));
+                    for (Object tContent : aRecipe) GTLog.err.println(tContent);
+                }
+                return null;
+            }
+            Character chr = (Character) aRecipe[idx];
+            Object in = aRecipe[idx + 1];
+            if (in instanceof ItemStack) {
+                tItemStackMap.put(chr, GTUtility.copy(in));
+                tItemDataMap.put(chr, GTOreDictUnificator.getItemData((ItemStack) in));
+            } else if (in instanceof ItemData) {
+                String tString = in.toString();
+                switch (tString) {
+                    case "plankWood":
+                        tItemDataMap.put(chr, new ItemData(Materials.Wood, M));
+                        break;
+                    case "stoneNetherrack":
+                        tItemDataMap.put(chr, new ItemData(Materials.Netherrack, M));
+                        break;
+                    case "stoneObsidian":
+                        tItemDataMap.put(chr, new ItemData(Materials.Obsidian, M));
+                        break;
+                    case "stoneEndstone":
+                        tItemDataMap.put(chr, new ItemData(Materials.Endstone, M));
+                        break;
+                    default:
+                        tItemDataMap.put(chr, (ItemData) in);
+                        break;
+                }
+                ItemStack tStack = GTOreDictUnificator.getFirstOre(in, 1);
+                if (tStack == null) tRemoveRecipe = false;
+                else tItemStackMap.put(chr, tStack);
+                aRecipe[idx + 1] = in.toString();
+            } else if (in instanceof String) {
+                if (in.equals(OreDictNames.craftingChest.toString()))
+                    tItemDataMap.put(chr, new ItemData(Materials.Wood, M * 8));
+                else if (in.equals(OreDictNames.craftingBook.toString()))
+                    tItemDataMap.put(chr, new ItemData(Materials.Paper, M * 3));
+                else if (in.equals(OreDictNames.craftingPiston.toString()))
+                    tItemDataMap.put(chr, new ItemData(Materials.Stone, M * 4, Materials.Wood, M * 3));
+                else if (in.equals(OreDictNames.craftingFurnace.toString()))
+                    tItemDataMap.put(chr, new ItemData(Materials.Stone, M * 8));
+                else if (in.equals(OreDictNames.craftingIndustrialDiamond.toString()))
+                    tItemDataMap.put(chr, new ItemData(Materials.Diamond, M));
+                else if (in.equals(OreDictNames.craftingAnvil.toString()))
+                    tItemDataMap.put(chr, new ItemData(Materials.Iron, M * 10));
+                ItemStack tStack = GTOreDictUnificator.getFirstOre(in, 1);
+                if (tStack == null) tRemoveRecipe = false;
+                else tItemStackMap.put(chr, tStack);
+            } else {
                 throw new IllegalArgumentException();
             }
+        }
 
-            ArrayList<Object> tRecipeList = new ArrayList<>(Arrays.asList(aRecipe));
-
-            while (aRecipe[idx] instanceof String string) {
-                StringBuilder s = new StringBuilder(string);
-                idx++;
-                shape.append(s);
-                while (s.length() < 3) s.append(" ");
-                if (s.length() > 3) throw new IllegalArgumentException();
-
-                for (char c : s.toString()
-                    .toCharArray()) {
-                    switch (c) {
-                        case 'b':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolBlade.name());
-                            break;
-                        case 'c':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolCrowbar.name());
-                            break;
-                        case 'd':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolScrewdriver.name());
-                            break;
-                        case 'f':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolFile.name());
-                            break;
-                        case 'h':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolHardHammer.name());
-                            break;
-                        case 'i':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolSolderingIron.name());
-                            break;
-                        case 'j':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolSolderingMetal.name());
-                            break;
-                        case 'k':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolKnife.name());
-                            break;
-                        case 'm':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolMortar.name());
-                            break;
-                        case 'p':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolDrawplate.name());
-                            break;
-                        case 'r':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolSoftHammer.name());
-                            break;
-                        case 's':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolSaw.name());
-                            break;
-                        case 'w':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolWrench.name());
-                            break;
-                        case 'x':
-                            tRecipeList.add(c);
-                            tRecipeList.add(ToolDictNames.craftingToolWireCutter.name());
-                            break;
-                    }
-                }
+        if (aReversible && aResult != null) {
+            ItemData[] tData = new ItemData[9];
+            int x = -1;
+            for (char chr : shape.toString()
+                .toCharArray()) {
+                x++;
+                tData[x] = tItemDataMap.get(chr);
             }
+            if (GTUtility.arrayContainsNonNull(tData)) GTOreDictUnificator.addItemData(aResult, new ItemData(tData));
+        }
 
-            aRecipe = tRecipeList.toArray();
-
-            if (aRecipe[idx] instanceof Boolean) {
-                idx++;
+        if (aCheckForCollisions && tRemoveRecipe) {
+            ItemStack[] tRecipe = new ItemStack[9];
+            int x = -1;
+            for (char chr : shape.toString()
+                .toCharArray()) {
+                x++;
+                tRecipe[x] = tItemStackMap.get(chr);
+                if (tRecipe[x] != null && Items.feather.getDamage(tRecipe[x]) == WILDCARD)
+                    Items.feather.setDamage(tRecipe[x], 0);
             }
-            Map<Character, ItemStack> tItemStackMap = new HashMap<>();
-            Map<Character, ItemData> tItemDataMap = new HashMap<>();
-            tItemStackMap.put(' ', null);
-
-            boolean tRemoveRecipe = true;
-
-            for (; idx < aRecipe.length; idx += 2) {
-                if (aRecipe[idx] == null || aRecipe[idx + 1] == null) {
-                    if (D1) {
-                        GTLog.err.println(
-                            "WARNING: Missing Item for shaped Recipe: "
-                                + (aResult == null ? "null" : aResult.getDisplayName()));
-                        for (Object tContent : aRecipe) GTLog.err.println(tContent);
-                    }
-                    return null;
-                }
-                Character chr = (Character) aRecipe[idx];
-                Object in = aRecipe[idx + 1];
-                if (in instanceof ItemStack) {
-                    tItemStackMap.put(chr, GTUtility.copy(in));
-                    tItemDataMap.put(chr, GTOreDictUnificator.getItemData((ItemStack) in));
-                } else if (in instanceof ItemData) {
-                    String tString = in.toString();
-                    switch (tString) {
-                        case "plankWood":
-                            tItemDataMap.put(chr, new ItemData(Materials.Wood, M));
-                            break;
-                        case "stoneNetherrack":
-                            tItemDataMap.put(chr, new ItemData(Materials.Netherrack, M));
-                            break;
-                        case "stoneObsidian":
-                            tItemDataMap.put(chr, new ItemData(Materials.Obsidian, M));
-                            break;
-                        case "stoneEndstone":
-                            tItemDataMap.put(chr, new ItemData(Materials.Endstone, M));
-                            break;
-                        default:
-                            tItemDataMap.put(chr, (ItemData) in);
-                            break;
-                    }
-                    ItemStack tStack = GTOreDictUnificator.getFirstOre(in, 1);
-                    if (tStack == null) tRemoveRecipe = false;
-                    else tItemStackMap.put(chr, tStack);
-                    aRecipe[idx + 1] = in.toString();
-                } else if (in instanceof String) {
-                    if (in.equals(OreDictNames.craftingChest.toString()))
-                        tItemDataMap.put(chr, new ItemData(Materials.Wood, M * 8));
-                    else if (in.equals(OreDictNames.craftingBook.toString()))
-                        tItemDataMap.put(chr, new ItemData(Materials.Paper, M * 3));
-                    else if (in.equals(OreDictNames.craftingPiston.toString()))
-                        tItemDataMap.put(chr, new ItemData(Materials.Stone, M * 4, Materials.Wood, M * 3));
-                    else if (in.equals(OreDictNames.craftingFurnace.toString()))
-                        tItemDataMap.put(chr, new ItemData(Materials.Stone, M * 8));
-                    else if (in.equals(OreDictNames.craftingIndustrialDiamond.toString()))
-                        tItemDataMap.put(chr, new ItemData(Materials.Diamond, M));
-                    else if (in.equals(OreDictNames.craftingAnvil.toString()))
-                        tItemDataMap.put(chr, new ItemData(Materials.Iron, M * 10));
-                    ItemStack tStack = GTOreDictUnificator.getFirstOre(in, 1);
-                    if (tStack == null) tRemoveRecipe = false;
-                    else tItemStackMap.put(chr, tStack);
-                } else {
-                    throw new IllegalArgumentException();
-                }
-            }
-
-            if (aReversible && aResult != null) {
-                ItemData[] tData = new ItemData[9];
-                int x = -1;
-                for (char chr : shape.toString()
-                    .toCharArray()) {
-                    x++;
-                    tData[x] = tItemDataMap.get(chr);
-                }
-                if (GTUtility.arrayContainsNonNull(tData))
-                    GTOreDictUnificator.addItemData(aResult, new ItemData(tData));
-            }
-
-            if (aCheckForCollisions && tRemoveRecipe) {
-                ItemStack[] tRecipe = new ItemStack[9];
-                int x = -1;
-                for (char chr : shape.toString()
-                    .toCharArray()) {
-                    x++;
-                    tRecipe[x] = tItemStackMap.get(chr);
-                    if (tRecipe[x] != null && Items.feather.getDamage(tRecipe[x]) == W)
-                        Items.feather.setDamage(tRecipe[x], 0);
-                }
-                tThereWasARecipe = GTModHandler.removeRecipe(tRecipe) != null;
-            }
-        } catch (Throwable e) {
-            e.printStackTrace(GTLog.err);
+            tThereWasARecipe = GTModHandler.removeRecipe(tRecipe) != null;
         }
 
         if (aResult == null || aResult.stackSize <= 0) return null;
@@ -617,14 +616,13 @@ public class BWUtil {
             }
         }
 
-        if (Items.feather.getDamage(aResult) == W || Items.feather.getDamage(aResult) < 0)
+        if (Items.feather.getDamage(aResult) == WILDCARD || Items.feather.getDamage(aResult) < 0)
             Items.feather.setDamage(aResult, 0);
 
         GTUtility.updateItemStack(aResult);
 
         return new GTShapedRecipe(
             GTUtility.copy(aResult),
-            aDismantleable,
             aRemovable,
             aKeepNBT,
             aEnchantmentsAdded,

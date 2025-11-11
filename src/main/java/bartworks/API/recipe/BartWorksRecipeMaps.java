@@ -65,7 +65,7 @@ public class BartWorksRecipeMaps {
         .specialSlotSensitive()
         .progressBar(GTUITextures.PROGRESSBAR_CIRCUIT_ASSEMBLER)
         .build();
-    public static final RecipeMap<RecipeMapBackend> radioHatchRecipes = RecipeMapBuilder.of("bw.recipe.radhatch")
+    public static final RecipeMap<RecipeMapBackend> radioHatchFakeRecipes = RecipeMapBuilder.of("bw.recipe.radhatch")
         .maxIO(1, 0, 0, 0)
         .minInputs(1, 0)
         .slotOverlays((index, isFluid, isOutput, isSpecial) -> BWUITextures.OVERLAY_SLOT_ROD)
@@ -82,8 +82,5 @@ public class BartWorksRecipeMaps {
         .slotOverlays(
             (index, isFluid, isOutput, isSpecial) -> !isFluid && !isOutput ? GTUITextures.OVERLAY_SLOT_IMPLOSION : null)
         .progressBar(GTUITextures.PROGRESSBAR_COMPRESS)
-        .build();
-    public static final RecipeMap<RecipeMapBackend> htgrFakeRecipes = RecipeMapBuilder.of("bw.recipe.htgr")
-        .maxIO(1, 1, 0, 0)
         .build();
 }

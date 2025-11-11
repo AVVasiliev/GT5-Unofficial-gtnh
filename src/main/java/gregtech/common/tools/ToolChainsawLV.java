@@ -26,28 +26,8 @@ import gregtech.api.items.MetaGeneratedTool;
 public class ToolChainsawLV extends ToolSaw {
 
     @Override
-    public int getToolDamagePerBlockBreak() {
-        return 50;
-    }
-
-    @Override
-    public int getToolDamagePerDropConversion() {
-        return 100;
-    }
-
-    @Override
     public int getToolDamagePerContainerCraft() {
         return 800;
-    }
-
-    @Override
-    public int getToolDamagePerEntityAttack() {
-        return 200;
-    }
-
-    @Override
-    public int getBaseQuality() {
-        return 0;
     }
 
     @Override
@@ -58,11 +38,6 @@ public class ToolChainsawLV extends ToolSaw {
     @Override
     public float getSpeedMultiplier() {
         return 2.0F;
-    }
-
-    @Override
-    public float getMaxDurabilityMultiplier() {
-        return 1.0F;
     }
 
     @Override
@@ -78,11 +53,6 @@ public class ToolChainsawLV extends ToolSaw {
     @Override
     public String getMiningSound() {
         return SoundResource.IC2_TOOLS_CHAINSAW_CHAINSAW_USE_ONE.toString();
-    }
-
-    @Override
-    public boolean canBlock() {
-        return false;
     }
 
     @Override
@@ -106,7 +76,7 @@ public class ToolChainsawLV extends ToolSaw {
 
     @Override
     public int convertBlockDrops(List<ItemStack> aDrops, ItemStack aStack, EntityPlayer aPlayer, Block aBlock, int aX,
-        int aY, int aZ, byte aMetaData, int aFortune, boolean aSilkTouch, BlockEvent.HarvestDropsEvent aEvent) {
+        int aY, int aZ, int aMetaData, int aFortune, boolean aSilkTouch, BlockEvent.HarvestDropsEvent aEvent) {
         int rAmount = 0;
         if ((aBlock.getMaterial() == Material.leaves) && ((aBlock instanceof IShearable))) {
             aPlayer.worldObj.setBlock(aX, aY, aZ, aBlock, aMetaData, 0);
@@ -137,8 +107,8 @@ public class ToolChainsawLV extends ToolSaw {
     }
 
     @Override
-    public float getMiningSpeed(Block aBlock, byte aMetaData, float aDefault, EntityPlayer aPlayer, World aWorld,
-        int aX, int aY, int aZ) {
+    public float getMiningSpeed(Block aBlock, int aMetaData, float aDefault, EntityPlayer aPlayer, World aWorld, int aX,
+        int aY, int aZ) {
         if (aBlock.isWood(aPlayer.worldObj, aX, aY, aZ)
             && OrePrefixes.log.contains(new ItemStack(aBlock, 1, aMetaData))) {
             float rAmount = 1.0F;
@@ -161,15 +131,9 @@ public class ToolChainsawLV extends ToolSaw {
     @Override
     public IIconContainer getIcon(boolean aIsToolHead, ItemStack aStack) {
         return aIsToolHead
-            ? MetaGeneratedTool.getPrimaryMaterial(
-                aStack).mIconSet.mTextures[gregtech.api.enums.OrePrefixes.toolHeadChainsaw.mTextureIndex]
+            ? MetaGeneratedTool.getPrimaryMaterial(aStack).mIconSet.mTextures[OrePrefixes.toolHeadChainsaw
+                .getTextureIndex()]
             : Textures.ItemIcons.POWER_UNIT_LV;
-    }
-
-    @Override
-    public short[] getRGBa(boolean aIsToolHead, ItemStack aStack) {
-        return aIsToolHead ? MetaGeneratedTool.getPrimaryMaterial(aStack).mRGBa
-            : MetaGeneratedTool.getSecondaryMaterial(aStack).mRGBa;
     }
 
     @Override

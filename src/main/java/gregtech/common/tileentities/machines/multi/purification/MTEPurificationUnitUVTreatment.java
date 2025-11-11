@@ -22,6 +22,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import org.jetbrains.annotations.NotNull;
@@ -122,13 +123,15 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
         // Lens indicator hatch
         .addElement(
             'I',
-            lazy(
-                t -> GTStructureUtility.<MTEPurificationUnitUVTreatment>buildHatchAdder()
-                    .atLeast(SpecialHatchElement.LensIndicator)
-                    .dot(3)
-                    .cacheHint(() -> "Lens Indicator")
-                    .casingIndex(CASING_INDEX_MAIN)
-                    .build()))
+            ofChain(
+                lazy(
+                    t -> GTStructureUtility.<MTEPurificationUnitUVTreatment>buildHatchAdder()
+                        .atLeast(SpecialHatchElement.LensIndicator)
+                        .dot(3)
+                        .cacheHint(() -> "Lens Indicator")
+                        .casingIndex(CASING_INDEX_MAIN)
+                        .build()),
+                ofBlock(GregTechAPI.sBlockCasings9, 12)))
         // Input or output hatch
         .addElement(
             'H',
@@ -198,7 +201,7 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
 
     @Override
     public int survivalConstruct(ItemStack stackSize, int elementBudget, ISurvivalBuildEnvironment env) {
-        return survivialBuildPiece(
+        return survivalBuildPiece(
             STRUCTURE_PIECE_MAIN,
             stackSize,
             STRUCTURE_X_OFFSET,
@@ -225,24 +228,18 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
                 + EnumChatFormatting.WHITE
                 + GTUtility.formatNumbers(getWaterTier())
                 + EnumChatFormatting.RESET)
-            .addInfo("Must be linked to a Purification Plant using a data stick to work.")
+            .addInfo("Must be linked to a Purification Plant using a data stick to work")
             .addSeparator()
-            .addInfo(
-                "During operation, swap the lens in the " + EnumChatFormatting.WHITE
-                    + "Lens Housing"
-                    + EnumChatFormatting.GRAY
-                    + ".")
+            .addInfo("During operation, swap the lens in the " + EnumChatFormatting.WHITE + "Lens Housing")
             .addInfo(
                 "The multiblock will output a signal through the " + EnumChatFormatting.WHITE + "Lens Indicator Hatch")
-            .addInfo("when the current lens must be swapped.")
+            .addInfo("when the current lens must be swapped")
             .addInfo(
                 "Lens swaps will be requested in random intervals of " + EnumChatFormatting.RED
                     + (MIN_TIME_BETWEEN_SWAPS / SECONDS)
                     + " to "
                     + (MAX_TIME_BETWEEN_SWAPS / SECONDS)
-                    + "s"
-                    + EnumChatFormatting.GRAY
-                    + ".")
+                    + "s")
             .addSeparator()
             .addInfo(
                 "Success chance is boosted by " + EnumChatFormatting.RED
@@ -250,9 +247,9 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
                     + "% "
                     + EnumChatFormatting.GRAY
                     + "for each successful swap performed.")
-            .addInfo("Removing a lens too early will fail the recipe.")
+            .addInfo("Removing a lens too early will fail the recipe")
             .addInfo("Find the order of lenses in the recipe in NEI,")
-            .addInfo("or use a portable scanner to view the currently requested lens.")
+            .addInfo("or use a portable scanner to view the currently requested lens")
             .addInfo("The recipe always starts at the Orundum Lens")
             .addSeparator()
             .addInfo(
@@ -272,6 +269,7 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
                     + EnumChatFormatting.ITALIC
                     + "atoms themselves and pass through the walls of the tank, ensuring the water is perfectly electrically polar.")
             .beginStructureBlock(13, 9, 9, true)
+            .addController("Front center")
             .addCasingInfoRangeColored(
                 "Naquadria-Reinforced Water Plant Casing",
                 EnumChatFormatting.GRAY,
@@ -297,10 +295,18 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
                 56,
                 EnumChatFormatting.GOLD,
                 false)
-            .addController("Front center")
-            .addOtherStructurePart("Input Hatch, Output Hatch", EnumChatFormatting.GOLD + "1+", 1)
-            .addOtherStructurePart("Lens Housing", EnumChatFormatting.GOLD + "1", 2)
-            .addOtherStructurePart("Lens Indicator", EnumChatFormatting.GOLD + "1", 3)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GT5U.tooltip.structure.input_hatch_output_hatch"),
+                EnumChatFormatting.GOLD + "1+",
+                1)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GT5U.tooltip.structure.lens_housing"),
+                EnumChatFormatting.GOLD + "1",
+                2)
+            .addOtherStructurePart(
+                StatCollector.translateToLocal("GT5U.tooltip.structure.lens_indicator"),
+                EnumChatFormatting.GOLD + "1",
+                3)
             .toolTipFinisher(AuthorNotAPenguin);
         return tt;
     }
@@ -358,7 +364,7 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
         if (timeUntilNextSwap > 0) {
             timeUntilNextSwap -= 1;
             // Set the indicator to not output a signal for now
-            lensIndicator.updateRedstoneOutput(false);
+            if (lensIndicator != null) lensIndicator.updateRedstoneOutput(false);
 
             // If we are counting down to the next swap, and there is no correct lens in the bus, we removed a lens
             // too early
@@ -380,7 +386,7 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
         // Time until next swap is zero, this means we are waiting for the user to output a lens.
         else if (timeUntilNextSwap == 0) {
             // Set the indicator to output a signal
-            lensIndicator.updateRedstoneOutput(true);
+            if (lensIndicator != null) lensIndicator.updateRedstoneOutput(true);
 
             // If we now have a matching lens, we can accept it and move on to the next swap
             if (currentLens != null && currentLens.isItemEqual(lensCycle.current())) {
@@ -388,11 +394,6 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
                 timeUntilNextSwap = generateNextSwapTime();
             }
         }
-    }
-
-    @Override
-    public boolean isCorrectMachinePart(ItemStack aStack) {
-        return true;
     }
 
     @Override
@@ -415,13 +416,18 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
     public String[] getInfoData() {
         ArrayList<String> infoData = new ArrayList<>(Arrays.asList(super.getInfoData()));
         if (this.lensCycle != null) {
-            infoData.add("Lens swaps performed this run: " + EnumChatFormatting.YELLOW + numSwapsPerformed);
             infoData.add(
-                "Current lens requested: " + EnumChatFormatting.GREEN
-                    + lensCycle.current()
-                        .getDisplayName());
+                StatCollector.translateToLocalFormatted(
+                    "GT5U.infodata.purification_unit_uv_treatment.lens_swaps",
+                    "" + EnumChatFormatting.YELLOW + numSwapsPerformed));
+            infoData.add(
+                StatCollector.translateToLocalFormatted(
+                    "GT5U.infodata.purification_unit_uv_treatment.lens_requested",
+                    EnumChatFormatting.GREEN + lensCycle.current()
+                        .getDisplayName()));
             if (removedTooEarly) {
-                infoData.add("Removed lens too early. Failing this recipe.");
+                infoData.add(
+                    StatCollector.translateToLocal("GT5U.infodata.purification_unit_uv_treatment.removed_too_early"));
             }
         }
         return infoData.toArray(new String[] {});
@@ -482,7 +488,7 @@ public class MTEPurificationUnitUVTreatment extends MTEPurificationUnitBase<MTEP
             }
         },
 
-        LensIndicator(MTEPurificationUnitUVTreatment::addLensIndicatorToMachineList, MTEHatchLensHousing.class) {
+        LensIndicator(MTEPurificationUnitUVTreatment::addLensIndicatorToMachineList, MTEHatchLensIndicator.class) {
 
             @Override
             public long count(MTEPurificationUnitUVTreatment gtMetaTileEntityPurificationUnitUVTreatment) {
